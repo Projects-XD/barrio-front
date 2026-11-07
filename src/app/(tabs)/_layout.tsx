@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Tabs, usePathname } from 'expo-router';
+import { ChatFab } from '@/components/ChatFab';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEmergencyState } from '@/hooks/useData';
@@ -22,6 +23,8 @@ export default function TabsLayout() {
   const p = usePalette();
   const insets = useSafeAreaInsets();
   const { data: emergency } = useEmergencyState();
+  const pathname = usePathname();
+  const enPerfil = pathname.endsWith('/perfil');
 
   const bottomPadding = Math.max(insets.bottom, 12);
   const totalBarHeight = 60 + bottomPadding;
@@ -84,6 +87,7 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
+      {enPerfil ? null : <ChatFab bottomOffset={totalBarHeight + 12} />}
     </View>
   );
 }
