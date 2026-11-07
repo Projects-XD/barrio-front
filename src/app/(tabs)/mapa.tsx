@@ -113,6 +113,7 @@ export default function MapaBarrio() {
   const [modalFiltros, setModalFiltros] = useState(false);
   const [modalLista, setModalLista] = useState(false);
   const [modalPublicar, setModalPublicar] = useState(false);
+  const [modalPunto, setModalPunto] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fitTrigger, setFitTrigger] = useState(0);
 
@@ -608,7 +609,10 @@ export default function MapaBarrio() {
               userLocation={userLocation}
               userFocusTrigger={userFocusTrigger}
               fitTrigger={fitTrigger}
-              onPointPress={(id) => setSelectedId(id)}
+              onPointPress={(id) => {
+                setSelectedId(id);
+                setModalPunto(true);
+              }}
               onMapClear={() => setSelectedId(null)}
             />
 
@@ -1080,6 +1084,75 @@ export default function MapaBarrio() {
       </Modal>
 
       {/* VENTANA FLOTANTE DE RESULTADOS EN LISTA RÁPIDA (Móvil) */}
+      <Modal
+        visible={modalPunto && selectedEntry !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalPunto(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setModalPunto(false)}>
+          <Pressable onPress={() => {}} style={styles.floatingSheet}>
+            {selectedEntry ? (
+              <>
+                <View style={styles.sheetHeader}>
+                  {(() => {
+                    const b = badgeConfig(selectedEntry.kind);
+                    return (
+                      <View style={[styles.previewKindBadge, { backgroundColor: b.bg }]}>
+                        <View style={[styles.dot, { backgroundColor: b.dot }]} />
+                        <Text style={[styles.previewKindText, { color: b.fg }]}>{b.text}</Text>
+                      </View>
+                    );
+                  })()}
+                  <Pressable onPress={() => setModalPunto(false)} hitSlop={8}>
+                    <Ionicons name="close-circle" size={26} color={colors.gris} />
+                  </Pressable>
+                </View>
+
+                <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                  <Text style={[styles.previewCategory, { color: p.muted }]}>{selectedEntry.categoryLabel}</Text>
+                  <Text style={[styles.previewTitle, { color: p.text }]}>{selectedEntry.title}</Text>
+                  {selectedEntry.subtitle ? (
+                    <Text style={[styles.previewSubtitle, { color: p.text }]}>{selectedEntry.subtitle}</Text>
+                  ) : null}
+                  <Text style={[styles.previewMeta, { color: p.muted }]}>
+                    Publicado por {selectedEntry.authorName}
+                    {selectedEntry.createdAt ? ` · ${timeAgo(selectedEntry.createdAt)}` : ''}
+                  </Text>
+                  <View style={[styles.previewActions, { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }]}>
+                    {selectedEntry.urgency ? <UrgencyBadge urgency={selectedEntry.urgency} /> : null}
+                    {selectedEntry.distanceMeters != null ? (
+                      <View style={styles.distancePill}>
+                        <Ionicons name="walk-outline" size={13} color={colors.azul} />
+                        <Text style={styles.distancePillText}>{formatDistance(selectedEntry.distanceMeters)}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </ScrollView>
+
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setModalPunto(false);
+                    abrirDetalleEntry(selectedEntry);
+                  }}
+                  style={[styles.previewPrimaryBtn, { backgroundColor: p.cta, marginTop: spacing.md }]}
+                >
+                  <Text style={[styles.previewPrimaryText, { color: p.ctaText }]}>
+                    {selectedEntry.kind === 'oficio'
+                      ? 'Ver perfil del oficio'
+                      : selectedEntry.kind === 'emergencia'
+                        ? 'Ver panel de emergencia'
+                        : 'Ver detalle del favor'}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={18} color={p.ctaText} />
+                </Pressable>
+              </>
+            ) : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <Modal
         visible={modalLista}
         transparent
