@@ -15,6 +15,9 @@ const DAILY_LIMIT_ENABLED = false;
 const DAILY_FAVOR_LIMIT_BASE = 5;
 const DAILY_FAVOR_LIMIT_TRUSTED = 15;
 const TRUSTED_REPUTATION_THRESHOLD = 3;
+// Lo que usa la app en las listas; el detalle (GET /favors/:id) sigue trayendo la fila completa.
+const FAVOR_LIST_COLUMNS =
+  'id, author_id, zone_id, type, title, description, status, client_id, created_at, urgency, moderation_status, moderation_reason, assigned_to_user_id, location_lat, location_lng';
 
 const isWithinEditWindow = (createdAt: string) =>
   Date.now() - new Date(createdAt).getTime() <= EDIT_WINDOW_MS;
@@ -55,7 +58,7 @@ export class FavorService {
 
     let query = supabase
       .from('favors')
-      .select('*, author:users!favors_author_id_fkey(id, full_name, avatar_url)')
+      .select(`${FAVOR_LIST_COLUMNS}, author:users!favors_author_id_fkey(id, full_name, avatar_url)`)
       .eq('zone_id', zoneId)
       .in('status', ['abierta', 'en_curso'])
       .is('deleted_at', null)
@@ -536,14 +539,20 @@ export class FavorService {
       new Set((allReports ?? []).map((r) => r.reporter_user_id))
     );
 
+    const { data: closedFavors } = await supabase
+      .from('favors')
+      .select('author_id')
+      .in('author_id', uniqueReporters)
+      .eq('status', 'cerrada');
+
+    const closedByReporter = new Map<string, number>();
+    for (const { author_id } of closedFavors ?? []) {
+      closedByReporter.set(author_id, (closedByReporter.get(author_id) ?? 0) + 1);
+    }
+
     let totalPoints = 0;
     for (const reporterId of uniqueReporters) {
-      const { count } = await supabase
-        .from('favors')
-        .select('id', { count: 'exact', head: true })
-        .eq('author_id', reporterId)
-        .eq('status', 'cerrada');
-      totalPoints += (count ?? 0) >= TRUSTED_REPUTATION_THRESHOLD ? 2 : 1;
+      totalPoints += (closedByReporter.get(reporterId) ?? 0) >= TRUSTED_REPUTATION_THRESHOLD ? 2 : 1;
     }
 
     let hidden = favor.moderation_status === 'rechazado';
