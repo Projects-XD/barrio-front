@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
@@ -7,6 +7,7 @@ import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
+import { SkeletonFavorDetalle } from '@/components/SkeletonFavores';
 import { StatusBanner } from '@/components/StatusBanner';
 import { UrgencyBadge } from '@/components/UrgencyBadge';
 import { usePalette } from '@/hooks/usePalette';
@@ -68,7 +69,7 @@ export default function FavorDetalle() {
   if (isLoading) {
     return (
       <Screen>
-        <ActivityIndicator size="large" color={p.primary} style={{ marginTop: spacing.xl }} />
+        <SkeletonFavorDetalle />
       </Screen>
     );
   }

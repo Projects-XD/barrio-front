@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { FavorCard } from '@/components/FavorCard';
 import { Screen } from '@/components/Screen';
 import { SectionHeader } from '@/components/SectionHeader';
+import { SkeletonFavores } from '@/components/SkeletonFavores';
 import { StatusBanner } from '@/components/StatusBanner';
 import { usePalette } from '@/hooks/usePalette';
 import { useFavors, useUnreadNotificationCount, useZones } from '@/hooks/useData';
@@ -161,7 +162,9 @@ export default function Inicio() {
             onPress={f.syncStatus === 'enviado' ? () => router.push(`/favores/${f.id}`) : undefined}
           />
         ))
-      ) : isLoading ? null : isError ? (
+      ) : isLoading ? (
+        <SkeletonFavores count={2} />
+      ) : isError ? (
         <>
           <EmptyState
             icon="cloud-offline-outline"
