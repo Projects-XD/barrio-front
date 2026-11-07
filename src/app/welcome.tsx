@@ -156,7 +156,7 @@ export default function Welcome() {
         <SafeAreaView edges={['top']} style={styles.topSafeArea}>
           <View style={styles.header}>
             <Image source={logoBarrio} style={styles.logo} resizeMode="contain" />
-            <Pressable onPress={handleSkip} hitSlop={16} style={styles.skipBtn}>
+            <Pressable accessibilityRole="button" onPress={handleSkip} hitSlop={16} style={styles.skipBtn}>
               <Text style={styles.skipText}>{isLoggedIn ? 'Cerrar' : 'Saltar'}</Text>
             </Pressable>
           </View>
@@ -214,6 +214,7 @@ export default function Welcome() {
                 const active = i === currentIndex;
                 return (
                   <Pressable
+                    accessibilityRole="button"
                     key={item.id}
                     onPress={() => goToSlide(i)}
                     hitSlop={8}
@@ -229,6 +230,7 @@ export default function Welcome() {
             </View>
 
             <Pressable
+              accessibilityRole="button"
               onPress={handleNext}
               style={({ pressed }) => [
                 styles.ctaButton,

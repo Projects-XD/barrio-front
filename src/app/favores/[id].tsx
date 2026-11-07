@@ -360,7 +360,7 @@ export default function FavorDetalle() {
 
       {/* Menú contextual (⋮): todas las acciones secundarias del favor */}
       <Modal visible={menuAbierto} transparent animationType="fade" onRequestClose={() => setMenuAbierto(false)}>
-        <Pressable style={styles.overlay} onPress={() => setMenuAbierto(false)}>
+        <Pressable accessibilityRole="button" style={styles.overlay} onPress={() => setMenuAbierto(false)}>
           <Pressable onPress={() => {}} style={styles.menuCard}>
             <Text style={[styles.menuTitulo, { color: p.text }]}>Opciones del favor</Text>
 
@@ -432,7 +432,7 @@ export default function FavorDetalle() {
         animationType="fade"
         onRequestClose={() => setModalResolver(null)}
       >
-        <Pressable style={styles.overlay} onPress={() => setModalResolver(null)}>
+        <Pressable accessibilityRole="button" style={styles.overlay} onPress={() => setModalResolver(null)}>
           <Pressable onPress={() => {}} style={styles.tarjeta}>
             <Text style={[styles.modalTitulo, { color: p.text }]}>¿Se resolvió tu favor?</Text>
             <Text style={[styles.modalTexto, { color: p.body }]}>
@@ -486,7 +486,7 @@ export default function FavorDetalle() {
       </Modal>
 
       <Modal visible={editando} transparent animationType="slide" onRequestClose={() => setEditando(false)}>
-        <Pressable style={styles.hoja} onPress={() => setEditando(false)}>
+        <Pressable accessibilityRole="button" style={styles.hoja} onPress={() => setEditando(false)}>
           <Pressable onPress={() => {}} style={styles.hojaTarjeta}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.modalTitulo, { color: p.text }]}>Editar favor</Text>
@@ -541,7 +541,7 @@ export default function FavorDetalle() {
       </Modal>
 
       <Modal visible={confirmandoBaja} transparent animationType="fade" onRequestClose={() => setConfirmandoBaja(false)}>
-        <Pressable style={styles.overlay} onPress={() => setConfirmandoBaja(false)}>
+        <Pressable accessibilityRole="button" style={styles.overlay} onPress={() => setConfirmandoBaja(false)}>
           <Pressable onPress={() => {}} style={styles.tarjeta}>
             <Text style={[styles.modalTitulo, { color: p.text }]}>¿Eliminar este favor?</Text>
             <Text style={[styles.modalTexto, { color: p.body }]}>
@@ -565,7 +565,7 @@ export default function FavorDetalle() {
 
       {/* Modal de reporte compatible con Web y Móvil */}
       <Modal visible={reportando} transparent animationType="fade" onRequestClose={() => setReportando(false)}>
-        <Pressable style={styles.overlay} onPress={() => setReportando(false)}>
+        <Pressable accessibilityRole="button" style={styles.overlay} onPress={() => setReportando(false)}>
           <Pressable onPress={() => {}} style={styles.tarjeta}>
             {reporteEnviado ? (
               <>

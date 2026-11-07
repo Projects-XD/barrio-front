@@ -215,6 +215,7 @@ export default function Oficios() {
             totalPaginas > 1 ? (
               <View style={styles.paginationRow}>
                 <Pressable
+                  accessibilityRole="button"
                   disabled={paginaActual === 1}
                   onPress={() => setPagina((p) => Math.max(1, p - 1))}
                   style={[
@@ -233,6 +234,7 @@ export default function Oficios() {
                 </Text>
 
                 <Pressable
+                  accessibilityRole="button"
                   disabled={paginaActual === totalPaginas}
                   onPress={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
                   style={[
