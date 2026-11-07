@@ -73,7 +73,7 @@ export default function Register() {
         setLocStatus('notfound');
       }
     } catch (err: any) {
-      logger.warn('AUTH_REGISTER', 'No se pudo obtener la ubicaciÃ³n', err);
+      logger.warn('AUTH_REGISTER', 'No se pudo obtener la ubicación', err);
       setLocStatus('notfound');
     }
   };
@@ -95,8 +95,8 @@ export default function Register() {
 
     try {
       if (mode === 'login') {
-        logger.info('AUTH_LOGIN', `Iniciando sesiÃ³n para: ${cleanEmail}`);
-        // 1. Iniciar sesiÃ³n directamente contra Supabase Auth
+        logger.info('AUTH_LOGIN', `Iniciando sesión para: ${cleanEmail}`);
+        // 1. Iniciar sesión directamente contra Supabase Auth
         const { data, error } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
           password,
@@ -108,8 +108,8 @@ export default function Register() {
         }
 
         if (!data.session || !data.user) {
-          const sessionErr = new Error('No se pudo establecer la sesiÃ³n del usuario.');
-          logger.error('AUTH_LOGIN', 'supabase.auth.signInWithPassword no devolviÃ³ sesiÃ³n vÃ¡lida', { data });
+          const sessionErr = new Error('No se pudo establecer la sesión del usuario.');
+          logger.error('AUTH_LOGIN', 'supabase.auth.signInWithPassword no devolvió sesión válida', { data });
           throw sessionErr;
         }
 
@@ -132,7 +132,7 @@ export default function Register() {
 
         const effectiveZoneId = userZoneId || zonaSeleccionada?.id || '';
 
-        // Guardar sesiÃ³n en el store
+        // Guardar sesión en el store
         setSession({
           token: data.session.access_token,
           userId: data.user.id,
@@ -141,7 +141,7 @@ export default function Register() {
           userEmail: data.user.email,
         });
 
-        logger.info('AUTH_LOGIN', `SesiÃ³n iniciada exitosamente para ${cleanEmail} en zona ${effectiveZoneId}`);
+        logger.info('AUTH_LOGIN', `Sesión iniciada exitosamente para ${cleanEmail} en zona ${effectiveZoneId}`);
         router.replace('/(tabs)/inicio');
       } else {
         // 2. Registro de nuevo usuario contra Supabase Auth
@@ -161,23 +161,23 @@ export default function Register() {
           },
         });
 
-        // REQUISITO CRÃTICO: Si Supabase devuelve error, arrojarlo explÃ­citamente para detener el flujo
+        // REQUISITO CRÍTICO: Si Supabase devuelve error, arrojarlo explícitamente para detener el flujo
         if (error) {
           logger.error('AUTH_REGISTER', `Error devuelto por supabase.auth.signUp para ${cleanEmail}`, error);
           throw error;
         }
 
-        // Caso borde de Supabase: Si el usuario ya existe en Supabase y confirmaciÃ³n estÃ¡ activa,
-        // Supabase no devuelve error pero data.user?.identities estÃ¡ vacÃ­o []
+        // Caso borde de Supabase: Si el usuario ya existe en Supabase y confirmación está activa,
+        // Supabase no devuelve error pero data.user?.identities está vacío []
         if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-          const duplicateErr = new Error('Este correo ya estÃ¡ registrado en Barrio. Por favor ingresa a la pestaÃ±a "Iniciar sesiÃ³n".');
+          const duplicateErr = new Error('Este correo ya está registrado en Barrio. Por favor ingresa a la pestaña "Iniciar sesión".');
           logger.warn('AUTH_REGISTER', `Intento de registrar correo ya existente: ${cleanEmail}`);
           throw duplicateErr;
         }
 
         if (!data.user) {
           const noUserErr = new Error('No se pudo completar el registro de la cuenta.');
-          logger.error('AUTH_REGISTER', 'supabase.auth.signUp retornÃ³ data sin usuario', { data });
+          logger.error('AUTH_REGISTER', 'supabase.auth.signUp retornó data sin usuario', { data });
           throw noUserErr;
         }
 
@@ -185,7 +185,7 @@ export default function Register() {
           hasSession: Boolean(data.session),
         });
 
-        // Si Supabase devuelve sesiÃ³n inmediata (auto-confirm activo)
+        // Si Supabase devuelve sesión inmediata (auto-confirm activo)
         if (data.session) {
           // Asegurar que el registro en public.users exista
           try {
@@ -197,7 +197,7 @@ export default function Register() {
             });
             logger.debug('AUTH_REGISTER', `Registro en public.users asegurado para ${data.user.id}`);
           } catch (upsertErr: any) {
-            logger.warn('AUTH_REGISTER', 'Aviso al insertar en public.users (serÃ¡ manejado por el trigger SQL)', upsertErr);
+            logger.warn('AUTH_REGISTER', 'Aviso al insertar en public.users (será manejado por el trigger SQL)', upsertErr);
           }
 
           setSession({
@@ -208,26 +208,26 @@ export default function Register() {
             userEmail: cleanEmail,
           });
 
-          logger.info('AUTH_REGISTER', `Registro completado y sesiÃ³n establecida para ${cleanEmail}`);
+          logger.info('AUTH_REGISTER', `Registro completado y sesión establecida para ${cleanEmail}`);
           router.replace('/(tabs)/inicio');
         } else {
           // Si el proyecto requiere confirmar correo
-          logger.info('AUTH_REGISTER', `Registro completado. Esperando confirmaciÃ³n de correo para ${cleanEmail}`);
+          logger.info('AUTH_REGISTER', `Registro completado. Esperando confirmación de correo para ${cleanEmail}`);
           Alert.alert(
-            'Â¡Cuenta creada!',
+            '¡Cuenta creada!',
             'Revisa tu bandeja de entrada para verificar tu correo antes de ingresar.',
             [{ text: 'Entendido', onPress: () => setMode('login') }]
           );
         }
       }
     } catch (err: any) {
-      const msg = err.message || 'OcurriÃ³ un error inesperado al autenticar.';
-      logger.error('AUTH_ERROR', `Fallo capturado en autenticaciÃ³n (${mode}) para ${cleanEmail}`, {
+      const msg = err.message || 'Ocurrió un error inesperado al autenticar.';
+      logger.error('AUTH_ERROR', `Fallo capturado en autenticación (${mode}) para ${cleanEmail}`, {
         error: err,
         message: msg,
       });
       setErrorMsg(msg);
-      Alert.alert('Error de AutenticaciÃ³n', msg);
+      Alert.alert('Error de Autenticación', msg);
     } finally {
       setIsLoading(false);
     }
@@ -238,12 +238,12 @@ export default function Register() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={[styles.titulo, { color: p.text }]}>
-            {mode === 'login' ? 'Bienvenido a Barrio' : 'Ãšnete a tu Barrio'}
+            {mode === 'login' ? 'Bienvenido a Barrio' : 'Únete a tu Barrio'}
           </Text>
           <Text style={[styles.sub, { color: p.muted }]}>
             {mode === 'login'
               ? 'Ingresa tus credenciales para conectar con tu comunidad.'
-              : 'ConÃ©ctate con tus vecinos de forma cercana, transparente y segura.'}
+              : 'Conéctate con tus vecinos de forma cercana, transparente y segura.'}
           </Text>
         </View>
 
@@ -267,7 +267,7 @@ export default function Register() {
                 mode === 'login' && styles.tabTextActive,
               ]}
             >
-              Iniciar sesiÃ³n
+              Iniciar sesión
             </Text>
           </Pressable>
 
@@ -307,7 +307,7 @@ export default function Register() {
               <TextInput
                 value={nombre}
                 onChangeText={setNombre}
-                placeholder="Ej. Alexander GarcÃ­a"
+                placeholder="Ej. Alexander García"
                 placeholderTextColor={colors.gris}
                 autoCapitalize="words"
                 style={[
@@ -318,7 +318,7 @@ export default function Register() {
             </>
           ) : null}
 
-          <Text style={[styles.label, { color: p.text }]}>Correo electrÃ³nico</Text>
+          <Text style={[styles.label, { color: p.text }]}>Correo electrónico</Text>
           <TextInput
             value={email}
             onChangeText={setEmail}
@@ -333,11 +333,11 @@ export default function Register() {
             ]}
           />
 
-          <Text style={[styles.label, { color: p.text }]}>ContraseÃ±a</Text>
+          <Text style={[styles.label, { color: p.text }]}>Contraseña</Text>
           <TextInput
             value={password}
             onChangeText={setPassword}
-            placeholder="MÃ­nimo 6 caracteres"
+            placeholder="Mínimo 6 caracteres"
             placeholderTextColor={colors.gris}
             secureTextEntry
             style={[
@@ -350,18 +350,18 @@ export default function Register() {
             <>
               <Text style={[styles.label, { color: p.text }]}>Tu zona o barrio</Text>
               <AppButton
-                label={locStatus === 'loading' ? 'Buscando tu ubicaciÃ³n...' : 'Usar mi ubicaciÃ³n'}
+                label={locStatus === 'loading' ? 'Buscando tu ubicación...' : 'Usar mi ubicación'}
                 variant="secondary"
                 onPress={detectZone}
                 disabled={locStatus === 'loading'}
               />
               {locStatus === 'found' ? (
-                <Text style={[styles.privacyNote, { color: p.primary }]}>Detectamos tu zona: {zonaSeleccionada?.name}. Tu ubicaciÃ³n exacta no se guarda.</Text>
+                <Text style={[styles.privacyNote, { color: p.primary }]}>Detectamos tu zona: {zonaSeleccionada?.name}. Tu ubicación exacta no se guarda.</Text>
               ) : null}
               {locStatus === 'denied' ? (
                 <>
-                <Text style={[styles.privacyNote, { color: p.muted }]}>Sin permiso de ubicaciÃ³n. Elige tu zona abajo.</Text>
-                <AppButton label="Abrir ajustes de ubicaciÃ³n" variant="link" onPress={openLocationSettings} />
+                <Text style={[styles.privacyNote, { color: p.muted }]}>Sin permiso de ubicación. Elige tu zona abajo.</Text>
+                <AppButton label="Abrir ajustes de ubicación" variant="link" onPress={openLocationSettings} />
               </>
               ) : null}
               {locStatus === 'notfound' ? (
@@ -383,7 +383,7 @@ export default function Register() {
               {zonesQuery.isError ? (
                 <>
                   <Text style={[styles.privacyNote, { color: colors.rojo }]}>
-                    No pudimos cargar las zonas. Revisa que el servidor estÃ© encendido.
+                    No pudimos cargar las zonas. Revisa que el servidor esté encendido.
                   </Text>
                   <AppButton label="Reintentar" variant="link" onPress={() => zonesQuery.refetch()} />
                 </>
@@ -394,7 +394,7 @@ export default function Register() {
 
         <View style={styles.footer}>
           <Text style={[styles.privacyNote, { color: p.muted }]}>
-            Tus datos vecinales estÃ¡n protegidos mediante autenticaciÃ³n segura Supabase.
+            Tus datos vecinales están protegidos mediante autenticación segura Supabase.
           </Text>
 
           {isLoading ? (
