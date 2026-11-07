@@ -28,9 +28,11 @@ import {
   useMyProfile,
   useMyProfiles,
   useMySavedLocation,
+  useOutboxPending,
   useUpsertMyProfile,
   useZones,
 } from '@/hooks/useData';
+import { flushOutbox } from '@/offline/sync';
 import { oficioIcon } from '@/i18n/icons';
 import { oficioLabel } from '@/i18n/labels';
 import type { OficioCategory, ProfessionalProfile } from '@/types';
@@ -38,17 +40,26 @@ import { colors, fonts, radius, spacing } from '@/theme';
 
 const categorias = Object.keys(oficioLabel) as OficioCategory[];
 
-// Oculto para la demo final. Pon en __DEV__ para recuperar los interruptores de prueba.
-const SHOW_DEMO_TOOLS = false;
+const MOTIVOS_EMERGENCIA = [
+  'Lluvias intensas e inundación',
+  'Corte masivo de agua',
+  'Alerta sísmica barrial',
+] as const;
 
 export default function Perfil() {
   const p = usePalette();
   const simulatedEmergency = useAppStore((s) => s.simulatedEmergency);
   const serverEmergency = useAppStore((s) => s.serverEmergency);
   const setSimulatedEmergency = useAppStore((s) => s.setSimulatedEmergency);
+  const emergencyReason = useAppStore((s) => s.emergencyReason);
+  const setEmergencyReason = useAppStore((s) => s.setEmergencyReason);
+  const simulatedOffline = useAppStore((s) => s.simulatedOffline);
+  const setSimulatedOffline = useAppStore((s) => s.setSimulatedOffline);
   const isOnline = useAppStore((s) => s.isOnline);
-  const setOnline = useAppStore((s) => s.setOnline);
   const clearSession = useAppStore((s) => s.clearSession);
+  const { data: pendingOutbox = [], refetch: refetchOutbox } = useOutboxPending();
+  const [sincronizando, setSincronizando] = useState(false);
+  const [syncMensaje, setSyncMensaje] = useState<string | null>(null);
   const userId = useAppStore((s) => s.userId);
   const zoneId = useAppStore((s) => s.zoneId);
   const userFullName = useAppStore((s) => s.userFullName) || 'Vecino';
@@ -285,32 +296,104 @@ export default function Perfil() {
         ))
       )}
 
-      {/* Sección: Simulaciones del Reto */}
-      {SHOW_DEMO_TOOLS ? (
-        <>
-          <Text style={[styles.seccionLabel, { color: p.text, marginTop: spacing.md }]}>
-            Simulaciones del Reto (Hackathon)
-          </Text>
-          <Card>
-            <ToggleRow
-              label="Simular modo emergencia"
-              value={simulatedEmergency}
-              onChange={setSimulatedEmergency}
-            />
-            {serverEmergency ? (
-              <Text style={[styles.sinOficioTexto, { color: colors.rojo }]}>
-                Tu zona está en emergencia real según el sistema.
+      {/* Panel de Resiliencia y Demostración en Vivo (Emergencia + Cola Offline) */}
+      <Text style={[styles.seccionLabel, { color: p.text, marginTop: spacing.md, marginBottom: 8 }]}>
+        Resiliencia y modo sin señal
+      </Text>
+      <Card>
+        <ToggleRow
+          label="Activar modo emergencia barrial"
+          value={simulatedEmergency || serverEmergency}
+          onChange={(val) => {
+            setSimulatedEmergency(val);
+          }}
+        />
+        {simulatedEmergency || serverEmergency ? (
+          <View style={styles.demoSubBox}>
+            <Text style={[styles.demoSubLabel, { color: p.muted }]}>Motivo activo en el barrio:</Text>
+            <View style={styles.catChips}>
+              {MOTIVOS_EMERGENCIA.map((motivo) => (
+                <Chip
+                  key={motivo}
+                  label={motivo}
+                  selected={emergencyReason === motivo}
+                  onPress={() => setEmergencyReason(motivo)}
+                />
+              ))}
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/emergencia')}
+              style={styles.demoLinkRow}
+            >
+              <Text style={[styles.demoLinkText, { color: colors.rojo }]}>
+                Abrir panel de emergencia y brigadas
               </Text>
+              <Ionicons name="arrow-forward" size={15} color={colors.rojo} />
+            </Pressable>
+          </View>
+        ) : null}
+
+        <View style={styles.separador} />
+
+        <ToggleRow
+          label="Simular modo sin señal (Offline)"
+          value={simulatedOffline || !isOnline}
+          onChange={(offlineActivo) => {
+            setSyncMensaje(null);
+            setSimulatedOffline(offlineActivo);
+            void refetchOutbox();
+          }}
+        />
+
+        <View style={styles.outboxStatusBox}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.outboxStatusTitle, { color: p.text }]}>
+              {pendingOutbox.length > 0
+                ? `${pendingOutbox.length} ${pendingOutbox.length === 1 ? 'publicación guardada' : 'publicaciones guardadas'} en cola local`
+                : 'Cola local sincronizada (0 pendientes)'}
+            </Text>
+            <Text style={[styles.outboxStatusSub, { color: p.muted }]}>
+              {!isOnline
+                ? 'Sin señal: los favores o reportes que publiques ahora se guardarán en el dispositivo.'
+                : pendingOutbox.length > 0
+                  ? 'Hay envíos listos para subirse al servidor.'
+                  : 'Tus publicaciones se envían en tiempo real.'}
+            </Text>
+            {syncMensaje ? (
+              <Text style={[styles.syncFeedbackText, { color: colors.verdeExito }]}>{syncMensaje}</Text>
             ) : null}
-            <View style={styles.separador} />
-            <ToggleRow
-              label="Simular modo sin conexión"
-              value={!isOnline}
-              onChange={(v) => setOnline(!v)}
-            />
-          </Card>
-        </>
-      ) : null}
+          </View>
+          {!isOnline || pendingOutbox.length > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={sincronizando}
+              onPress={async () => {
+                setSincronizando(true);
+                setSyncMensaje(null);
+                try {
+                  setSimulatedOffline(false);
+                  const enviados = await flushOutbox();
+                  await refetchOutbox();
+                  setSyncMensaje(
+                    enviados > 0
+                      ? `Se sincronizaron ${enviados} ${enviados === 1 ? 'registro' : 'registros'} con el barrio.`
+                      : 'Conexión restablecida y cola sincronizada.',
+                  );
+                } finally {
+                  setSincronizando(false);
+                }
+              }}
+              style={[styles.syncNowBtn, { backgroundColor: colors.azul }]}
+            >
+              <Ionicons name="cloud-upload-outline" size={15} color={colors.blanco} />
+              <Text style={styles.syncNowBtnText}>
+                {sincronizando ? 'Sincronizando...' : 'Reconectar y enviar'}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </Card>
 
       {/* Ajustes rápidos minimalistas */}
       <Text style={[styles.seccionLabel, { color: p.text, marginTop: spacing.md, marginBottom: 8 }]}>
@@ -760,6 +843,65 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   separador: { height: 1, backgroundColor: colors.grisBorde, marginVertical: 8 },
+  demoSubBox: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.grisBorde,
+  },
+  demoSubLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  demoLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+    paddingVertical: 4,
+  },
+  demoLinkText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+  },
+  outboxStatusBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.grisBorde,
+  },
+  outboxStatusTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+  },
+  outboxStatusSub: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  syncFeedbackText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  syncNowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+  },
+  syncNowBtnText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    color: colors.blanco,
+  },
   contextSheet: {
     backgroundColor: colors.blanco,
     borderRadius: radius.xl,

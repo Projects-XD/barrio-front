@@ -12,18 +12,19 @@ let flushAgain = false;
 
 const isTransient = (status: number) => status === 0 || status === 401 || status >= 500;
 
-export async function flushOutbox() {
+export async function flushOutbox(): Promise<number> {
   const { isOnline, token } = useAppStore.getState();
-  if (!isOnline || !token) return;
+  if (!isOnline || !token) return 0;
   if (flushing) {
     flushAgain = true;
-    return;
+    return 0;
   }
   flushing = true;
 
+  let syncedCount = 0;
   try {
     const pending = await listPending();
-    if (pending.length === 0) return;
+    if (pending.length === 0) return 0;
 
     let results;
     try {
@@ -38,15 +39,16 @@ export async function flushOutbox() {
     } catch (error) {
       // Fallos transitorios (sin red, sesión vencida, servidor caído) se reintentan luego
       // y no consumen intentos: si no, los datos pendientes se perderían sin aviso.
-      if (error instanceof ApiError && isTransient(error.status)) return;
+      if (error instanceof ApiError && isTransient(error.status)) return 0;
       const message = error instanceof Error ? error.message : 'Error al sincronizar';
       await Promise.all(pending.map((op) => markFailed(op.clientId, message)));
-      return;
+      return 0;
     }
 
     for (const result of results) {
       if (result.status === 'enviado') {
         await markSent(result.client_id);
+        syncedCount += 1;
       } else {
         await markFailed(result.client_id, result.error ?? 'Error al sincronizar');
       }
@@ -54,8 +56,10 @@ export async function flushOutbox() {
 
     queryClient.invalidateQueries({ queryKey: ['favors'] });
     queryClient.invalidateQueries({ queryKey: ['reports'] });
+    queryClient.invalidateQueries({ queryKey: ['outboxPending'] });
+    return syncedCount;
   } catch {
-    // Un fallo de SQLite no debe tumbar la app; la cola se reintenta en el siguiente cambio de red.
+    return 0;
   } finally {
     flushing = false;
     if (flushAgain) {

@@ -9,7 +9,7 @@ import { SectionHeader } from '@/components/SectionHeader';
 import { SkeletonFavores } from '@/components/SkeletonFavores';
 import { StatusBanner } from '@/components/StatusBanner';
 import { usePalette } from '@/hooks/usePalette';
-import { useFavors, useUnreadNotificationCount, useZones } from '@/hooks/useData';
+import { useFavors, useProfiles, useUnreadNotificationCount, useZones } from '@/hooks/useData';
 import type { IconName } from '@/i18n/icons';
 import { selectEmergencyActive, useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
@@ -50,14 +50,19 @@ function ActionTile({ title, desc, icon, onPress, tone = 'normal' }: Tile) {
 export default function Inicio() {
   const p = usePalette();
   const emergency = useAppStore(selectEmergencyActive);
+  const emergencyReason = useAppStore((s) => s.emergencyReason);
   const offline = !useAppStore((s) => s.isOnline);
   const zoneId = useAppStore((s) => s.zoneId);
   const firstName = useAppStore((s) => s.userFullName)?.trim().split(' ')[0];
   const { data: zonas = [] } = useZones();
   const { data: favors = [], isLoading, isError, refetch } = useFavors();
+  const { data: profiles = [] } = useProfiles();
   const zona = zonas.find((z) => z.id === zoneId)?.name;
   const { data: unread } = useUnreadNotificationCount();
 
+  const totalFavoresActivos = favors.length;
+  const totalOficiosValidados = profiles.filter((pr) => pr.validatedCount >= 2).length || profiles.length;
+  const totalPuntosBarrio = totalFavoresActivos + profiles.length;
 
   const tiles: Tile[] = emergency
     ? [
@@ -106,9 +111,9 @@ export default function Inicio() {
       {emergency ? (
         <View style={[styles.hero, { backgroundColor: colors.rojo }]}>
           <View style={[styles.heroBlob, { backgroundColor: 'rgba(255,255,255,0.12)' }]} />
-          <Text style={[styles.heroKicker, { color: '#FFE3DC' }]}>Modo emergencia</Text>
-          <Text style={styles.heroTitle}>Tu zona necesita apoyo</Text>
-          <Text style={styles.heroText}>Si es urgente, llama directo:</Text>
+          <Text style={[styles.heroKicker, { color: '#FFE3DC' }]}>Modo emergencia activo</Text>
+          <Text style={styles.heroTitle}>{emergencyReason || 'Tu zona necesita apoyo'}</Text>
+          <Text style={styles.heroText}>Si es urgente, llama directo a las líneas de emergencia:</Text>
           <View style={styles.callRow}>
             {EMERGENCY_PHONES.map((e) => (
               <Pressable
@@ -141,6 +146,36 @@ export default function Inicio() {
           </Pressable>
         </View>
       )}
+
+      {/* Pulso del Barrio: Métricas comunitarias en vivo */}
+      <View style={[styles.pulseStrip, { borderColor: p.border }]}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/(tabs)/favores')}
+          style={styles.pulseMetric}
+        >
+          <Text style={[styles.pulseValue, { color: colors.naranja }]}>{totalFavoresActivos}</Text>
+          <Text style={[styles.pulseLabel, { color: p.muted }]}>Favores activos</Text>
+        </Pressable>
+        <View style={styles.pulseDivider} />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/(tabs)/oficios')}
+          style={styles.pulseMetric}
+        >
+          <Text style={[styles.pulseValue, { color: colors.verdeExito }]}>{totalOficiosValidados}</Text>
+          <Text style={[styles.pulseLabel, { color: p.muted }]}>Oficios del barrio</Text>
+        </Pressable>
+        <View style={styles.pulseDivider} />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/(tabs)/mapa')}
+          style={styles.pulseMetric}
+        >
+          <Text style={[styles.pulseValue, { color: colors.azul }]}>{totalPuntosBarrio}</Text>
+          <Text style={[styles.pulseLabel, { color: p.muted }]}>Puntos en mapa</Text>
+        </Pressable>
+      </View>
 
       <SectionHeader title="¿Qué necesitas?" />
       <View style={styles.grid}>
@@ -230,6 +265,37 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   heroCtaText: { fontFamily: fonts.bold, fontSize: 16, color: colors.azul },
+
+  pulseStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: colors.blanco,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginTop: spacing.md,
+    ...shadow,
+  },
+  pulseMetric: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  pulseValue: {
+    fontFamily: fonts.bold,
+    fontSize: 20,
+  },
+  pulseLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  pulseDivider: {
+    width: 1,
+    height: 26,
+    backgroundColor: colors.grisBorde,
+  },
 
   callRow: { flexDirection: 'row', gap: 8, marginTop: spacing.md },
   callPill: {

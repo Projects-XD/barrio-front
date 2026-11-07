@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -16,13 +16,20 @@ import {
   useDeleteFavor,
   useExpressInterest,
   useFavor,
+  useFavors,
+  useMySavedLocation,
+  useProfiles,
   useReportFavor,
   useUpdateFavor,
 } from '@/hooks/useData';
 import { favorStatusLabel, favorTypeBackground, favorTypeLabel } from '@/i18n/labels';
+import type { IconName } from '@/i18n/icons';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
 import type { FavorType } from '@/types';
+import { formatDistanceAndWalk } from '@/utils/geo';
+import { findMatchesForFavor } from '@/utils/matching';
+import { shareFavorWhatsApp } from '@/utils/share';
 import { timeAgo } from '@/utils/time';
 
 const tipos = Object.keys(favorTypeLabel) as FavorType[];
@@ -33,11 +40,35 @@ const MOTIVOS_REPORTE = [
   { label: 'Contenido ofensivo', reason: 'Contenido ofensivo' },
 ] as const;
 
+function MenuRow({
+  icon,
+  label,
+  onPress,
+  danger = false,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  danger?: boolean;
+}) {
+  const p = usePalette();
+  const color = danger ? colors.rojo : p.text;
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.menuRow}>
+      <Ionicons name={icon} size={20} color={danger ? colors.rojo : colors.azul} />
+      <Text style={[styles.menuRowText, { color }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export default function FavorDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
   const userId = useAppStore((s) => s.userId);
   const { data: favor, isLoading, isError, error, refetch } = useFavor(id);
+  const { data: allProfiles = [] } = useProfiles();
+  const { data: allFavors = [] } = useFavors();
+  const { data: savedLocation } = useMySavedLocation();
   const interes = useExpressInterest(id);
   const actualizar = useUpdateFavor(id);
   const eliminar = useDeleteFavor(id);
@@ -51,6 +82,32 @@ export default function FavorDetalle() {
   const [confirmandoBaja, setConfirmandoBaja] = useState(false);
   const [reportando, setReportando] = useState(false);
   const [reporteEnviado, setReporteEnviado] = useState<{ hidden: boolean } | null>(null);
+  const [modalResolver, setModalResolver] = useState<{ responderId: string | null; responderName: string } | null>(null);
+  const [reconocimientoExito, setReconocimientoExito] = useState<string | null>(null);
+  const [menuAbierto, setMenuAbierto] = useState(false);
+
+  const refCoords = useMemo(
+    () => favor?.location ?? (savedLocation ? { lat: savedLocation.lat, lng: savedLocation.lng } : null),
+    [favor?.location, savedLocation],
+  );
+
+  const sugerencias = useMemo(() => {
+    if (!favor || favor.isDeactivated) return [];
+    const esOferta = /^(ofrezco|ofrece|tengo\s+para\s+prestar|presto|dono|regalo|puedo\s+ayudar|puedo\s+enseñar)/i.test(
+      favor.title,
+    );
+    if (esOferta) return [];
+    return findMatchesForFavor({
+      favorType: favor.type,
+      title: favor.title,
+      description: favor.description,
+      authorId: favor.authorId,
+      referenceCoords: refCoords,
+      profiles: allProfiles,
+      favors: allFavors.filter((f) => f.id !== favor.id),
+      limit: 3,
+    });
+  }, [favor, refCoords, allProfiles, allFavors]);
 
   const abrirReporte = () => {
     reportar.reset();
@@ -88,6 +145,7 @@ export default function FavorDetalle() {
 
   const esMio = favor.authorId === userId;
   const abierto = favor.status === 'abierta' || favor.status === 'en_curso';
+  const resuelto = favor.status === 'cerrada';
 
   const abrirEdicion = () => {
     actualizar.reset();
@@ -104,6 +162,24 @@ export default function FavorDetalle() {
     );
   };
 
+  const confirmarResolucion = () => {
+    if (!modalResolver || actualizar.isPending) return;
+    const helperName = modalResolver.responderName;
+    actualizar.mutate(
+      {
+        status: 'cerrada',
+        ...(modalResolver.responderId ? { assigned_to_user_id: modalResolver.responderId } : {}),
+      },
+      {
+        onSuccess: () => {
+          setModalResolver(null);
+          setReconocimientoExito(helperName);
+          refetch();
+        },
+      },
+    );
+  };
+
   const confirmarBaja = () => {
     eliminar.mutate(undefined, {
       onSuccess: () => {
@@ -115,17 +191,55 @@ export default function FavorDetalle() {
 
   return (
     <Screen>
+      <Stack.Screen
+        options={{
+          title: 'Detalle del favor',
+          headerBackTitle: 'Volver',
+        }}
+      />
       <StatusBanner variant="desactivado" visible={favor.isDeactivated} />
       <StatusBanner variant="revision" visible={!favor.isDeactivated && favor.moderationStatus === 'pendiente'} />
       {esMio && favor.isDeactivated && favor.moderationStatus === 'rechazado' && favor.moderationReason ? (
         <Text style={[styles.motivo, { color: p.body }]}>Motivo del administrador: {favor.moderationReason}</Text>
       ) : null}
 
+      {/* Tarjeta de celebración cuando el favor ya fue resuelto */}
+      {resuelto && !favor.isDeactivated ? (
+        <View style={styles.resolvedBanner}>
+          <View style={styles.resolvedIconCircle}>
+            <Ionicons name="checkmark-circle" size={22} color={colors.verdeExito} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.resolvedTitle}>Favor resuelto en comunidad</Text>
+            <Text style={styles.resolvedSub}>
+              {reconocimientoExito
+                ? `Agradeciste el apoyo solidario de ${reconocimientoExito}.`
+                : 'Este favor se completó gracias al apoyo entre vecinos del barrio.'}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
       {/* El backend vacía el contenido de un favor desactivado salvo para su autor. */}
       {favor.title ? (
         <Card backgroundColor={favorTypeBackground[favor.type]}>
-          {favor.moderationStatus === 'aprobado' ? <UrgencyBadge urgency={favor.urgency} /> : null}
-          <Text style={[styles.tipo, { color: p.muted }]}>{favorTypeLabel[favor.type]}</Text>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.cardHeaderInfo}>
+              {favor.moderationStatus === 'aprobado' ? <UrgencyBadge urgency={favor.urgency} /> : null}
+              <Text style={[styles.tipo, { color: p.muted }]}>{favorTypeLabel[favor.type]}</Text>
+            </View>
+            {!favor.isDeactivated ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Opciones del favor"
+                hitSlop={10}
+                onPress={() => setMenuAbierto(true)}
+                style={styles.cardMenuTrigger}
+              >
+                <Ionicons name="ellipsis-vertical" size={18} color={colors.azul} />
+              </Pressable>
+            ) : null}
+          </View>
           <Text style={[styles.titulo, { color: colors.azul }]}>{favor.title}</Text>
           {favor.description ? <Text style={styles.descripcion}>{favor.description}</Text> : null}
           <View style={styles.meta}>
@@ -143,41 +257,39 @@ export default function FavorDetalle() {
           {conversaciones.data && conversaciones.data.length > 0 ? (
             <View style={{ marginTop: spacing.md }}>
               <Text style={[styles.seccion, { color: p.text }]}>Vecinos que quieren ayudarte</Text>
-              {conversaciones.data.map((c) => (
-                <Card key={c.id} onPress={() => router.push(`/chat/${c.id}`)}>
-                  <View style={styles.vecinoFila}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.vecinoNombre, { color: p.text }]}>
-                        {c.responder?.full_name ?? 'Vecino'}
-                      </Text>
-                      <Text style={[styles.vecinoDetalle, { color: p.muted }]}>
-                        {c.closed_at ? 'Conversación cerrada' : c.last_message_at ? `Último mensaje ${timeAgo(c.last_message_at)}` : 'Aún sin mensajes'}
-                      </Text>
+              {conversaciones.data.map((c) => {
+                const nombreVecino = c.responder?.full_name ?? 'Vecino';
+                return (
+                  <Card key={c.id}>
+                    <View style={styles.vecinoFila}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Abrir chat con ${nombreVecino}`}
+                        onPress={() => router.push(`/chat/${c.id}`)}
+                        style={styles.vecinoMainArea}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.vecinoNombre, { color: p.text }]}>{nombreVecino}</Text>
+                          <Text style={[styles.vecinoDetalle, { color: p.muted }]}>
+                            {c.closed_at
+                              ? 'Conversación cerrada'
+                              : c.last_message_at
+                                ? `Último mensaje ${timeAgo(c.last_message_at)}`
+                                : 'Toca para abrir el chat'}
+                          </Text>
+                        </View>
+                        <Ionicons name="chatbubble-ellipses-outline" size={20} color={p.primary} />
+                      </Pressable>
                     </View>
-                    <Ionicons name="chatbubble-ellipses-outline" size={24} color={p.primary} />
-                  </View>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </View>
           ) : (
             <Text style={[styles.nota, { color: p.muted }]}>
               Esta es tu publicación. Los vecinos que respondan aparecerán aquí para chatear.
             </Text>
           )}
-          <View style={{ marginTop: spacing.md }}>
-            {favor.canEdit ? (
-              <AppButton label="Editar" variant="secondary" icon="create-outline" onPress={abrirEdicion} />
-            ) : null}
-            <AppButton
-              label="Eliminar favor"
-              variant="danger"
-              icon="trash-outline"
-              onPress={() => {
-                eliminar.reset();
-                setConfirmandoBaja(true);
-              }}
-            />
-          </View>
         </>
       ) : favor.hasInterestedByMe ? (
         <>
@@ -213,16 +325,168 @@ export default function FavorDetalle() {
         <Text style={[styles.nota, { color: p.muted }]}>Este favor ya está cerrado.</Text>
       )}
 
-      {!esMio ? (
-        <Pressable accessibilityRole="button" onPress={abrirReporte} style={styles.reportar}>
-          <Ionicons name="flag-outline" size={15} color={p.muted} />
-          <Text style={[styles.reportarTexto, { color: p.muted }]}>Reportar este favor</Text>
-        </Pressable>
+      {/* Emparejamiento Inteligente: Vecinos u oficios cercanos que coinciden con este favor */}
+      {abierto && sugerencias.length > 0 ? (
+        <View style={styles.matchSection}>
+          <Text style={[styles.seccion, { color: p.text, marginBottom: 2 }]}>
+            Vecinos en tu zona que podrían darte una mano
+          </Text>
+          <Text style={[styles.matchSub, { color: p.muted }]}>
+            Sugerencias automáticas según la especialidad y cercanía en tu barrio.
+          </Text>
+          {sugerencias.map((s) => {
+            const distTxt = formatDistanceAndWalk(s.distanceMeters);
+            return (
+              <Card key={s.id} onPress={() => router.push(s.targetRoute as never)}>
+                <View style={styles.matchRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.matchTitle, { color: p.text }]} numberOfLines={1}>
+                      {s.title}
+                    </Text>
+                    <Text style={[styles.matchDesc, { color: p.body }]} numberOfLines={2}>
+                      {s.subtitle}
+                    </Text>
+                    <Text style={[styles.matchMeta, { color: p.muted }]}>
+                      {[s.meta, distTxt].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.gris} />
+                </View>
+              </Card>
+            );
+          })}
+        </View>
       ) : null}
+
+      {/* Menú contextual (⋮): todas las acciones secundarias del favor */}
+      <Modal visible={menuAbierto} transparent animationType="fade" onRequestClose={() => setMenuAbierto(false)}>
+        <Pressable style={styles.overlay} onPress={() => setMenuAbierto(false)}>
+          <Pressable onPress={() => {}} style={styles.menuCard}>
+            <Text style={[styles.menuTitulo, { color: p.text }]}>Opciones del favor</Text>
+
+            {esMio && abierto ? (
+              <MenuRow
+                icon="checkmark-circle-outline"
+                label="Marcar como resuelto"
+                onPress={() => {
+                  setMenuAbierto(false);
+                  const primerVecino = conversaciones.data?.[0];
+                  setModalResolver({
+                    responderId: primerVecino?.responder_id ?? null,
+                    responderName: primerVecino?.responder?.full_name ?? 'tu vecino',
+                  });
+                }}
+              />
+            ) : null}
+            {esMio && abierto && favor.canEdit ? (
+              <MenuRow
+                icon="create-outline"
+                label="Editar favor"
+                onPress={() => {
+                  setMenuAbierto(false);
+                  abrirEdicion();
+                }}
+              />
+            ) : null}
+            <MenuRow
+              icon="logo-whatsapp"
+              label="Compartir en WhatsApp del barrio"
+              onPress={() => {
+                setMenuAbierto(false);
+                shareFavorWhatsApp(favor);
+              }}
+            />
+            {!esMio ? (
+              <MenuRow
+                icon="flag-outline"
+                label="Reportar este favor"
+                onPress={() => {
+                  setMenuAbierto(false);
+                  abrirReporte();
+                }}
+              />
+            ) : null}
+            {esMio ? (
+              <MenuRow
+                icon="trash-outline"
+                label="Eliminar favor"
+                danger
+                onPress={() => {
+                  setMenuAbierto(false);
+                  eliminar.reset();
+                  setConfirmandoBaja(true);
+                }}
+              />
+            ) : null}
+            <View style={{ marginTop: spacing.xs }}>
+              <AppButton label="Cancelar" variant="secondary" onPress={() => setMenuAbierto(false)} />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal para confirmar Cierre de Favor con Reconocimiento Vecinal */}
+      <Modal
+        visible={modalResolver !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalResolver(null)}
+      >
+        <Pressable style={styles.overlay} onPress={() => setModalResolver(null)}>
+          <Pressable onPress={() => {}} style={styles.tarjeta}>
+            <Text style={[styles.modalTitulo, { color: p.text }]}>¿Se resolvió tu favor?</Text>
+            <Text style={[styles.modalTexto, { color: p.body }]}>
+              {modalResolver?.responderId
+                ? `Se marcará como resuelto y enviaremos un reconocimiento vecinal a ${modalResolver.responderName} por su ayuda solidaria.`
+                : 'Tu favor pasará a estado resuelto y sumará al historial positivo de ayuda en tu zona.'}
+            </Text>
+            {(conversaciones.data?.length ?? 0) > 1 ? (
+              <View style={styles.chips}>
+                {conversaciones.data!.map((c) => (
+                  <Chip
+                    key={c.id}
+                    label={c.responder?.full_name ?? 'Vecino'}
+                    selected={modalResolver?.responderId === c.responder_id}
+                    onPress={() =>
+                      setModalResolver({
+                        responderId: c.responder_id,
+                        responderName: c.responder?.full_name ?? 'Vecino',
+                      })
+                    }
+                  />
+                ))}
+              </View>
+            ) : null}
+            {actualizar.error ? (
+              <Text accessibilityRole="alert" style={styles.error}>
+                No se pudo actualizar: {actualizar.error.message}
+              </Text>
+            ) : null}
+            <AppButton
+              label={
+                actualizar.isPending
+                  ? 'Guardando...'
+                  : modalResolver?.responderId
+                    ? `Resolver y agradecer a ${modalResolver.responderName}`
+                    : 'Sí, marcar como resuelto'
+              }
+              variant="accent"
+              icon="checkmark-circle-outline"
+              disabled={actualizar.isPending}
+              onPress={confirmarResolucion}
+            />
+            <AppButton
+              label="Cancelar"
+              variant="secondary"
+              disabled={actualizar.isPending}
+              onPress={() => setModalResolver(null)}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={editando} transparent animationType="slide" onRequestClose={() => setEditando(false)}>
         <Pressable style={styles.hoja} onPress={() => setEditando(false)}>
-          {/* Pressable vacío: los toques dentro de la tarjeta no llegan al fondo que cierra el modal. */}
           <Pressable onPress={() => {}} style={styles.hojaTarjeta}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.modalTitulo, { color: p.text }]}>Editar favor</Text>
@@ -269,7 +533,7 @@ export default function FavorDetalle() {
                   onPress={guardarEdicion}
                   disabled={titulo.trim().length < 3 || actualizar.isPending}
                 />
-                <AppButton label="Cancelar" variant="link" onPress={() => setEditando(false)} />
+                <AppButton label="Cancelar" variant="secondary" onPress={() => setEditando(false)} />
               </View>
             </ScrollView>
           </Pressable>
@@ -344,7 +608,7 @@ export default function FavorDetalle() {
                 ))}
                 <AppButton
                   label="Cancelar"
-                  variant="link"
+                  variant="secondary"
                   disabled={reportar.isPending}
                   onPress={() => setReportando(false)}
                 />
@@ -358,6 +622,67 @@ export default function FavorDetalle() {
 }
 
 const styles = StyleSheet.create({
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  cardHeaderInfo: {
+    flex: 1,
+    paddingRight: spacing.sm,
+  },
+  cardMenuTrigger: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.fondo,
+  },
+  resolvedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.verdeExitoSuave,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  resolvedIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.blanco,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resolvedTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    color: colors.verdeExito,
+  },
+  resolvedSub: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.texto,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  shareRowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(19, 46, 102, 0.1)',
+  },
+  shareRowText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    color: colors.azul,
+  },
   reportar: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', marginTop: spacing.lg, padding: spacing.sm },
   reportarTexto: { fontFamily: fonts.medium, fontSize: 14, textDecorationLine: 'underline' },
   tipo: { fontFamily: fonts.semiBold, fontSize: 14 },
@@ -367,9 +692,53 @@ const styles = StyleSheet.create({
   metaText: { fontFamily: fonts.medium, fontSize: 14, color: colors.texto },
   nota: { fontFamily: fonts.medium, fontSize: 15, textAlign: 'center', marginTop: spacing.md },
   seccion: { fontFamily: fonts.bold, fontSize: 18, marginBottom: spacing.sm },
-  vecinoFila: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  vecinoFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  vecinoMainArea: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   vecinoNombre: { fontFamily: fonts.bold, fontSize: 16 },
   vecinoDetalle: { fontFamily: fonts.regular, fontSize: 14, marginTop: 2 },
+  agradecerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    backgroundColor: colors.verdeExitoSuave,
+  },
+  agradecerPillText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    color: colors.verdeExito,
+  },
+  matchSection: {
+    marginTop: spacing.lg,
+  },
+  matchSub: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    marginBottom: spacing.sm,
+    lineHeight: 18,
+  },
+  matchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  matchTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+  },
+  matchDesc: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  matchMeta: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    marginTop: 4,
+  },
   motivo: { fontFamily: fonts.medium, fontSize: 15, lineHeight: 21, marginBottom: 12 },
   error: { color: colors.rojo, fontSize: 14, fontFamily: fonts.medium, lineHeight: 20, marginBottom: spacing.sm },
   aviso: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, marginTop: spacing.sm },
@@ -395,6 +764,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
 
+  menuCard: { backgroundColor: colors.blanco, borderRadius: radius.xl, padding: spacing.lg, width: '100%', maxWidth: 400, alignSelf: 'center' },
+  menuTitulo: { fontFamily: fonts.bold, fontSize: 18, marginBottom: spacing.xs },
+  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 6 },
+  menuRowText: { fontFamily: fonts.semiBold, fontSize: 15 },
   overlay: { flex: 1, backgroundColor: 'rgba(19, 46, 102, 0.5)', justifyContent: 'center', padding: spacing.lg },
   tarjeta: { backgroundColor: colors.blanco, borderRadius: radius.xl, padding: spacing.lg },
   modalTitulo: { fontFamily: fonts.bold, fontSize: 22, marginBottom: spacing.sm },

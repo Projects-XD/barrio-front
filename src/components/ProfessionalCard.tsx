@@ -4,10 +4,15 @@ import type { ProfessionalProfile } from '@/types';
 import { oficioLabel } from '@/i18n/labels';
 import { usePalette } from '@/hooks/usePalette';
 import { colors, fonts } from '@/theme';
+import { formatDistanceAndWalk } from '@/utils/geo';
 import { Card } from './Card';
 import { ValidationBadge } from './ValidationBadge';
 
-type Props = { profile: ProfessionalProfile; onPress: () => void };
+type Props = {
+  profile: ProfessionalProfile;
+  distanceMeters?: number | null;
+  onPress: () => void;
+};
 
 function initialsOf(name: string) {
   return name
@@ -19,8 +24,9 @@ function initialsOf(name: string) {
     .toUpperCase();
 }
 
-export function ProfessionalCard({ profile, onPress }: Props) {
+export function ProfessionalCard({ profile, distanceMeters, onPress }: Props) {
   const p = usePalette();
+  const distLabel = formatDistanceAndWalk(distanceMeters);
 
   return (
     <Card onPress={onPress}>
@@ -45,12 +51,16 @@ export function ProfessionalCard({ profile, onPress }: Props) {
 
       <View style={styles.footerRow}>
         <ValidationBadge validatedCount={profile.validatedCount} />
-        {profile.yearsExperience ? (
-          <View style={styles.metric}>
-            <Ionicons name="briefcase-outline" size={15} color={colors.gris} />
-            <Text style={[styles.metricText, { color: p.muted }]}>{profile.yearsExperience} años</Text>
-          </View>
-        ) : null}
+        <View style={styles.metricsRight}>
+          {distLabel ? (
+            <Text style={[styles.metricText, { color: p.muted }]}>{distLabel}</Text>
+          ) : null}
+          {profile.yearsExperience ? (
+            <Text style={[styles.metricText, { color: p.muted }]}>
+              {distLabel ? `· ${profile.yearsExperience} años` : `${profile.yearsExperience} años`}
+            </Text>
+          ) : null}
+        </View>
       </View>
     </Card>
   );
@@ -72,6 +82,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 14,
   },
-  metric: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  metricText: { fontSize: 14, fontFamily: fonts.medium },
+  metricsRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metricText: { fontSize: 13, fontFamily: fonts.medium },
 });

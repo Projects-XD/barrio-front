@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -9,11 +9,12 @@ import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
 import { UrgencyBadge } from '@/components/UrgencyBadge';
 import { usePalette } from '@/hooks/usePalette';
-import { useCreateFavor, useZones } from '@/hooks/useData';
+import { useCreateFavor, useFavors, useMySavedLocation, useProfiles, useZones } from '@/hooks/useData';
 import { ToggleRow } from '@/components/ToggleRow';
 import { useAppStore } from '@/store/app-store';
 import { getRealPosition } from '@/utils/location';
-import { roundForReport } from '@/utils/geo';
+import { formatDistanceAndWalk, roundForReport } from '@/utils/geo';
+import { findMatchesForFavor } from '@/utils/matching';
 import { favorTypeIcon } from '@/i18n/icons';
 import { favorTypeLabel, favorUrgencyLabel } from '@/i18n/labels';
 import type { FavorType, FavorUrgency } from '@/types';
@@ -57,15 +58,38 @@ export default function NuevoFavor() {
   const [urgencia, setUrgencia] = useState<FavorUrgency>('normal');
   const [resultado, setResultado] = useState<{ queued: boolean } | null>(null);
   const crear = useCreateFavor();
+  const [publicando, setPublicando] = useState(false);
   const [enMapa, setEnMapa] = useState(true);
   const zoneId = useAppStore((s) => s.zoneId);
+  const userId = useAppStore((s) => s.userId);
   const { data: zonas = [] } = useZones();
+  const { data: allProfiles = [] } = useProfiles();
+  const { data: allFavors = [] } = useFavors();
+  const { data: savedLocation } = useMySavedLocation();
 
-  // Ubicación aproximada (110 m) para el mapa del barrio. Sin GPS, usa el centro de la zona.
+  const sugerenciasInmediatas = useMemo(() => {
+    if (ofrecer || !tipo || texto.trim().length < 3) return [];
+    return findMatchesForFavor({
+      favorType: tipo,
+      title: texto.trim(),
+      authorId: userId,
+      referenceCoords: savedLocation ? { lat: savedLocation.lat, lng: savedLocation.lng } : null,
+      profiles: allProfiles,
+      favors: allFavors,
+      limit: 2,
+    });
+  }, [ofrecer, tipo, texto, userId, savedLocation, allProfiles, allFavors]);
+
+  // Ubicación aproximada (110 m) para el mapa del barrio.
+  // Prioriza la ubicación guardada (instantánea). El GPS tiene un límite de 3 s para no dejar la pantalla congelada.
   const ubicacionParaMapa = async () => {
+    if (savedLocation) return roundForReport({ lat: savedLocation.lat, lng: savedLocation.lng });
     try {
-      const pos = await getRealPosition();
-      if (pos.status === 'granted') return roundForReport({ lat: pos.lat, lng: pos.lng });
+      const pos = await Promise.race([
+        getRealPosition(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+      ]);
+      if (pos && pos.status === 'granted') return roundForReport({ lat: pos.lat, lng: pos.lng });
     } catch {
       // Sin permiso o sin señal: se usa el centro de la zona.
     }
@@ -76,7 +100,9 @@ export default function NuevoFavor() {
   };
 
   const publicar = async () => {
-    if (!tipo || !texto.trim() || crear.isPending) return;
+    if (!tipo || !texto.trim() || crear.isPending || publicando) return;
+    // Feedback inmediato: el indicador aparece al tocar, sin esperar a la ubicación ni a la red.
+    setPublicando(true);
     const ubicacion = enMapa ? await ubicacionParaMapa() : null;
     crear.mutate(
       {
@@ -90,7 +116,10 @@ export default function NuevoFavor() {
           urgency: urgencia,
           location: ubicacion,
         },
-      { onSuccess: ({ queued }) => setResultado({ queued }) }
+      {
+        onSuccess: ({ queued }) => setResultado({ queued }),
+        onSettled: () => setPublicando(false),
+      }
     );
   };
 
@@ -236,10 +265,13 @@ export default function NuevoFavor() {
 
           <View style={{ marginTop: spacing.md }}>
             <ToggleRow label="Mostrar en el mapa del barrio" value={enMapa} onChange={setEnMapa} />
-            {crear.isPending ? (
+            {crear.isPending || publicando ? (
               <View style={styles.loadingWrapper}>
                 <ActivityIndicator size="large" color={p.primary} />
-                <Text style={[styles.loadingText, { color: p.muted }]}>Publicando tu favor...</Text>
+                <Text style={[styles.loadingText, { color: p.text }]}>Publicando tu favor...</Text>
+                <Text style={[styles.loadingSub, { color: p.muted }]}>
+                  Estamos avisando a tus vecinos. No cierres esta pantalla.
+                </Text>
               </View>
             ) : (
               <>
@@ -294,9 +326,42 @@ export default function NuevoFavor() {
             </Text>
             <Text style={[styles.textoModal, { color: p.body }]}>
               {resultado?.queued
-                ? 'Tu favor se guardó en el teléfono y se publicará cuando vuelva la conexión.'
+                ? 'Tu favor se guardó en el dispositivo y se enviará automáticamente al recuperar señal.'
                 : 'Tu favor ya está publicado en el barrio.'}
             </Text>
+
+            {!ofrecer && sugerenciasInmediatas.length > 0 ? (
+              <View style={styles.matchesModalBox}>
+                <Text style={[styles.matchesModalHeader, { color: p.text }]}>
+                  Vecinos que podrían ayudarte ahora:
+                </Text>
+                {sugerenciasInmediatas.map((m) => {
+                  const distTxt = formatDistanceAndWalk(m.distanceMeters);
+                  return (
+                    <Pressable
+                      key={m.id}
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setResultado(null);
+                        router.replace(m.targetRoute as never);
+                      }}
+                      style={styles.matchMiniCard}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.matchMiniTitle, { color: p.text }]} numberOfLines={1}>
+                          {m.title}
+                        </Text>
+                        <Text style={[styles.matchMiniMeta, { color: p.muted }]} numberOfLines={1}>
+                          {[m.meta, distTxt].filter(Boolean).join(' · ')}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={colors.azul} />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+
             <AppButton label="Ver favores" onPress={irAFavores} />
           </View>
         </View>
@@ -346,7 +411,8 @@ const styles = StyleSheet.create({
   resumenTitulo: { fontFamily: fonts.bold, fontSize: 18, lineHeight: 24, marginTop: 2 },
 
   loadingWrapper: { paddingVertical: spacing.md, alignItems: 'center', gap: 8 },
-  loadingText: { fontSize: 15, fontFamily: fonts.regular },
+  loadingText: { fontSize: 16, fontFamily: fonts.semiBold },
+  loadingSub: { fontSize: 13, fontFamily: fonts.regular, textAlign: 'center' },
 
   overlay: { flex: 1, backgroundColor: 'rgba(19, 46, 102, 0.5)', justifyContent: 'center', padding: spacing.lg },
   tarjeta: { backgroundColor: colors.blanco, borderRadius: radius.xl, padding: spacing.lg, alignItems: 'stretch' },
@@ -361,4 +427,34 @@ const styles = StyleSheet.create({
   },
   tituloModal: { fontFamily: fonts.bold, fontSize: 22, textAlign: 'center', marginBottom: spacing.sm },
   textoModal: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 22, textAlign: 'center', marginBottom: spacing.sm },
+  matchesModalBox: {
+    marginVertical: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.grisBorde,
+    gap: 8,
+  },
+  matchesModalHeader: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  matchMiniCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.fondo,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  matchMiniTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+  },
+  matchMiniMeta: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    marginTop: 1,
+  },
 });

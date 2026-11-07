@@ -380,3 +380,4 @@ npm test                # Ejecuta la suite de pruebas unitarias de servicios
 npm run build           # Compila TypeScript a JavaScript en dist/
 npm start               # Ejecuta la versión compilada de producción
 ```
+

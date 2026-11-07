@@ -27,7 +27,8 @@ import {
   useUnblockConversationUser,
   useUpdateConversation,
 } from '@/hooks/useData';
-import type { BackendMessage, ReportReason } from '@/api/endpoints';
+import { updateFavor, type BackendMessage, type ReportReason } from '@/api/endpoints';
+import { queryClient } from '@/lib/queryClient';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
 
@@ -42,7 +43,7 @@ const reasonLabel: Record<ReportReason, string> = {
 };
 const reasons = Object.keys(reasonLabel) as ReportReason[];
 
-type Panel = null | 'menu' | 'cerrar' | 'bloquear' | 'reportar';
+type Panel = null | 'menu' | 'cerrar' | 'bloquear' | 'reportar' | 'resolver';
 
 const hora = (iso: string) =>
   new Date(iso).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
@@ -82,6 +83,8 @@ export default function Chat() {
   const [reason, setReason] = useState<ReportReason>('acoso');
   const [details, setDetails] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [favorResuelto, setFavorResuelto] = useState(false);
+  const [resolviendo, setResolviendo] = useState(false);
 
   // La lista está invertida (lo más nuevo abajo), así que recibe los mensajes del más nuevo al más viejo.
   const data = useMemo(() => [...(messages.data ?? [])].reverse(), [messages.data]);
@@ -162,16 +165,34 @@ export default function Chat() {
       />
 
       {conv.favor ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push(`/favores/${conv.favor_id}`)}
-          style={[styles.favorBar, { backgroundColor: p.highlight }]}
-        >
-          <Ionicons name="heart-outline" size={18} color={p.text} />
-          <Text numberOfLines={1} style={[styles.favorText, { color: p.text }]}>
-            Favor: {conv.favor.title}
-          </Text>
-        </Pressable>
+        <View style={[styles.favorBar, { backgroundColor: p.highlight }]}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push(`/favores/${conv.favor_id}`)}
+            style={styles.favorLinkArea}
+          >
+            <Ionicons name="heart-outline" size={18} color={p.text} />
+            <Text numberOfLines={1} style={[styles.favorText, { color: p.text }]}>
+              Favor: {conv.favor.title}
+            </Text>
+          </Pressable>
+          {iAmAuthor && !closed && !favorResuelto ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Marcar favor como resuelto y agradecer a ${otherName}`}
+              onPress={() => setPanel('resolver')}
+              style={styles.resolverChatBtn}
+            >
+              <Ionicons name="checkmark-circle-outline" size={15} color={colors.verdeExito} />
+              <Text style={styles.resolverChatBtnText}>Marcar resuelto</Text>
+            </Pressable>
+          ) : favorResuelto ? (
+            <View style={styles.resueltoTag}>
+              <Ionicons name="checkmark-circle" size={15} color={colors.verdeExito} />
+              <Text style={styles.resolverChatBtnText}>Resuelto</Text>
+            </View>
+          ) : null}
+        </View>
       ) : null}
 
       {!isOnline ? (
@@ -201,7 +222,6 @@ export default function Chat() {
             <Bubble message={item} mine={item.sender_id === userId} seen={item.id === lastMineId && Boolean(item.read_at)} />
           )}
           ListEmptyComponent={
-            // La lista está invertida: se voltea de nuevo para que el texto no salga al revés.
             <View style={{ transform: [{ scaleY: -1 }] }}>
               <EmptyState
                 icon="chatbubble-ellipses-outline"
@@ -249,7 +269,6 @@ export default function Chat() {
 
       <Modal visible={panel !== null} transparent animationType="fade" onRequestClose={closePanel}>
         <Pressable style={styles.overlay} onPress={closePanel}>
-          {/* Pressable vacío: los toques dentro de la tarjeta no llegan al fondo que cierra el modal. */}
           <Pressable onPress={() => {}} style={styles.card}>
             {panel === 'menu' ? (
               <>
@@ -294,7 +313,7 @@ export default function Chat() {
                   />
                 )}
                 {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
-                <AppButton label="Cancelar" variant="link" onPress={closePanel} />
+                <AppButton label="Cancelar" variant="secondary" onPress={closePanel} />
               </>
             ) : null}
 
@@ -310,7 +329,7 @@ export default function Chat() {
                   onPress={() => run(() => update.mutateAsync({ closed: true }))}
                   disabled={update.isPending}
                 />
-                <AppButton label="Volver" variant="link" onPress={() => setPanel('menu')} />
+                <AppButton label="Volver" variant="secondary" onPress={() => setPanel('menu')} />
               </>
             ) : null}
 
@@ -327,7 +346,7 @@ export default function Chat() {
                   onPress={() => run(() => block.mutateAsync())}
                   disabled={block.isPending}
                 />
-                <AppButton label="Volver" variant="link" onPress={() => setPanel('menu')} />
+                <AppButton label="Volver" variant="secondary" onPress={() => setPanel('menu')} />
               </>
             ) : null}
 
@@ -363,7 +382,45 @@ export default function Chat() {
                   }
                   disabled={report.isPending}
                 />
-                <AppButton label="Volver" variant="link" onPress={() => setPanel('menu')} />
+                <AppButton label="Volver" variant="secondary" onPress={() => setPanel('menu')} />
+              </>
+            ) : null}
+
+            {panel === 'resolver' ? (
+              <>
+                <Text style={[styles.cardTitle, { color: p.text }]}>¿Se resolvió tu favor?</Text>
+                <Text style={[styles.cardText, { color: p.body }]}>
+                  Se marcará el favor como resuelto y enviaremos un mensaje de agradecimiento comunitario a {otherName}.
+                </Text>
+                {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
+                <AppButton
+                  label={resolviendo ? 'Guardando...' : `Resolver y agradecer a ${otherName}`}
+                  variant="accent"
+                  icon="checkmark-circle-outline"
+                  disabled={resolviendo}
+                  onPress={() =>
+                    run(async () => {
+                      setResolviendo(true);
+                      try {
+                        await updateFavor(conv.favor_id, {
+                          status: 'cerrada',
+                          assigned_to_user_id: conv.responder_id,
+                        });
+                        if (canWrite) {
+                          send.mutate(
+                            `¡Muchas gracias por tu ayuda, ${otherName}! He marcado el favor como resuelto en el barrio.`,
+                          );
+                        }
+                        setFavorResuelto(true);
+                        queryClient.invalidateQueries({ queryKey: ['favor', conv.favor_id] });
+                        queryClient.invalidateQueries({ queryKey: ['favors'] });
+                      } finally {
+                        setResolviendo(false);
+                      }
+                    })
+                  }
+                />
+                <AppButton label="Cancelar" variant="secondary" onPress={closePanel} />
               </>
             ) : null}
           </Pressable>
@@ -375,8 +432,32 @@ export default function Chat() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  favorBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  favorBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  favorLinkArea: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   favorText: { flex: 1, fontFamily: fonts.semiBold, fontSize: 14 },
+  resolverChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.blanco,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+  },
+  resueltoTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.verdeExitoSuave,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+  },
+  resolverChatBtnText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    color: colors.verdeExito,
+  },
   banner: { fontFamily: fonts.medium, fontSize: 14, paddingHorizontal: 16, paddingVertical: 10, textAlign: 'center' },
   list: { paddingHorizontal: 16, paddingVertical: 12, flexGrow: 1 },
   bubbleRow: { flexDirection: 'row', marginBottom: 8 },

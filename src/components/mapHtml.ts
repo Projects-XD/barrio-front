@@ -362,14 +362,23 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     window.setUserLocation = function (lat, lng, centerOnUser) {
       userLayer.clearLayers();
       if (typeof lat !== 'number' || typeof lng !== 'number') return;
+      L.circle([lat, lng], {
+        radius: 500,
+        color: '#2B4A8C',
+        weight: 1.5,
+        dashArray: '5, 6',
+        fillColor: '#2B4A8C',
+        fillOpacity: 0.06,
+        interactive: false
+      }).addTo(userLayer);
       var uIcon = L.divIcon({
         className: '',
         html: '<div class="user-wrap"><div class="user-pulse"></div><div class="user-dot"></div></div>',
         iconSize: [32, 32],
         iconAnchor: [16, 16]
       });
-      var um = L.marker([lat, lng], { icon: uIcon, zIndexOffset: 900 }).addTo(userLayer);
-      um.bindTooltip('Tu ubicación aproximada', { direction: 'top', offset: [0, -12], className: 'barrio-tip' });
+      var um = L.marker([lat, lng], { icon: uIcon, zIndexOffset: 900, interactive: false }).addTo(userLayer);
+      um.bindTooltip('Tu ubicación · Radio vecinal 500 m', { direction: 'top', offset: [0, -12], className: 'barrio-tip' });
       if (centerOnUser) {
         map.setView([lat, lng], 16, { animate: true });
       }

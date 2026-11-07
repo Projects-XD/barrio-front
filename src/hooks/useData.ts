@@ -120,6 +120,7 @@ export function mapBackendFavorToFrontend(bf: BackendFavor, currentUserId?: stri
     moderationReason: bf.moderation_reason ?? null,
     canEdit: bf.can_edit ?? false,
     isDeactivated: bf.is_deactivated ?? false,
+    assignedToUserId: bf.assigned_to_user_id ?? null,
   };
 }
 
@@ -654,8 +655,19 @@ export function useCreateFavor() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['favors'] });
+      qc.invalidateQueries({ queryKey: ['outboxPending'] });
       void flushOutbox();
     },
+  });
+}
+
+export function useOutboxPending() {
+  const userId = useAppStore((s) => s.userId);
+  const isOnline = useAppStore((s) => s.isOnline);
+  return useQuery({
+    queryKey: ['outboxPending', userId, isOnline],
+    enabled: Boolean(userId),
+    queryFn: () => listPending(),
   });
 }
 
@@ -756,6 +768,7 @@ export function useCreateReport() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['reports'] });
+      qc.invalidateQueries({ queryKey: ['outboxPending'] });
       void flushOutbox();
     },
   });

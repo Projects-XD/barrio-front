@@ -20,17 +20,27 @@ import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
-import { useDeleteProfile, useMyProfiles, useProfile, useUpsertMyProfile, useVouch } from '@/hooks/useData';
+import {
+  useDeleteProfile,
+  useMyProfiles,
+  useMySavedLocation,
+  useProfile,
+  useUpsertMyProfile,
+  useVouch,
+} from '@/hooks/useData';
 import type { OficioCategory } from '@/types';
 import { useAppStore } from '@/store/app-store';
 import { oficioLabel } from '@/i18n/labels';
 import { colors, fonts, radius, spacing } from '@/theme';
+import { distanceMetersBetween } from '@/utils/geo';
+import { shareOficioWhatsApp } from '@/utils/share';
 
 export default function OficioDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
   const { data: profile, isLoading, refetch } = useProfile(id);
   const { data: misOficios = [] } = useMyProfiles();
+  const { data: savedLocation } = useMySavedLocation();
   const upsert = useUpsertMyProfile();
   const deleteProfile = useDeleteProfile();
   const [editando, setEditando] = useState(false);
@@ -150,14 +160,26 @@ export default function OficioDetalle() {
     });
   };
 
+  const distMeters =
+    savedLocation && profile.location
+      ? distanceMetersBetween({ lat: savedLocation.lat, lng: savedLocation.lng }, profile.location)
+      : null;
+
   const stats = [
     {
       value: `${profile.validatedCount}`,
       label: profile.validatedCount === 1 ? 'Aval vecinal' : 'Avales vecinales',
     },
-    ...(profile.distanceKm !== undefined
-      ? [{ value: `${profile.distanceKm} km`, label: 'En tu zona' }]
-      : []),
+    ...(distMeters != null
+      ? [
+          {
+            value: distMeters < 1000 ? `${Math.max(40, Math.round(distMeters / 10) * 10)} m` : `${(distMeters / 1000).toFixed(1)} km`,
+            label: 'De tu ubicación',
+          },
+        ]
+      : profile.distanceKm !== undefined
+        ? [{ value: `${profile.distanceKm} km`, label: 'En tu zona' }]
+        : []),
     ...(profile.yearsExperience
       ? [{ value: `${profile.yearsExperience} años`, label: 'Experiencia' }]
       : []),
@@ -175,17 +197,15 @@ export default function OficioDetalle() {
       {/* Tarjeta principal con jerarquía limpia */}
       <Card>
         <View style={styles.headerInfo}>
-          {esMio ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Opciones del oficio"
-              hitSlop={10}
-              onPress={() => setMenuOpciones(true)}
-              style={styles.cardMenuTrigger}
-            >
-              <Ionicons name="ellipsis-vertical" size={18} color={colors.azul} />
-            </Pressable>
-          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Opciones del oficio"
+            hitSlop={10}
+            onPress={() => setMenuOpciones(true)}
+            style={styles.cardMenuTrigger}
+          >
+            <Ionicons name="ellipsis-vertical" size={18} color={colors.azul} />
+          </Pressable>
           <Text style={[styles.nombre, { color: p.text }]}>{profile.user.fullName}</Text>
           <Text style={styles.oficio}>{oficioLabel[profile.oficio.category]}</Text>
         </View>
@@ -369,8 +389,12 @@ export default function OficioDetalle() {
         <Pressable style={styles.modalOverlay} onPress={() => setMenuOpciones(false)}>
           <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>{oficioLabel[profile.oficio.category]}</Text>
-            <Text style={[styles.modalSubtitle, { color: p.muted }]}>Opciones de tu oficio</Text>
+            <Text style={[styles.modalSubtitle, { color: p.muted }]}>
+              {esMio ? 'Opciones de tu oficio' : 'Opciones del oficio'}
+            </Text>
 
+            {esMio ? (
+              <>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
@@ -394,6 +418,22 @@ export default function OficioDetalle() {
             >
               <Ionicons name="trash-outline" size={20} color={colors.rojo} />
               <Text style={[styles.contextActionText, { color: colors.rojo }]}>Eliminar este oficio</Text>
+            </Pressable>
+              </>
+            ) : null}
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setMenuOpciones(false);
+                shareOficioWhatsApp(profile);
+              }}
+              style={styles.contextActionRow}
+            >
+              <Ionicons name="logo-whatsapp" size={20} color={colors.azul} />
+              <Text style={[styles.contextActionText, { color: p.text }]}>
+                {esMio ? 'Compartir mi oficio en WhatsApp' : 'Recomendar en WhatsApp del barrio'}
+              </Text>
             </Pressable>
 
             <View style={{ marginTop: spacing.xs }}>

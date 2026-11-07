@@ -10,6 +10,8 @@ import type { CreateFavorDTO, UpdateFavorDTO, CreateFavorInterestDTO } from '../
 import { resolveUserZone } from './zoneAccess';
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+// TEMPORAL (pruebas): límite diario desactivado. Cambia a true para reactivar los 5 favores/día.
+const DAILY_LIMIT_ENABLED = false;
 const DAILY_FAVOR_LIMIT_BASE = 5;
 const DAILY_FAVOR_LIMIT_TRUSTED = 15;
 const TRUSTED_REPUTATION_THRESHOLD = 3;
@@ -188,7 +190,7 @@ export class FavorService {
     const dailyLimit =
       reputation >= TRUSTED_REPUTATION_THRESHOLD ? DAILY_FAVOR_LIMIT_TRUSTED : DAILY_FAVOR_LIMIT_BASE;
 
-    if (recentList.length >= dailyLimit) {
+    if (DAILY_LIMIT_ENABLED && recentList.length >= dailyLimit) {
       throw new AppError(`Llegaste al límite de ${dailyLimit} favores por día.`, 400);
     }
 
@@ -388,6 +390,19 @@ export class FavorService {
         from_status: currentFavor.status,
         to_status: dto.status,
       });
+
+      // Si se resolvió el favor con reconocimiento a un vecino ayudante, notificarle su aval solidario
+      if (dto.status === 'cerrada' && dto.assigned_to_user_id && dto.assigned_to_user_id !== userId) {
+        await supabase.from('notifications').insert({
+          user_id: dto.assigned_to_user_id,
+          type: 'visto_bueno_recibido',
+          payload: {
+            favor_id: favorId,
+            favor_title: data.title,
+            recognized_by: userId,
+          },
+        });
+      }
     }
 
     return data;

@@ -69,6 +69,7 @@ export interface BackendFavor {
   // Solo vienen en GET /favors/:id.
   can_edit?: boolean;
   is_deactivated?: boolean;
+  assigned_to_user_id?: string | null;
   location_lat?: number | null;
   location_lng?: number | null;
   author?: {
@@ -205,9 +206,11 @@ export const createFavor = (payload: CreateFavorPayload) =>
 
 // El backend no admite cambiar urgency en PATCH: solo contenido.
 export interface UpdateFavorPayload {
-  type: FavorType;
-  title: string;
-  description: string | null;
+  type?: FavorType;
+  title?: string;
+  description?: string | null;
+  status?: 'abierta' | 'en_curso' | 'cerrada' | 'cancelada';
+  assigned_to_user_id?: string | null;
 }
 
 export const updateFavor = (id: string, payload: UpdateFavorPayload) =>
