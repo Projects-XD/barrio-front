@@ -8,6 +8,7 @@ import resourceRoutes from './resource.routes';
 import syncRoutes from './sync.routes';
 import zoneRoutes from './zone.routes';
 import notificationRoutes from './notification.routes';
+import conversationRoutes from './conversation.routes';
 import adminRoutes from './admin.routes';
 
 const apiRouter = Router();
@@ -22,6 +23,7 @@ apiRouter.use('/resources', resourceRoutes);
 apiRouter.use('/sync', syncRoutes);
 apiRouter.use('/zones', zoneRoutes);
 apiRouter.use('/notifications', notificationRoutes);
+apiRouter.use('/conversations', conversationRoutes);
 apiRouter.use('/admin', adminRoutes);
 
 export default apiRouter;

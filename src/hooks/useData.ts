@@ -2,16 +2,20 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClie
 import { ApiError } from '@/api/client';
 import {
   approveFavor,
+  blockConversationUser,
   createFavor,
   createReport,
   deleteFavor,
   expressInterest,
   getEmergencyState,
+  getConversation,
   getFavorById,
   getUnreadNotificationCount,
   getProfileById,
   getVouchStatus,
+  listConversations,
   listFavors,
+  listMessages,
   listNotifications,
   listOficios,
   listPendingFavors,
@@ -21,11 +25,17 @@ import {
   listServices,
   listZones,
   markNotificationRead,
+  reportConversationUser,
+  sendMessage,
+  updateConversation,
   rejectFavor,
   updateFavor,
   upsertProfile,
   vouchProfile,
+  type BackendConversation,
   type BackendFavor,
+  type BackendMessage,
+  type ReportReason,
   type BackendNotification,
   type BackendProfile,
   type BackendReport,
@@ -372,6 +382,7 @@ export function useExpressInterest(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['favor', id] });
       qc.invalidateQueries({ queryKey: ['favors'] });
+      qc.invalidateQueries({ queryKey: ['conversations'] });
     },
   });
 }
@@ -596,5 +607,81 @@ export function useMarkNotificationRead() {
   return useMutation({
     mutationFn: (id: string) => markNotificationRead(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+}
+
+// ============================================================================
+// CHAT (solo con conexión: no pasa por la cola offline)
+// ============================================================================
+
+// Sin tiempo real: mientras el chat está abierto se consultan los mensajes cada pocos segundos.
+const CHAT_POLL_MS = 4_000;
+
+export function useConversations(favorId?: string) {
+  const userId = useAppStore((s) => s.userId);
+  return useQuery<BackendConversation[]>({
+    queryKey: ['conversations', userId, favorId ?? 'all'],
+    enabled: Boolean(userId),
+    queryFn: () => listConversations(favorId),
+  });
+}
+
+export function useConversation(id: string) {
+  return useQuery<BackendConversation>({
+    queryKey: ['conversation', id],
+    enabled: Boolean(id),
+    queryFn: () => getConversation(id),
+  });
+}
+
+export function useMessages(conversationId: string) {
+  const isOnline = useAppStore((s) => s.isOnline);
+  return useQuery<BackendMessage[]>({
+    queryKey: ['messages', conversationId],
+    enabled: Boolean(conversationId) && isOnline,
+    refetchInterval: CHAT_POLL_MS,
+    queryFn: () => listMessages(conversationId),
+  });
+}
+
+export function useSendMessage(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) => sendMessage(conversationId, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['messages', conversationId] });
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+
+export function useUpdateConversation(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (changes: { muted?: boolean; closed?: true }) => updateConversation(conversationId, changes),
+    onSuccess: (updated) => {
+      qc.setQueryData(['conversation', conversationId], (prev: BackendConversation | undefined) =>
+        prev ? { ...prev, ...updated } : updated,
+      );
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+
+export function useBlockConversationUser(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => blockConversationUser(conversationId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+
+export function useReportConversationUser(conversationId: string) {
+  return useMutation({
+    mutationFn: (input: { reason: ReportReason; details?: string }) =>
+      reportConversationUser(conversationId, input.reason, input.details),
   });
 }

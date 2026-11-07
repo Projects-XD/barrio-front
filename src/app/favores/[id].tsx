@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
@@ -9,11 +10,12 @@ import { Screen } from '@/components/Screen';
 import { StatusBanner } from '@/components/StatusBanner';
 import { UrgencyBadge } from '@/components/UrgencyBadge';
 import { usePalette } from '@/hooks/usePalette';
-import { useDeleteFavor, useExpressInterest, useFavor, useUpdateFavor } from '@/hooks/useData';
+import { useConversations, useDeleteFavor, useExpressInterest, useFavor, useUpdateFavor } from '@/hooks/useData';
 import { favorStatusLabel, favorTypeBackground, favorTypeLabel } from '@/i18n/labels';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
 import type { FavorType } from '@/types';
+import { timeAgo } from '@/utils/time';
 
 const tipos = Object.keys(favorTypeLabel) as FavorType[];
 
@@ -25,6 +27,7 @@ export default function FavorDetalle() {
   const interes = useExpressInterest(id);
   const actualizar = useUpdateFavor(id);
   const eliminar = useDeleteFavor(id);
+  const conversaciones = useConversations(id);
 
   const [editando, setEditando] = useState(false);
   const [tipo, setTipo] = useState<FavorType>('otros');
@@ -106,9 +109,30 @@ export default function FavorDetalle() {
 
       {favor.isDeactivated ? null : esMio ? (
         <>
-          <Text style={[styles.nota, { color: p.muted }]}>
-            Esta es tu publicación. Los vecinos interesados aparecerán aquí.
-          </Text>
+          {conversaciones.data && conversaciones.data.length > 0 ? (
+            <View style={{ marginTop: spacing.md }}>
+              <Text style={[styles.seccion, { color: p.text }]}>Vecinos que quieren ayudarte</Text>
+              {conversaciones.data.map((c) => (
+                <Card key={c.id} onPress={() => router.push(`/chat/${c.id}`)}>
+                  <View style={styles.vecinoFila}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.vecinoNombre, { color: p.text }]}>
+                        {c.responder?.full_name ?? 'Vecino'}
+                      </Text>
+                      <Text style={[styles.vecinoDetalle, { color: p.muted }]}>
+                        {c.closed_at ? 'Conversación cerrada' : c.last_message_at ? `Último mensaje ${timeAgo(c.last_message_at)}` : 'Aún sin mensajes'}
+                      </Text>
+                    </View>
+                    <Ionicons name="chatbubble-ellipses-outline" size={24} color={p.primary} />
+                  </View>
+                </Card>
+              ))}
+            </View>
+          ) : (
+            <Text style={[styles.nota, { color: p.muted }]}>
+              Esta es tu publicación. Los vecinos que respondan aparecerán aquí para chatear.
+            </Text>
+          )}
           <View style={{ marginTop: spacing.md }}>
             {favor.canEdit ? (
               <AppButton label="Editar" variant="secondary" icon="create-outline" onPress={abrirEdicion} />
@@ -125,7 +149,19 @@ export default function FavorDetalle() {
           </View>
         </>
       ) : favor.hasInterestedByMe ? (
-        <Text style={[styles.nota, { color: p.primary }]}>Ya le avisaste a este vecino que puedes ayudar.</Text>
+        <>
+          <Text style={[styles.nota, { color: p.primary }]}>Ya le avisaste a este vecino que puedes ayudar.</Text>
+          {conversaciones.data?.[0] ? (
+            <View style={{ marginTop: spacing.md }}>
+              <AppButton
+                label="Abrir chat"
+                variant="accent"
+                icon="chatbubble-ellipses-outline"
+                onPress={() => router.push(`/chat/${conversaciones.data![0].id}`)}
+              />
+            </View>
+          ) : null}
+        </>
       ) : abierto ? (
         <>
           {interes.error ? (
@@ -136,7 +172,9 @@ export default function FavorDetalle() {
           <AppButton
             label={interes.isPending ? 'Enviando...' : 'Me interesa, puedo ayudar'}
             variant="accent"
-            onPress={() => interes.mutate(undefined)}
+            onPress={() =>
+              interes.mutate(undefined, { onSuccess: (r) => router.push(`/chat/${r.conversation_id}`) })
+            }
             disabled={interes.isPending}
           />
         </>
@@ -233,6 +271,10 @@ const styles = StyleSheet.create({
   meta: { marginTop: spacing.md, gap: 4 },
   metaText: { fontFamily: fonts.medium, fontSize: 14, color: colors.texto },
   nota: { fontFamily: fonts.medium, fontSize: 15, textAlign: 'center', marginTop: spacing.md },
+  seccion: { fontFamily: fonts.bold, fontSize: 18, marginBottom: spacing.sm },
+  vecinoFila: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  vecinoNombre: { fontFamily: fonts.bold, fontSize: 16 },
+  vecinoDetalle: { fontFamily: fonts.regular, fontSize: 14, marginTop: 2 },
   motivo: { fontFamily: fonts.medium, fontSize: 15, lineHeight: 21, marginBottom: 12 },
   error: { color: colors.rojo, fontSize: 14, fontFamily: fonts.medium, lineHeight: 20, marginBottom: spacing.sm },
   aviso: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, marginTop: spacing.sm },

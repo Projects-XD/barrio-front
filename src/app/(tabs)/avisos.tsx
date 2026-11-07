@@ -62,8 +62,10 @@ export default function Avisos() {
 
   const abrir = (n: BackendNotification) => {
     if (!n.read_at) markRead.mutate(n.id);
+    const conversationId = str(n.payload.conversation_id);
     const favorId = str(n.payload.favor_id);
-    if (favorId) router.push({ pathname: '/favores/[id]', params: { id: favorId } });
+    if (conversationId) router.push(`/chat/${conversationId}`);
+    else if (favorId) router.push(`/favores/${favorId}`);
   };
 
   return (

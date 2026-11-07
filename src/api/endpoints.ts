@@ -210,8 +210,9 @@ export const updateFavor = (id: string, payload: UpdateFavorPayload) =>
 
 export const deleteFavor = (id: string) => api.delete<BackendFavor>(`/favors/${id}`);
 
+// El backend abre la conversación con el autor al responder y devuelve su id.
 export const expressInterest = (favorId: string, message?: string) =>
-  api.post<unknown>(`/favors/${favorId}/interest`, { message: message ?? null });
+  api.post<{ conversation_id: string }>(`/favors/${favorId}/interest`, { message: message ?? null });
 
 // =====================================================================
 // ============================================================================
@@ -245,6 +246,62 @@ export const getUnreadNotificationCount = () =>
 
 export const markNotificationRead = (id: string) =>
   api.patch<BackendNotification>(`/notifications/${id}/read`);
+
+// ============================================================================
+// CHAT
+// ============================================================================
+
+export interface BackendChatUser {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+}
+
+export interface BackendConversation {
+  id: string;
+  favor_id: string;
+  author_id: string;
+  responder_id: string;
+  author_muted: boolean;
+  responder_muted: boolean;
+  closed_at: string | null;
+  last_message_at: string | null;
+  created_at: string;
+  favor: { id: string; title: string } | null;
+  author: BackendChatUser | null;
+  responder: BackendChatUser | null;
+}
+
+export interface BackendMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+export type ReportReason = 'spam' | 'contenido_inapropiado' | 'datos_falsos' | 'acoso' | 'otro';
+
+export const listConversations = (favorId?: string) =>
+  api.get<BackendConversation[]>(`/conversations${favorId ? `?favor_id=${favorId}` : ''}`);
+
+export const getConversation = (id: string) => api.get<BackendConversation>(`/conversations/${id}`);
+
+export const updateConversation = (id: string, changes: { muted?: boolean; closed?: true }) =>
+  api.patch<BackendConversation>(`/conversations/${id}`, changes);
+
+export const listMessages = (conversationId: string) =>
+  api.get<BackendMessage[]>(`/conversations/${conversationId}/messages`);
+
+export const sendMessage = (conversationId: string, body: string) =>
+  api.post<BackendMessage>(`/conversations/${conversationId}/messages`, { body });
+
+export const blockConversationUser = (conversationId: string) =>
+  api.post<{ blocked_user_id: string }>(`/conversations/${conversationId}/block`);
+
+export const reportConversationUser = (conversationId: string, reason: ReportReason, details?: string) =>
+  api.post<unknown>(`/conversations/${conversationId}/report`, { reason, details: details ?? null });
 
 // ============================================================================
 // ADMINISTRACIÓN
