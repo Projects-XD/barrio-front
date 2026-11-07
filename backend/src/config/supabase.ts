@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Request } from 'express';
 import { env } from './env';
 import type { Database } from '../types/database.types';
+import { logger } from '../utils/logger';
 
 /**
  * Cliente de Supabase con privilegios de Administrador (Service Role).
@@ -18,6 +19,11 @@ export const supabaseAdmin: SupabaseClient<Database> = createClient<Database>(
     },
   }
 );
+
+logger.info(`⚡ Conexión con Supabase inicializada exitosamente`, {
+  url: env.SUPABASE_URL,
+  serviceRoleActive: Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
+});
 
 /**
  * Crea un cliente de Supabase con el contexto de seguridad del usuario autenticado (RLS).
@@ -45,6 +51,10 @@ export function createSupabaseClient(
  * @param req Request de Express
  */
 export function getSupabaseClient(req: Request): SupabaseClient<Database> {
+  if (env.SUPABASE_SERVICE_ROLE_KEY) {
+    return supabaseAdmin;
+  }
+
   const token =
     req.token ||
     (req.headers.authorization?.startsWith('Bearer ')
