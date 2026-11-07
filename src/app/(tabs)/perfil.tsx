@@ -511,7 +511,7 @@ export default function Perfil() {
         animationType="fade"
         onRequestClose={() => setMenuOficio(null)}
       >
-        <Pressable accessibilityRole="button" style={styles.centerOverlay} onPress={() => setMenuOficio(null)}>
+        <Pressable style={styles.centerOverlay} onPress={() => setMenuOficio(null)}>
           <Pressable onPress={() => {}} style={styles.contextSheet}>
             <View style={styles.contextSheetHeader}>
               <View style={[styles.oficioCatIcon, { backgroundColor: p.highlight }]}>
@@ -582,7 +582,7 @@ export default function Perfil() {
         animationType="slide"
         onRequestClose={() => setModalVisible(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
           <Pressable onPress={() => {}} style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
             <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: p.text, flex: 1, marginBottom: 0 }]}>
@@ -680,7 +680,7 @@ export default function Perfil() {
         animationType="fade"
         onRequestClose={() => setConfirmDeleteOficio(null)}
       >
-        <Pressable accessibilityRole="button" style={styles.centerOverlay} onPress={() => setConfirmDeleteOficio(null)}>
+        <Pressable style={styles.centerOverlay} onPress={() => setConfirmDeleteOficio(null)}>
           <Pressable onPress={() => {}} style={styles.centerDialog}>
             <View style={[styles.dialogIconWrap, { backgroundColor: colors.rojoSuave }]}>
               <Ionicons name="trash-outline" size={28} color={colors.rojo} />
@@ -720,7 +720,7 @@ export default function Perfil() {
         animationType="fade"
         onRequestClose={() => setExitoOficioMsg(null)}
       >
-        <Pressable accessibilityRole="button" style={styles.centerOverlay} onPress={() => setExitoOficioMsg(null)}>
+        <Pressable style={styles.centerOverlay} onPress={() => setExitoOficioMsg(null)}>
           <Pressable onPress={() => {}} style={styles.centerDialog}>
             <View style={[styles.dialogIconWrap, { backgroundColor: p.highlight }]}>
               <Ionicons name="checkmark-circle" size={32} color={colors.verdeExito} />

@@ -217,7 +217,7 @@ export default function Ubicacion() {
       <AppButton label="Cancelar y volver" variant="secondary" onPress={irAlPerfil} />
 
       <Modal visible={modalExito} transparent animationType="fade" onRequestClose={irAlPerfil}>
-        <Pressable accessibilityRole="button" style={styles.overlay} onPress={irAlPerfil}>
+        <Pressable style={styles.overlay} onPress={irAlPerfil}>
           <Pressable onPress={() => {}} style={styles.tarjeta}>
             <View style={[styles.modalIcono, { backgroundColor: p.highlight }]}>
               <Ionicons name="checkmark-circle" size={34} color={colors.verdeExito} />

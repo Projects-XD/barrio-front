@@ -272,7 +272,7 @@ export default function OficioDetalle() {
 
       {/* Formulario para editar mi oficio sin salir de esta pantalla */}
       <Modal visible={editando} transparent animationType="fade" onRequestClose={() => setEditando(false)}>
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setEditando(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setEditando(false)}>
           <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco, maxHeight: '88%' }]}>
             <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: colors.azul, flex: 1, textAlign: 'left', marginBottom: 0 }]}>
@@ -355,7 +355,7 @@ export default function OficioDetalle() {
         animationType="fade"
         onRequestClose={() => setShowContactModal(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setShowContactModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowContactModal(false)}>
           <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>Contactar a {profile.user.fullName}</Text>
             <Text style={[styles.modalSubtitle, { color: p.muted }]}>
@@ -386,7 +386,7 @@ export default function OficioDetalle() {
         animationType="fade"
         onRequestClose={() => setMenuOpciones(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setMenuOpciones(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setMenuOpciones(false)}>
           <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>{oficioLabel[profile.oficio.category]}</Text>
             <Text style={[styles.modalSubtitle, { color: p.muted }]}>
@@ -450,7 +450,7 @@ export default function OficioDetalle() {
         animationType="fade"
         onRequestClose={() => setConfirmandoBaja(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setConfirmandoBaja(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setConfirmandoBaja(false)}>
           <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>¿Eliminar este oficio?</Text>
             <Text style={[styles.modalSubtitle, { color: p.muted }]}>
@@ -491,7 +491,6 @@ export default function OficioDetalle() {
         }}
       >
         <Pressable
-          accessibilityRole="button"
           style={styles.modalOverlay}
           onPress={() => {
             setModalExito(false);

@@ -1013,7 +1013,7 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalFiltros(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalFiltros(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setModalFiltros(false)}>
           <Pressable onPress={() => {}} style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>Filtros y capas del mapa</Text>
@@ -1135,7 +1135,7 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalLista(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalLista(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setModalLista(false)}>
           <Pressable onPress={() => {}} style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>
@@ -1196,7 +1196,7 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalPublicar(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalPublicar(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setModalPublicar(false)}>
           <Pressable onPress={() => {}} style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>¿Qué deseas publicar en el mapa?</Text>
