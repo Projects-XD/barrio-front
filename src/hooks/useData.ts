@@ -90,6 +90,10 @@ export function mapBackendProfileToFrontend(bp: BackendProfile, hasVouchedByMe =
     validatedCount: bp.validated_count ?? 0,
     isValidated: bp.is_validated ?? (bp.validated_count ?? 0) >= 2,
     hasVouchedByMe,
+    location:
+      bp.location_lat != null && bp.location_lng != null
+        ? { lat: bp.location_lat, lng: bp.location_lng }
+        : null,
   };
 }
 
