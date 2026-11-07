@@ -25,7 +25,10 @@ export default function Oficios() {
   const p = usePalette();
   const [filtro, setFiltro] = useState<OficioCategory | undefined>(undefined);
   const [busqueda, setBusqueda] = useState('');
-  const { data, isLoading } = useProfiles(filtro, busqueda);
+  const { data, isLoading, isError, error, refetch, isRefetching } = useProfiles(
+    filtro,
+    busqueda
+  );
 
   const resetFilters = () => {
     setFiltro(undefined);
@@ -95,6 +98,8 @@ export default function Oficios() {
         <FlatList
           data={data ?? []}
           keyExtractor={(item) => item.id}
+          refreshing={isRefetching}
+          onRefresh={refetch}
           renderItem={({ item }) => (
             <ProfessionalCard
               profile={item}
@@ -104,20 +109,24 @@ export default function Oficios() {
           ListEmptyComponent={
             <View style={styles.emptyWrapper}>
               <EmptyState
-                title="Sin resultados"
+                title={isError ? 'Error al cargar' : 'Sin resultados'}
                 message={
-                  busqueda || filtro
-                    ? 'No encontramos oficios que coincidan con tus filtros actuales.'
-                    : 'Aún no hay oficios registrados en tu zona.'
+                  isError
+                    ? (error as Error)?.message || 'No se pudo conectar con el servidor.'
+                    : busqueda || filtro
+                      ? 'No encontramos oficios que coincidan con tus filtros actuales.'
+                      : 'Aún no hay oficios registrados en tu zona.'
                 }
               />
-              {busqueda || filtro ? (
+              {busqueda || filtro || isError ? (
                 <Pressable
                   accessibilityRole="button"
-                  onPress={resetFilters}
+                  onPress={isError ? () => refetch() : resetFilters}
                   style={[styles.resetBtn, { borderColor: p.primary }]}
                 >
-                  <Text style={[styles.resetText, { color: p.primary }]}>Limpiar filtros</Text>
+                  <Text style={[styles.resetText, { color: p.primary }]}>
+                    {isError ? 'Reintentar conexión' : 'Limpiar filtros'}
+                  </Text>
                 </Pressable>
               ) : null}
             </View>
