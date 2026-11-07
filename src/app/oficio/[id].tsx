@@ -253,12 +253,22 @@ export default function OficioDetalle() {
       {/* Formulario para editar mi oficio sin salir de esta pantalla */}
       <Modal visible={editando} transparent animationType="fade" onRequestClose={() => setEditando(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setEditando(false)}>
-          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco, maxHeight: '85%' }]}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={[styles.modalTitle, { color: colors.azul }]}>
+          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco, maxHeight: '88%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.azul, flex: 1, textAlign: 'left', marginBottom: 0 }]}>
                 {modoNuevo ? 'Agregar otro oficio' : 'Editar mi oficio'}
               </Text>
-
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancelar y cerrar"
+                onPress={() => setEditando(false)}
+                hitSlop={10}
+                style={styles.modalCloseBtn}
+              >
+                <Ionicons name="close" size={20} color={colors.gris} />
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={styles.campoLabel}>Tipo de oficio</Text>
               <View style={styles.chipsWrap}>
                 {(Object.keys(oficioLabel) as OficioCategory[]).map((c) => (
@@ -306,7 +316,12 @@ export default function OficioDetalle() {
                   onPress={guardarEdicion}
                   disabled={upsert.isPending}
                 />
-                <AppButton label="Cancelar" variant="link" onPress={() => setEditando(false)} />
+                <AppButton
+                  label="Cancelar"
+                  variant="secondary"
+                  disabled={upsert.isPending}
+                  onPress={() => setEditando(false)}
+                />
               </View>
             </ScrollView>
           </Pressable>
@@ -372,18 +387,6 @@ export default function OficioDetalle() {
               accessibilityRole="button"
               onPress={() => {
                 setMenuOpciones(false);
-                abrirEdicion(true);
-              }}
-              style={styles.contextActionRow}
-            >
-              <Ionicons name="add-circle-outline" size={20} color={colors.azul} />
-              <Text style={[styles.contextActionText, { color: p.text }]}>Agregar otro oficio</Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setMenuOpciones(false);
                 deleteProfile.reset();
                 setConfirmandoBaja(true);
               }}
@@ -394,7 +397,7 @@ export default function OficioDetalle() {
             </Pressable>
 
             <View style={{ marginTop: spacing.xs }}>
-              <AppButton label="Cancelar" variant="link" onPress={() => setMenuOpciones(false)} />
+              <AppButton label="Cancelar" variant="secondary" onPress={() => setMenuOpciones(false)} />
             </View>
           </Pressable>
         </Pressable>
@@ -612,6 +615,20 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.lg,
     maxWidth: 400,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.fondo,
   },
   modalTitle: {
     fontSize: 18,

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -23,15 +22,12 @@ import { ValidationBadge } from '@/components/ValidationBadge';
 import { supabase } from '@/lib/supabase';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
-import * as ImagePicker from 'expo-image-picker';
 import {
   useDeleteProfile,
   useFavors,
-  useMyAvatarUrl,
   useMyProfile,
   useMyProfiles,
   useMySavedLocation,
-  useUpdateAvatar,
   useUpsertMyProfile,
   useZones,
 } from '@/hooks/useData';
@@ -74,28 +70,6 @@ export default function Perfil() {
   const totalVistosBuenos = misOficios.reduce((acc, o) => acc + (o.validatedCount ?? 0), 0);
   const upsertProfile = useUpsertMyProfile();
   const deleteProfile = useDeleteProfile();
-  const { data: avatarUrl } = useMyAvatarUrl();
-  const updateAvatar = useUpdateAvatar();
-
-  const cambiarFoto = async () => {
-    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permiso.granted) {
-      Alert.alert('Sin permiso', 'Activa el acceso a tus fotos para cambiar tu foto de perfil.');
-      return;
-    }
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (res.canceled || !res.assets[0]) return;
-    try {
-      await updateAvatar.mutateAsync(res.assets[0].uri);
-    } catch (err) {
-      Alert.alert('No se pudo guardar la foto', (err as Error).message);
-    }
-  };
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCat, setSelectedCat] = useState<OficioCategory>(
@@ -106,14 +80,6 @@ export default function Perfil() {
     myProfile?.yearsExperience ? String(myProfile.yearsExperience) : '2'
   );
   const [otroOficio, setOtroOficio] = useState('');
-
-  const initials = userFullName
-    .split(' ')
-    .filter(Boolean)
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 
   const handleOpenModal = (oficio: ProfessionalProfile | null) => {
     upsertProfile.reset();
@@ -182,46 +148,15 @@ export default function Perfil() {
 
       {/* Tarjeta principal unificada: Identidad + Ubicación + Resumen */}
       <Card>
-        <View style={styles.usuarioRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Cambiar foto de perfil"
-            onPress={cambiarFoto}
-            disabled={updateAvatar.isPending}
-            style={styles.avatarWrap}
-          >
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, { backgroundColor: colors.azul }]}>
-                <Text style={styles.avatarText}>{initials || 'V'}</Text>
-              </View>
-            )}
-            <View style={styles.avatarEdit}>
-              {updateAvatar.isPending ? (
-                <ActivityIndicator size="small" color={colors.blanco} />
-              ) : (
-                <Ionicons name="camera" size={12} color={colors.blanco} />
-              )}
-            </View>
-          </Pressable>
-
-          <View style={styles.usuarioInfo}>
-            <Text style={[styles.nombre, { color: p.text }]} numberOfLines={1}>
-              {userFullName}
+        <View style={styles.usuarioInfo}>
+          <Text style={[styles.nombre, { color: p.text }]} numberOfLines={1}>
+            {userFullName}
+          </Text>
+          {userEmail ? (
+            <Text style={[styles.correo, { color: p.muted }]} numberOfLines={1}>
+              {userEmail}
             </Text>
-            {userEmail ? (
-              <Text style={[styles.correo, { color: p.muted }]} numberOfLines={1}>
-                {userEmail}
-              </Text>
-            ) : null}
-            <View style={styles.zonaBadgeRow}>
-              <View style={[styles.zonaPill, { backgroundColor: p.highlight }]}>
-                <Ionicons name="shield-checkmark-outline" size={13} color={colors.azul} />
-                <Text style={styles.zonaPillText}>{nombreZona}</Text>
-              </View>
-            </View>
-          </View>
+          ) : null}
         </View>
 
         <View style={styles.cardDivider} />
@@ -242,8 +177,8 @@ export default function Perfil() {
             </Text>
             <Text style={[styles.ubicacionSub, { color: p.muted }]} numberOfLines={1}>
               {savedLocation
-                ? `Zona ${nombreZona} · (${savedLocation.lat.toFixed(4)}, ${savedLocation.lng.toFixed(4)})`
-                : `Zona ${nombreZona} · Toca para marcar tu punto en el mapa`}
+                ? `${nombreZona} · (${savedLocation.lat.toFixed(4)}, ${savedLocation.lng.toFixed(4)})`
+                : `${nombreZona} · Toca para marcar tu punto en el mapa`}
             </Text>
           </View>
           <View style={styles.ubicacionActionPill}>
@@ -465,19 +400,6 @@ export default function Perfil() {
             <Pressable
               accessibilityRole="button"
               onPress={() => {
-                const target = menuOficio;
-                setMenuOficio(null);
-                if (target) router.push(`/oficio/${target.id}`);
-              }}
-              style={styles.contextActionRow}
-            >
-              <Ionicons name="eye-outline" size={20} color={colors.azul} />
-              <Text style={[styles.contextActionText, { color: p.text }]}>Ver ficha pública</Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
                 if (menuOficio) handleOpenModal(menuOficio);
               }}
               style={styles.contextActionRow}
@@ -501,6 +423,10 @@ export default function Perfil() {
               <Ionicons name="trash-outline" size={20} color={colors.rojo} />
               <Text style={[styles.contextActionText, { color: colors.rojo }]}>Eliminar oficio</Text>
             </Pressable>
+
+            <View style={{ marginTop: spacing.xs }}>
+              <AppButton label="Cancelar" variant="secondary" onPress={() => setMenuOficio(null)} />
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
@@ -514,10 +440,21 @@ export default function Perfil() {
       >
         <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
           <Pressable onPress={() => {}} style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={[styles.modalTitle, { color: p.text }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: p.text, flex: 1, marginBottom: 0 }]}>
                 {editingId ? 'Editar mi oficio' : 'Agregar otro oficio'}
               </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancelar y cerrar"
+                onPress={() => setModalVisible(false)}
+                hitSlop={10}
+                style={styles.modalCloseBtn}
+              >
+                <Ionicons name="close" size={22} color={p.muted} />
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.modalSub, { color: p.muted }]}>
                 Comparte tus habilidades técnicas con tus vecinos para recibir recomendaciones y avales.
               </Text>
@@ -573,7 +510,7 @@ export default function Perfil() {
                 </Text>
               ) : null}
 
-              <View style={{ marginTop: spacing.md, gap: 8 }}>
+              <View style={{ marginTop: spacing.md }}>
                 <AppButton
                   label={upsertProfile.isPending ? 'Guardando...' : 'Guardar y publicar'}
                   variant="accent"
@@ -582,7 +519,8 @@ export default function Perfil() {
                 />
                 <AppButton
                   label="Cancelar"
-                  variant="link"
+                  variant="secondary"
+                  disabled={upsertProfile.isPending}
                   onPress={() => setModalVisible(false)}
                 />
               </View>
@@ -865,7 +803,21 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     padding: spacing.lg,
-    maxHeight: '85%',
+    maxHeight: '88%',
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  modalCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.fondo,
   },
   modalTitle: { fontSize: 22, fontFamily: fonts.bold, marginBottom: 4 },
   modalSub: { fontSize: 14, fontFamily: fonts.regular, lineHeight: 20, marginBottom: spacing.md },
