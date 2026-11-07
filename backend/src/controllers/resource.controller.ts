@@ -6,15 +6,15 @@ import { AppError } from '../middlewares/errorHandler';
 export class ResourceController {
   public async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const zoneId = req.query.zoneId as string;
-      const kind = req.query.kind as string | undefined;
-
-      if (!zoneId) {
-        throw new AppError('zoneId es requerido', 400);
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
       }
 
+      const zoneId = (req.query.zoneId || req.query.zone_id) as string | undefined;
+      const kind = req.query.kind as string | undefined;
+
       const supabase = getSupabaseClient(req);
-      const resources = await resourceService.listResources(supabase, { zoneId, kind });
+      const resources = await resourceService.listResources(supabase, req.user.id, { zoneId, kind });
 
       res.json({
         success: true,
