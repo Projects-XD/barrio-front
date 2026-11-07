@@ -1,5 +1,15 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
@@ -15,6 +25,7 @@ export default function OficioDetalle() {
   const p = usePalette();
   const { data: profile, isLoading } = useProfile(id);
   const vouch = useVouch(id);
+  const [showContactModal, setShowContactModal] = useState(false);
 
   if (isLoading) {
     return (
@@ -39,6 +50,23 @@ export default function OficioDetalle() {
     .map((n) => n[0])
     .slice(0, 2)
     .join('');
+
+  const handleCall = () => {
+    setShowContactModal(false);
+    Linking.openURL('tel:+51987654321').catch(() => {
+      Alert.alert('Contacto', 'Teléfono del profesional: +51 987 654 321');
+    });
+  };
+
+  const handleWhatsApp = () => {
+    setShowContactModal(false);
+    const msg = encodeURIComponent(
+      `Hola ${profile.user.fullName}, vi tu perfil de ${oficioLabel[profile.oficio.category]} en la app Barrio.`
+    );
+    Linking.openURL(`https://wa.me/51987654321?text=${msg}`).catch(() => {
+      Alert.alert('WhatsApp', 'No se pudo abrir WhatsApp.');
+    });
+  };
 
   return (
     <Screen>
@@ -95,9 +123,44 @@ export default function OficioDetalle() {
         <AppButton
           label="Llamar o contactar"
           variant="secondary"
-          onPress={() => {}}
+          onPress={() => setShowContactModal(true)}
         />
       </View>
+
+      {/* Modal de opciones de contacto vecinal */}
+      <Modal
+        visible={showContactModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowContactModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowContactModal(false)}>
+          <View style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+            <Text style={[styles.modalTitle, { color: p.text }]}>Contactar a {profile.user.fullName}</Text>
+            <Text style={[styles.modalSub, { color: p.muted }]}>
+              Comunícate de vecino a vecino para coordinar el trabajo:
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <AppButton
+                label="📞 Llamar por teléfono"
+                variant="primary"
+                onPress={handleCall}
+              />
+              <AppButton
+                label="💬 Enviar WhatsApp"
+                variant="accent"
+                onPress={handleWhatsApp}
+              />
+              <AppButton
+                label="Cancelar"
+                variant="link"
+                onPress={() => setShowContactModal(false)}
+              />
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
@@ -131,4 +194,40 @@ const styles = StyleSheet.create({
   },
   reglaTitulo: { fontSize: 14, fontFamily: fonts.semiBold, color: colors.azul, marginBottom: 4 },
   reglaTexto: { fontSize: 13, fontFamily: fonts.regular, color: colors.carbon, lineHeight: 18 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(19, 46, 102, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.md,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.grisBorde,
+    shadowColor: '#132E66',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: fonts.bold,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  modalSub: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  modalButtons: {
+    marginTop: spacing.xs,
+  },
 });
