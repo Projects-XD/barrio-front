@@ -3,13 +3,20 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors, fonts, radius } from '@/theme';
 
-export function EmergencyFab() {
+interface EmergencyFabProps {
+  bottomOffset?: number;
+}
+
+export function EmergencyFab({ bottomOffset = 88 }: EmergencyFabProps) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Emergencia: ver apoyos disponibles"
       onPress={() => router.push('/emergencia')}
-      style={({ pressed }) => [styles.fab, { opacity: pressed ? 0.85 : 1 }]}
+      style={({ pressed }) => [
+        styles.fab,
+        { bottom: bottomOffset, opacity: pressed ? 0.85 : 1 },
+      ]}
     >
       <Ionicons name="alert-circle" size={22} color={colors.blanco} />
       <Text style={styles.label}>Emergencia</Text>
@@ -21,7 +28,6 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 16,
-    bottom: 88,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,

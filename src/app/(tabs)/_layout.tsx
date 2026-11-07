@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmergencyFab } from '@/components/EmergencyFab';
 import { useEmergencyState, useUnreadNotificationCount } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
@@ -20,8 +21,14 @@ function TabIcon({ focused, on, off }: { focused: boolean; on: IconName; off: Ic
 
 export default function TabsLayout() {
   const p = usePalette();
+  const insets = useSafeAreaInsets();
   const { data: emergency } = useEmergencyState();
   const { data: unread } = useUnreadNotificationCount();
+
+  // Para celulares con barra de navegación por gestos (insets.bottom suele ser 20-34px)
+  // o celulares con botones tradicionales (insets.bottom es 0-10px)
+  const bottomPadding = Math.max(insets.bottom, 12);
+  const totalBarHeight = 60 + bottomPadding;
 
   useEffect(() => {
     if (emergency) useAppStore.getState().setServerEmergency(emergency.status === 'activa');
@@ -34,7 +41,13 @@ export default function TabsLayout() {
           headerShown: false,
           tabBarActiveTintColor: p.text,
           tabBarInactiveTintColor: colors.gris,
-          tabBarStyle: styles.bar,
+          tabBarStyle: [
+            styles.bar,
+            {
+              height: totalBarHeight,
+              paddingBottom: bottomPadding,
+            },
+          ],
           tabBarLabelStyle: styles.label,
         }}
       >
@@ -78,7 +91,7 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-      <EmergencyFab />
+      <EmergencyFab bottomOffset={totalBarHeight + 12} />
     </View>
   );
 }
@@ -87,9 +100,7 @@ const styles = StyleSheet.create({
   bar: {
     backgroundColor: colors.blanco,
     borderTopWidth: 0,
-    height: 64,
-    paddingTop: 4,
-    paddingBottom: 8,
+    paddingTop: 6,
     shadowColor: '#132E66',
     shadowOpacity: 0.08,
     shadowRadius: 16,
