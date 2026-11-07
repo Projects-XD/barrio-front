@@ -8,11 +8,16 @@ import { colors, fonts, radius } from '@/theme';
 import { timeAgo } from '@/utils/time';
 import { Card } from './Card';
 import { UrgencyBadge } from './UrgencyBadge';
+import { useAppStore } from '@/store/app-store';
 
 type Props = { favor: Favor; onPress?: () => void };
 
 export function FavorCard({ favor, onPress }: Props) {
   const p = usePalette();
+  const userId = useAppStore((s) => s.userId);
+  const esMio = Boolean(userId && favor.authorId === userId);
+  const esOfrecimiento = favor.intent === 'ofrecer';
+
   // Sin enviar tiene prioridad: la cola offline también marca sus favores como 'pendiente'.
   // Un favor en revisión solo llega al feed de su autor: el backend lo filtra para los demás.
   const pill: { bg: string; fg: string; icon: IconName; iconSize: number; text: string } =
@@ -21,16 +26,53 @@ export function FavorCard({ favor, onPress }: Props) {
       : favor.moderationStatus === 'pendiente'
         ? { bg: colors.naranja, fg: colors.azul, icon: 'time-outline', iconSize: 14, text: 'En revisión' }
         : { bg: colors.verdeExitoSuave, fg: colors.verdeExito, icon: 'ellipse', iconSize: 8, text: favorStatusLabel[favor.status] };
-  const meta = [favor.author.fullName, timeAgo(favor.createdAt)].filter(Boolean).join(' · ');
+
+  const metaAuthor = esMio ? 'Publicado por ti' : favor.author.fullName;
+  const meta = [metaAuthor, timeAgo(favor.createdAt)].filter(Boolean).join(' · ');
 
   return (
     <Card onPress={onPress}>
+      <View style={styles.badgeRow}>
+        <View
+          style={[
+            styles.tag,
+            esOfrecimiento
+              ? { backgroundColor: colors.verdeExitoSuave, borderColor: colors.verdeExito }
+              : { backgroundColor: colors.naranjaSuave, borderColor: colors.naranja },
+          ]}
+        >
+          <Ionicons
+            name={esOfrecimiento ? 'heart' : 'hand-left'}
+            size={12}
+            color={esOfrecimiento ? colors.verdeExito : colors.azul}
+          />
+          <Text
+            style={[
+              styles.tagText,
+              { color: esOfrecimiento ? colors.verdeExito : colors.azul },
+            ]}
+          >
+            {esOfrecimiento ? 'Ofrecimiento' : 'Pedido de ayuda'}
+          </Text>
+        </View>
+
+        {esMio ? (
+          <View style={[styles.tag, styles.mineTag]}>
+            <Ionicons name="person" size={12} color={colors.azulMedio} />
+            <Text style={[styles.tagText, { color: colors.azulMedio, fontFamily: fonts.bold }]}>
+              Tu publicación
+            </Text>
+          </View>
+        ) : null}
+
+        {favor.moderationStatus === 'aprobado' ? <UrgencyBadge urgency={favor.urgency} /> : null}
+      </View>
+
       <View style={styles.row}>
         <View style={[styles.iconWrap, { backgroundColor: p.highlight }]}>
           <Ionicons name={favorTypeIcon[favor.type]} size={24} color={p.text} />
         </View>
         <View style={styles.info}>
-          {favor.moderationStatus === 'aprobado' ? <UrgencyBadge urgency={favor.urgency} /> : null}
           <Text style={[styles.type, { color: p.muted }]}>{favorTypeLabel[favor.type]}</Text>
           <Text style={[styles.title, { color: p.text }]} numberOfLines={2}>
             {favor.title}
@@ -40,7 +82,13 @@ export function FavorCard({ favor, onPress }: Props) {
       </View>
 
       <View style={styles.footer}>
-        <Text style={[styles.meta, { color: p.muted }]} numberOfLines={1}>
+        <Text
+          style={[
+            styles.meta,
+            { color: esMio ? colors.azulMedio : p.muted, fontFamily: esMio ? fonts.semiBold : fonts.regular },
+          ]}
+          numberOfLines={1}
+        >
           {meta}
         </Text>
         <View style={[styles.pill, { backgroundColor: pill.bg }]}>
@@ -53,6 +101,30 @@ export function FavorCard({ favor, onPress }: Props) {
 }
 
 const styles = StyleSheet.create({
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  mineTag: {
+    backgroundColor: colors.azulSuave,
+    borderColor: colors.azulMedio,
+  },
+  tagText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+  },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   iconWrap: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   info: { flex: 1 },

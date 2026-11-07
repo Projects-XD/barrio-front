@@ -70,7 +70,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="favores"
           options={{
-            title: 'Favores',
+            title: 'Ayudas',
             tabBarIcon: ({ focused }) => <TabIcon focused={focused} on="heart" off="heart-outline" />,
           }}
         />
