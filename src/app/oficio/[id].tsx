@@ -1,4 +1,4 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
@@ -15,6 +15,22 @@ export default function OficioDetalle() {
   const p = usePalette();
   const { data: profile, isLoading } = useProfile(id);
   const vouch = useVouch(id);
+
+  const handleVouch = async () => {
+    if (!profile) return;
+    try {
+      await vouch.mutateAsync();
+      Alert.alert(
+        '¡Visto Bueno Registrado!',
+        `Has respaldado exitosamente el trabajo de ${profile.user.fullName}. Tu confianza ayuda a mantener seguro el barrio.`
+      );
+    } catch (err: any) {
+      const errorMsg =
+        err?.message ||
+        'No se pudo registrar el visto bueno. Recuerda que solo vecinos de la misma zona pueden validar un perfil.';
+      Alert.alert('No se pudo otorgar el visto bueno', errorMsg);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -89,7 +105,7 @@ export default function OficioDetalle() {
                 : 'Dar visto bueno vecinal'
           }
           variant={profile.hasVouchedByMe ? 'secondary' : 'accent'}
-          onPress={() => vouch.mutate()}
+          onPress={handleVouch}
           disabled={profile.hasVouchedByMe || vouch.isPending}
         />
         <AppButton
