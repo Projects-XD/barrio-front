@@ -259,6 +259,20 @@ export function useMyProfile() {
   });
 }
 
+export function useMyProfiles() {
+  const zoneId = useAppStore((s) => s.zoneId);
+  const userId = useAppStore((s) => s.userId);
+
+  return useQuery({
+    queryKey: ['myProfile', zoneId, userId, 'all'],
+    enabled: Boolean(zoneId && userId),
+    queryFn: async (): Promise<ProfessionalProfile[]> => {
+      const data = await listProfiles({ zoneId: zoneId! });
+      return data.filter((bp) => bp.user_id === userId).map((bp) => mapBackendProfileToFrontend(bp));
+    },
+  });
+}
+
 export function useUpsertMyProfile() {
   const qc = useQueryClient();
 

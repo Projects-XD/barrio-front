@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
@@ -129,6 +129,11 @@ export default function OficioDetalle() {
 
       {/* Botones de acción con jerarquía y colores diferenciados */}
       <View style={styles.actionButtons}>
+        {esMio ? (
+          <AppButton label="Editar mi oficio" variant="accent" onPress={() => router.push('/(tabs)/perfil')} />
+        ) : null}
+        {esMio ? null : (
+        <>
         <AppButton
           label="Contactar técnico"
           variant="accent"
@@ -146,6 +151,9 @@ export default function OficioDetalle() {
           onPress={handleVouch}
           disabled={esMio || profile.hasVouchedByMe || vouch.isPending}
         />
+      
+        </>
+        )}
       </View>
 
       {/* Modal de opciones de contacto vecinal */}
