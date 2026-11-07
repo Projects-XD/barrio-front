@@ -52,6 +52,7 @@ const baseFavor = {
   closed_at: null,
   deleted_at: null,
   urgency: 'normal',
+  moderation_status: 'aprobado',
 };
 const rejectsWith = (status: number) => (err: unknown) => (err as { statusCode: number }).statusCode === status;
 
@@ -116,6 +117,29 @@ test('getFavorById oculta el contenido desactivado a otros, pero no a su autor',
   assert.equal(asNeighbor.is_deactivated, true);
   assert.equal(asNeighbor.title, '');
   assert.deepEqual(asNeighbor.interests, []);
+});
+
+test('getFavorById oculta el contenido a otros vecinos si el favor fue retirado por reportes', async () => {
+  const row = { ...baseFavor, title: 'Secreto', description: 'Texto', moderation_status: 'rechazado', created_at: hoursAgo(1) };
+  const asNeighbor = await service.getFavorById(fakeSupabase(row).client, 'neighbor-id', 'f1');
+  assert.equal(asNeighbor.is_deactivated, true);
+  assert.equal(asNeighbor.title, '');
+  assert.equal(asNeighbor.description, null);
+  const asAuthor = await service.getFavorById(fakeSupabase(row).client, AUTHOR, 'f1');
+  assert.equal(asAuthor.title, 'Secreto');
+});
+
+test('getFavorById no expone quienes estan interesados, solo el conteo y el interes propio', async () => {
+  const interests = [
+    { id: 'i1', user_id: 'neighbor-id', user: { id: 'neighbor-id', full_name: 'Yo' } },
+    { id: 'i2', user_id: 'otro', user: { id: 'otro', full_name: 'Otro vecino' } },
+  ];
+  const row = { ...baseFavor, interests, created_at: hoursAgo(1) };
+  const asNeighbor = await service.getFavorById(fakeSupabase(row).client, 'neighbor-id', 'f1');
+  assert.equal(asNeighbor.interested_count, 2);
+  assert.deepEqual(asNeighbor.interests.map((i) => i.user_id), ['neighbor-id']);
+  const asAuthor = await service.getFavorById(fakeSupabase(row).client, AUTHOR, 'f1');
+  assert.equal(asAuthor.interests.length, 2);
 });
 
 test('getFavorById indica can_edit según la ventana', async () => {

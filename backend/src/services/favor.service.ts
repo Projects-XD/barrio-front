@@ -9,7 +9,8 @@ import { AppError, dbError } from '../middlewares/errorHandler';
 import type { CreateFavorDTO, UpdateFavorDTO, CreateFavorInterestDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
 
-const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const EDIT_WINDOW_MS = DAY_MS;
 // TEMPORAL (pruebas): límite diario desactivado. Cambia a true para reactivar los 5 favores/día.
 const DAILY_LIMIT_ENABLED = false;
 const DAILY_FAVOR_LIMIT_BASE = 5;
@@ -98,6 +99,7 @@ export class FavorService {
       interests: Tables<'favor_interests'>[];
       is_deactivated: boolean;
       can_edit: boolean;
+      interested_count: number;
     }
   > {
     const { data, error } = await supabase
@@ -116,7 +118,8 @@ export class FavorService {
 
     const favor = data as unknown as Tables<'favors'> & { interests: Tables<'favor_interests'>[] };
     const isAuthor = favor.author_id === userId;
-    const isDeactivated = favor.deleted_at !== null;
+    // Retirado por borrado o por moderacion (p. ej. reportes de vecinos): los demas solo ven un favor sin contenido.
+    const isDeactivated = favor.deleted_at !== null || favor.moderation_status !== 'aprobado';
     const flags = {
       is_deactivated: isDeactivated,
       can_edit: isAuthor && !isDeactivated && isWithinEditWindow(favor.created_at),
@@ -134,10 +137,18 @@ export class FavorService {
         moderated_by: null,
         moderation_reason: null,
         interests: [],
+        interested_count: 0,
       };
     }
 
-    return { ...favor, ...flags };
+    // Los demas vecinos solo necesitan el conteo y su propio interes: no se exponen nombres ni fotos.
+    const allInterests = favor.interests ?? [];
+    const interestedCount = allInterests.length;
+    if (!isAuthor) {
+      const mine = allInterests.filter((i) => i.user_id === userId);
+      return { ...favor, ...flags, interests: mine, interested_count: interestedCount };
+    }
+    return { ...favor, ...flags, interested_count: interestedCount };
   }
 
   /**
@@ -165,7 +176,7 @@ export class FavorService {
 
     // 2. Validar título, duplicados en las últimas 24 h y límite diario (5 al día, o 15 si tiene >= 3 favores cerrados)
     const cleanTitle = validateFavorTitleText(dto.title);
-    const since24h = new Date(Date.now() - EDIT_WINDOW_MS).toISOString();
+    const since24h = new Date(Date.now() - DAY_MS).toISOString();
 
     const [{ data: recentFavors }, { count: closedCount }] = await Promise.all([
       supabase

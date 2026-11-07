@@ -121,7 +121,7 @@ export function mapBackendFavorToFrontend(bf: BackendFavor, currentUserId?: stri
     title: bf.title,
     description: bf.description,
     status: bf.status,
-    interestedCount: interests.length,
+    interestedCount: bf.interested_count ?? interests.length,
     hasInterestedByMe: Boolean(currentUserId) && interests.some((i) => i.user_id === currentUserId),
     createdAt: bf.created_at,
     location: bf.location_lat != null && bf.location_lng != null ? { lat: bf.location_lat, lng: bf.location_lng } : null,
