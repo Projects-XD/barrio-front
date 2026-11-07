@@ -33,6 +33,7 @@ export default function TabsLayout() {
   return (
     <View style={{ flex: 1 }}>
       <Tabs
+        id="tabs"
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: p.text,
