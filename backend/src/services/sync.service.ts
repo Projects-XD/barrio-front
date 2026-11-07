@@ -8,6 +8,7 @@ import {
   type SyncOperationDTO,
 } from '../utils/validators';
 import { logger } from '../utils/logger';
+import { assertProfileInUserZone, resolveUserZone } from './zoneAccess';
 
 export interface SyncProcessResult {
   client_id: string;
@@ -231,16 +232,6 @@ export class SyncService {
     clientId: string,
     payload: any
   ): Promise<Tables<'favors'>> {
-    let zoneId = payload.zone_id;
-    if (!zoneId) {
-      const { data: user } = await supabase
-        .from('users')
-        .select('zone_id')
-        .eq('id', userId)
-        .single();
-      zoneId = user?.zone_id;
-    }
-
     // Verificar si ya existe en favors (idempotencia interna por client_id)
     const { data: existing } = await supabase
       .from('favors')
@@ -253,12 +244,15 @@ export class SyncService {
       return existing;
     }
 
+    // Después de la idempotencia: un reintento de algo ya creado no debe fallar por zona.
+    const zoneId = await resolveUserZone(supabase, userId, payload.zone_id);
+
     const { data, error } = await supabase
       .from('favors')
       .insert({
         author_id: userId,
         client_id: clientId,
-        zone_id: zoneId ?? null,
+        zone_id: zoneId,
         type: payload.type,
         title: payload.title,
         description: payload.description ?? null,
@@ -294,6 +288,9 @@ export class SyncService {
     userId: string,
     payload: any
   ): Promise<Record<string, unknown>> {
+    // La idempotencia de reportes ya se resolvió con sync_operations en processSyncBatch.
+    const zoneId = await resolveUserZone(supabase, userId, payload.zone_id);
+
     const rawLat = payload.lat ?? payload.approx_lat;
     const rawLng = payload.lng ?? payload.approx_lng;
 
@@ -311,7 +308,7 @@ export class SyncService {
       .from('vulnerability_reports')
       .insert({
         reporter_user_id: userId,
-        zone_id: payload.zone_id ?? null,
+        zone_id: zoneId,
         approx_lat,
         approx_lng,
         description: payload.description,
@@ -357,6 +354,8 @@ export class SyncService {
     if (existing) {
       return existing;
     }
+
+    await assertProfileInUserZone(supabase, userId, payload.profile_id);
 
     const { data, error } = await supabase
       .from('vouches')

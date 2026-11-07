@@ -2,18 +2,23 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables, OficioCategory } from '../types/database.types';
 import { AppError } from '../middlewares/errorHandler';
 import type { UpsertProfessionalProfileDTO } from '../utils/validators';
+import { resolveUserZone } from './zoneAccess';
 
 export class ProfileService {
   /**
    * Crea o actualiza el perfil profesional de un usuario autenticado.
    * Si ya existe un perfil para la dupla (user_id, oficio_id), actualiza los datos;
    * de lo contrario, inserta un nuevo registro.
+   * REGLA DE ZONA: el perfil queda en la zona del usuario, sin importar el zone_id recibido.
+   * Así nadie puede mudar su perfil a otra zona para recibir vistos buenos de allí.
    */
   public async upsertProfile(
     supabase: SupabaseClient<Database>,
     userId: string,
     dto: UpsertProfessionalProfileDTO
   ): Promise<Tables<'professional_profiles'>> {
+    const zoneId = await resolveUserZone(supabase, userId);
+
     // 1. Determinar si ya existe un perfil para este usuario y oficio
     let existingId = dto.id;
 
@@ -36,7 +41,7 @@ export class ProfileService {
         .from('professional_profiles')
         .update({
           oficio_id: dto.oficio_id,
-          zone_id: dto.zone_id ?? null,
+          zone_id: zoneId,
           description: dto.description ?? null,
           years_experience: dto.years_experience ?? 0,
           location_lat: dto.location_lat ?? null,
@@ -65,7 +70,7 @@ export class ProfileService {
       .insert({
         user_id: userId,
         oficio_id: dto.oficio_id,
-        zone_id: dto.zone_id ?? null,
+        zone_id: zoneId,
         description: dto.description ?? null,
         years_experience: dto.years_experience ?? 0,
         location_lat: dto.location_lat ?? null,
@@ -86,19 +91,23 @@ export class ProfileService {
   }
 
   /**
-   * Obtiene la lista de perfiles profesionales filtrados por zone_id y opcionalmente oficio_id o category.
+   * Obtiene la lista de perfiles profesionales de la zona del usuario y opcionalmente oficio_id o category.
+   * REGLA DE ZONA: 403 si pidió otra zona.
    */
   public async listProfiles(
     supabase: SupabaseClient<Database>,
-    params: { zoneId: string; oficioId?: string; category?: OficioCategory }
+    userId: string,
+    params: { zoneId?: string; oficioId?: string; category?: OficioCategory }
   ): Promise<Tables<'professional_profiles'>[]> {
+    const zoneId = await resolveUserZone(supabase, userId, params.zoneId);
+
     // Con !inner el filtro por oficios.category descarta perfiles; sin él solo deja oficio en null.
     const oficioEmbed = params.category ? 'oficio:oficios!inner(*)' : 'oficio:oficios(*)';
 
     let query = supabase
       .from('professional_profiles')
       .select(`*, user:users!professional_profiles_user_id_fkey(id, full_name, avatar_url, zone_id), ${oficioEmbed}`)
-      .eq('zone_id', params.zoneId)
+      .eq('zone_id', zoneId)
       .eq('is_visible', true)
       .order('is_validated', { ascending: false })
       .order('validated_count', { ascending: false });
@@ -121,9 +130,11 @@ export class ProfileService {
 
   /**
    * Obtiene el detalle de un perfil profesional por su identificador UUID.
+   * REGLA DE ZONA: solo su dueño o un vecino de la misma zona pueden verlo.
    */
   public async getProfileById(
     supabase: SupabaseClient<Database>,
+    userId: string,
     profileId: string
   ): Promise<Tables<'professional_profiles'>> {
     const { data, error } = await supabase
@@ -134,6 +145,10 @@ export class ProfileService {
 
     if (error || !data) {
       throw new AppError('Perfil profesional no encontrado', 404);
+    }
+
+    if (data.user_id !== userId && data.zone_id !== (await resolveUserZone(supabase, userId))) {
+      throw new AppError('Acceso denegado: este perfil no pertenece a tu zona', 403);
     }
 
     return data as unknown as Tables<'professional_profiles'>;

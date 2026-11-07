@@ -2,19 +2,24 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables, FavorType } from '../types/database.types';
 import { AppError } from '../middlewares/errorHandler';
 import type { CreateFavorDTO, UpdateFavorDTO, CreateFavorInterestDTO } from '../utils/validators';
+import { resolveUserZone } from './zoneAccess';
 
 export class FavorService {
   /**
-   * Lista favores vecinales activos (status = 'abierta' o 'en_curso') filtrados por zone_id.
+   * Lista favores vecinales activos (status = 'abierta' o 'en_curso') de la zona del usuario.
+   * REGLA DE ZONA: 403 si pidió otra zona.
    */
   public async listActiveFavors(
     supabase: SupabaseClient<Database>,
-    params: { zoneId: string; type?: FavorType }
+    userId: string,
+    params: { zoneId?: string; type?: FavorType }
   ): Promise<Tables<'favors'>[]> {
+    const zoneId = await resolveUserZone(supabase, userId, params.zoneId);
+
     let query = supabase
       .from('favors')
       .select('*, author:users!favors_author_id_fkey(id, full_name, avatar_url)')
-      .eq('zone_id', params.zoneId)
+      .eq('zone_id', zoneId)
       .in('status', ['abierta', 'en_curso'])
       .order('created_at', { ascending: false });
 
@@ -32,9 +37,11 @@ export class FavorService {
 
   /**
    * Obtiene el detalle de un favor por su ID.
+   * REGLA DE ZONA: solo su autor o un vecino de la misma zona pueden verlo.
    */
   public async getFavorById(
     supabase: SupabaseClient<Database>,
+    userId: string,
     favorId: string
   ): Promise<Tables<'favors'> & { interests: Tables<'favor_interests'>[] }> {
     const { data, error } = await supabase
@@ -47,6 +54,10 @@ export class FavorService {
       throw new AppError('Favor no encontrado', 404);
     }
 
+    if (data.author_id !== userId && data.zone_id !== (await resolveUserZone(supabase, userId))) {
+      throw new AppError('Acceso denegado: este favor no pertenece a tu zona', 403);
+    }
+
     return data as unknown as Tables<'favors'> & { interests: Tables<'favor_interests'>[] };
   }
 
@@ -54,27 +65,14 @@ export class FavorService {
    * Crea un nuevo favor comunitario.
    * Regla de Negocio: Valida obligatoriamente client_id para evitar duplicidad e idempotencia,
    * title (máx 120 chars) y type.
+   * Regla de Zona: el favor queda en la zona del autor, sin importar el zone_id recibido.
    */
   public async createFavor(
     supabase: SupabaseClient<Database>,
     authorId: string,
     dto: CreateFavorDTO
   ): Promise<Tables<'favors'>> {
-    // 1. Si no se especificó zone_id, obtener la zona asignada del autor
-    let targetZoneId = dto.zone_id;
-    if (!targetZoneId) {
-      const { data: user } = await supabase
-        .from('users')
-        .select('zone_id')
-        .eq('id', authorId)
-        .single();
-
-      if (user?.zone_id) {
-        targetZoneId = user.zone_id;
-      }
-    }
-
-    // 2. Comprobar si ya existe un favor con el mismo client_id para este autor (Idempotencia)
+    // 1. Comprobar si ya existe un favor con el mismo client_id para este autor (Idempotencia)
     const { data: existing } = await supabase
       .from('favors')
       .select('*')
@@ -86,13 +84,16 @@ export class FavorService {
       return existing;
     }
 
+    // 2. La zona sale de public.users, nunca del cliente
+    const zoneId = await resolveUserZone(supabase, authorId);
+
     // 3. Insertar el nuevo favor
     const { data, error } = await supabase
       .from('favors')
       .insert({
         author_id: authorId,
         client_id: dto.client_id,
-        zone_id: targetZoneId ?? null,
+        zone_id: zoneId,
         type: dto.type,
         title: dto.title,
         description: dto.description ?? null,
@@ -130,6 +131,8 @@ export class FavorService {
 
   /**
    * Añade un registro de interés en favor_interests.
+   * REGLA DE ZONA: 403 si el favor no es de la zona del usuario, salvo que sea su autor
+   * (el autor recibe el 400 de abajo, porque no puede interesarse en su propio favor).
    */
   public async addInterest(
     supabase: SupabaseClient<Database>,
@@ -140,12 +143,16 @@ export class FavorService {
     // 1. Validar existencia y estado del favor
     const { data: favor, error: favorError } = await supabase
       .from('favors')
-      .select('id, author_id, status')
+      .select('id, author_id, status, zone_id')
       .eq('id', favorId)
       .single();
 
     if (favorError || !favor) {
       throw new AppError('Favor no encontrado', 404);
+    }
+
+    if (favor.author_id !== userId && favor.zone_id !== (await resolveUserZone(supabase, userId))) {
+      throw new AppError('Acceso denegado: este favor no pertenece a tu zona', 403);
     }
 
     if (favor.status !== 'abierta' && favor.status !== 'en_curso') {

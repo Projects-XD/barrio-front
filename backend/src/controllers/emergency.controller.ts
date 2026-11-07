@@ -82,9 +82,12 @@ export class EmergencyController {
    */
   public async createReport(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const reporterId = req.user ? req.user.id : null;
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+
       const supabase = getSupabaseClient(req);
-      const report = await emergencyService.createReport(supabase, reporterId, req.body);
+      const report = await emergencyService.createReport(supabase, req.user.id, req.body);
 
       res.status(201).json({
         success: true,
@@ -103,9 +106,13 @@ export class EmergencyController {
    */
   public async listReports(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+
       const zoneId = (req.query.zoneId || req.query.zone_id) as string | undefined;
       const supabase = getSupabaseClient(req);
-      const reports = await emergencyService.listReports(supabase, { zoneId });
+      const reports = await emergencyService.listReports(supabase, req.user.id, zoneId);
 
       res.json({
         success: true,

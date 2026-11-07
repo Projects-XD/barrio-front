@@ -11,6 +11,10 @@ export class FavorController {
    */
   public async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+
       const zoneId = (req.query.zone_id || req.query.zoneId) as string;
       const type = req.query.type as FavorType | undefined;
 
@@ -19,7 +23,7 @@ export class FavorController {
       }
 
       const supabase = getSupabaseClient(req);
-      const favors = await favorService.listActiveFavors(supabase, { zoneId, type });
+      const favors = await favorService.listActiveFavors(supabase, req.user.id, { zoneId, type });
 
       res.json({
         success: true,
@@ -37,13 +41,17 @@ export class FavorController {
    */
   public async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+
       const id = String(req.params.id ?? '');
       if (!id) {
         throw new AppError('ID de favor requerido', 400);
       }
 
       const supabase = getSupabaseClient(req);
-      const favor = await favorService.getFavorById(supabase, id);
+      const favor = await favorService.getFavorById(supabase, req.user.id, id);
 
       res.json({
         success: true,

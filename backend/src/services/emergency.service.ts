@@ -7,6 +7,7 @@ import type {
   CreateEmergencyReportDTO,
   ToggleEmergencyStateDTO,
 } from '../utils/validators';
+import { resolveUserZone } from './zoneAccess';
 
 export class EmergencyService {
   /**
@@ -38,7 +39,8 @@ export class EmergencyService {
 
   /**
    * Endpoint POST /api/emergency/activate
-   * REGLA DE SEGURIDAD: Verifica que req.user.id tenga emergency_role = true en `users`.
+   * REGLA DE SEGURIDAD: Verifica que req.user.id tenga emergency_role = true en `users`
+   * y que la zona especificada sea la suya (403 si no).
    * Registra el estado de emergencia 'activa' para la zona especificada.
    */
   public async activateEmergency(
@@ -47,6 +49,7 @@ export class EmergencyService {
     dto: ActivateEmergencyDTO
   ): Promise<Tables<'emergency_states'>> {
     await this.verifyEmergencyRole(supabase, userId);
+    await resolveUserZone(supabase, userId, dto.zone_id);
 
     const now = new Date().toISOString();
     const { data, error } = await supabase
@@ -71,7 +74,8 @@ export class EmergencyService {
 
   /**
    * Endpoint POST /api/emergency/deactivate
-   * REGLA DE SEGURIDAD: Verifica que req.user.id tenga emergency_role = true en `users`.
+   * REGLA DE SEGURIDAD: Verifica que req.user.id tenga emergency_role = true en `users`
+   * y que la zona especificada sea la suya (403 si no).
    * Cierra las emergencias activas y registra el estado 'inactiva'.
    */
   public async deactivateEmergency(
@@ -80,6 +84,7 @@ export class EmergencyService {
     dto: DeactivateEmergencyDTO
   ): Promise<Tables<'emergency_states'>> {
     await this.verifyEmergencyRole(supabase, userId);
+    await resolveUserZone(supabase, userId, dto.zone_id);
 
     const now = new Date().toISOString();
 
@@ -119,12 +124,15 @@ export class EmergencyService {
    * Endpoint POST /api/emergency/reports (Reportar vulnerabilidad)
    * REGLA DE PRIVACIDAD: Toma req.body.lat y req.body.lng y los redondea
    * matemáticamente a 3 decimales (~111m de precisión) ANTES de insertar en vulnerability_reports.
+   * REGLA DE ZONA: el reporte queda en la zona del usuario, sin importar el zone_id recibido.
    */
   public async createReport(
     supabase: SupabaseClient<Database>,
-    reporterUserId: string | null,
+    reporterUserId: string,
     dto: CreateEmergencyReportDTO
   ): Promise<Record<string, unknown>> {
+    const zoneId = await resolveUserZone(supabase, reporterUserId);
+
     const rawLat = dto.lat ?? dto.approx_lat;
     const rawLng = dto.lng ?? dto.approx_lng;
 
@@ -143,7 +151,7 @@ export class EmergencyService {
       .from('vulnerability_reports')
       .insert({
         reporter_user_id: reporterUserId,
-        zone_id: dto.zone_id ?? null,
+        zone_id: zoneId,
         approx_lat,
         approx_lng,
         description: dto.description,
@@ -170,24 +178,23 @@ export class EmergencyService {
 
   /**
    * Endpoint GET /api/emergency/reports
+   * REGLA DE ZONA: siempre filtra por la zona del usuario; 403 si pidió otra.
    * REGLA DE PRIVACIDAD: Si en la DB `is_anonymous = true`, el JSON de respuesta
    * NO debe incluir `reporter_user_id` ni datos personales del reportante.
    */
   public async listReports(
     supabase: SupabaseClient<Database>,
-    params: { zoneId?: string }
+    userId: string,
+    requestedZoneId?: string
   ): Promise<Record<string, unknown>[]> {
-    let query = supabase
+    const zoneId = await resolveUserZone(supabase, userId, requestedZoneId);
+
+    const { data, error } = await supabase
       .from('vulnerability_reports')
       .select('*, reporter:users!vulnerability_reports_reporter_user_id_fkey(id, full_name, avatar_url)')
+      .eq('zone_id', zoneId)
       .eq('status', 'activo')
       .order('created_at', { ascending: false });
-
-    if (params.zoneId) {
-      query = query.eq('zone_id', params.zoneId);
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       throw new AppError(`Error al consultar reportes de emergencia: ${error.message}`, 400);
