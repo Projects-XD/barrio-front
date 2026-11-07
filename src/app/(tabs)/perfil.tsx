@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -44,7 +45,7 @@ export default function Perfil() {
   const userEmail = useAppStore((s) => s.userEmail);
 
   const { data: myProfile } = useMyProfile();
-  const { data: misOficios = [] } = useMyProfiles();
+  const { data: misOficios = [], isPending: cargandoOficios } = useMyProfiles();
   const [editingId, setEditingId] = useState<string | null>(null);
   const { data: favors = [] } = useFavors();
   const misFavores = favors.filter((f) => f.authorId === userId).length;
@@ -149,7 +150,9 @@ export default function Perfil() {
           </View>
         </Card>
       ))}
-      {misOficios.length === 0 ? (
+      {cargandoOficios ? (
+        <ActivityIndicator size="large" color={p.primary} style={{ marginVertical: spacing.md }} />
+      ) : misOficios.length === 0 ? (
         <Card>
           <View style={styles.sinOficioRow}>
             <Ionicons name="construct-outline" size={26} color={colors.azul} />
