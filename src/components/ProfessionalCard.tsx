@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   metricText: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: fonts.medium,
     color: '#334155',
   },

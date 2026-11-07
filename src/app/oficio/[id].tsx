@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 11.5,
+    fontSize: 14,
     fontFamily: fonts.medium,
     color: '#64748B',
   },
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   notaTexto: {
-    fontSize: 12.5,
+    fontSize: 14,
     fontFamily: fonts.regular,
     color: '#64748B',
     lineHeight: 18,

@@ -79,6 +79,9 @@ export default function Reportar() {
         La ubicación se redondea a unos 100 metros. Nunca se guarda la dirección exacta.
       </Text>
 
+      <Text style={[styles.nota, { color: colors.rojo, fontWeight: '600' }]}>
+        Si es urgente, llama al 105 (PolicÃ­a), 116 (Bomberos) o 106 (SAMU). Este reporte no reemplaza una llamada de emergencia.
+      </Text>
       <AppButton
         label={crear.isPending ? 'Enviando...' : 'Enviar reporte'}
         variant="primary"
@@ -102,5 +105,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.blanco,
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap' },
-  nota: { fontFamily: fonts.regular, fontSize: 13, marginTop: 4, marginBottom: spacing.md },
+  nota: { fontFamily: fonts.regular, fontSize: 14, marginTop: 4, marginBottom: spacing.md },
 });

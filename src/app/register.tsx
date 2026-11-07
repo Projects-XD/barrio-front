@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
   },
   privacyNote: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: fonts.regular,
     textAlign: 'center',
     marginBottom: spacing.sm,

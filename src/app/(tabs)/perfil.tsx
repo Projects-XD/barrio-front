@@ -27,6 +27,9 @@ import { colors, fonts, radius, spacing } from '@/theme';
 
 const categorias = Object.keys(oficioLabel) as OficioCategory[];
 
+// Pon en false antes de presentar para ocultar los interruptores de prueba.
+const SHOW_DEMO_TOOLS = __DEV__;
+
 export default function Perfil() {
   const p = usePalette();
   const simulatedEmergency = useAppStore((s) => s.simulatedEmergency);
@@ -186,6 +189,8 @@ export default function Perfil() {
       </Card>
 
       {/* Sección: Simulaciones del Reto */}
+      {SHOW_DEMO_TOOLS ? (
+      <>
       <Text style={[styles.seccionLabel, { color: p.text }]}>Simulaciones del Reto (Hackathon)</Text>
       <Card>
         <ToggleRow
@@ -205,6 +210,8 @@ export default function Perfil() {
           onChange={(v) => setOnline(!v)}
         />
       </Card>
+      </>
+      ) : null}
 
       <View style={{ marginTop: spacing.md }}>
         <AppButton
