@@ -1,6 +1,8 @@
 import { api } from './client';
 import type {
   FavorType,
+  FavorUrgency,
+  ModerationStatus,
   OficioCategory,
   ResourceKind,
   ResourceType,
@@ -59,6 +61,12 @@ export interface BackendFavor {
   client_id: string;
   sync_status: 'pendiente' | 'enviado' | 'error';
   created_at: string;
+  urgency: FavorUrgency;
+  moderation_status: ModerationStatus;
+  moderation_reason?: string | null;
+  // Solo vienen en GET /favors/:id.
+  can_edit?: boolean;
+  is_deactivated?: boolean;
   location_lat?: number | null;
   location_lng?: number | null;
   author?: {
@@ -176,13 +184,39 @@ export interface CreateFavorPayload {
   type: FavorType;
   title: string;
   description?: string | null;
+  urgency: FavorUrgency;
 }
 
 export const createFavor = (payload: CreateFavorPayload) =>
   api.post<BackendFavor>('/favors', payload);
 
+// El backend no admite cambiar urgency en PATCH: solo contenido.
+export interface UpdateFavorPayload {
+  type: FavorType;
+  title: string;
+  description: string | null;
+}
+
+export const updateFavor = (id: string, payload: UpdateFavorPayload) =>
+  api.patch<BackendFavor>(`/favors/${id}`, payload);
+
+export const deleteFavor = (id: string) => api.delete<BackendFavor>(`/favors/${id}`);
+
 export const expressInterest = (favorId: string, message?: string) =>
   api.post<unknown>(`/favors/${favorId}/interest`, { message: message ?? null });
+
+// ============================================================================
+// ADMINISTRACIÓN
+// ============================================================================
+
+// limit y offset explícitos: el handler hace Number(req.query.limit).
+export const listPendingFavors = (limit: number, offset = 0) =>
+  api.get<BackendFavor[]>(`/admin/favors/pending?limit=${limit}&offset=${offset}`);
+
+export const approveFavor = (id: string) => api.patch<BackendFavor>(`/admin/favors/${id}/approve`);
+
+export const rejectFavor = (id: string, reason: string) =>
+  api.patch<BackendFavor>(`/admin/favors/${id}/reject`, { reason });
 
 // ============================================================================
 // EMERGENCIA

@@ -1,4 +1,4 @@
-import type { FavorStatus, FavorType, OficioCategory, ResourceType, ServiceType, SyncStatus } from '@/types';
+import type { FavorStatus, FavorType, FavorUrgency, OficioCategory, ResourceType, ServiceType, SyncStatus } from '@/types';
 
 export const oficioLabel: Record<OficioCategory, string> = {
   gasfiteria: 'Gasfitería',
@@ -24,6 +24,12 @@ export const favorStatusLabel: Record<FavorStatus, string> = {
   en_curso: 'En curso',
   cerrada: 'Cerrada',
   cancelada: 'Cancelada',
+};
+
+export const favorUrgencyLabel: Record<FavorUrgency, string> = {
+  normal: 'Normal',
+  urgente: 'Urgente',
+  emergencia: 'Emergencia',
 };
 
 export const syncStatusLabel: Record<SyncStatus, string> = {
