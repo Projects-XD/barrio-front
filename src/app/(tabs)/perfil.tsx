@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -9,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/AppButton';
@@ -25,10 +27,12 @@ import { useAppStore } from '@/store/app-store';
 import {
   useDeleteProfile,
   useFavors,
+  useMyAvatarUrl,
   useMyProfile,
   useMyProfiles,
   useMySavedLocation,
   useOutboxPending,
+  useUpdateAvatar,
   useUpsertMyProfile,
   useZones,
 } from '@/hooks/useData';
@@ -81,6 +85,36 @@ export default function Perfil() {
   const misFavores = favors.filter((f) => f.authorId === userId).length;
   const totalVistosBuenos = misOficios.reduce((acc, o) => acc + (o.validatedCount ?? 0), 0);
   const upsertProfile = useUpsertMyProfile();
+  const { data: avatarUrl } = useMyAvatarUrl();
+  const updateAvatar = useUpdateAvatar();
+  const initials = userFullName
+    .split(' ')
+    .filter(Boolean)
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  const cambiarFoto = async () => {
+    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permiso.granted) {
+      Alert.alert('Sin permiso', 'Activa el acceso a tus fotos para cambiar tu foto de perfil.');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (res.canceled || !res.assets[0]) return;
+    try {
+      await updateAvatar.mutateAsync(res.assets[0].uri);
+    } catch (err) {
+      Alert.alert('No se pudo guardar la foto', err instanceof Error ? err.message : 'Inténtalo de nuevo.');
+    }
+  };
+
   const deleteProfile = useDeleteProfile();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -162,15 +196,39 @@ export default function Perfil() {
 
       {/* Tarjeta principal unificada: Identidad + Ubicación + Resumen */}
       <Card>
-        <View style={styles.usuarioInfo}>
-          <Text style={[styles.nombre, { color: p.text }]} numberOfLines={1}>
-            {userFullName}
-          </Text>
-          {userEmail ? (
-            <Text style={[styles.correo, { color: p.muted }]} numberOfLines={1}>
-              {userEmail}
+        <View style={styles.usuarioRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cambiar foto de perfil"
+            onPress={cambiarFoto}
+            disabled={updateAvatar.isPending}
+            style={styles.avatarWrap}
+          >
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: colors.azul }]}>
+                <Text style={styles.avatarText}>{initials || 'V'}</Text>
+              </View>
+            )}
+            <View style={styles.avatarEdit}>
+              {updateAvatar.isPending ? (
+                <ActivityIndicator size="small" color={colors.blanco} />
+              ) : (
+                <Ionicons name="camera" size={12} color={colors.blanco} />
+              )}
+            </View>
+          </Pressable>
+          <View style={styles.usuarioInfo}>
+            <Text style={[styles.nombre, { color: p.text }]} numberOfLines={1}>
+              {userFullName}
             </Text>
-          ) : null}
+            {userEmail ? (
+              <Text style={[styles.correo, { color: p.muted }]} numberOfLines={1}>
+                {userEmail}
+              </Text>
+            ) : null}
+          </View>
         </View>
 
         <View style={styles.cardDivider} />
