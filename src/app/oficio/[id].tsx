@@ -10,14 +10,16 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { AppButton } from '@/components/AppButton';
+import { Chip } from '@/components/Chip';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
-import { useProfile, useUpsertMyProfile, useVouch } from '@/hooks/useData';
+import { useMyProfiles, useProfile, useUpsertMyProfile, useVouch } from '@/hooks/useData';
+import type { OficioCategory } from '@/types';
 import { useAppStore } from '@/store/app-store';
 import { oficioLabel } from '@/i18n/labels';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -26,8 +28,11 @@ export default function OficioDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
   const { data: profile, isLoading, refetch } = useProfile(id);
+  const { data: misOficios = [] } = useMyProfiles();
   const upsert = useUpsertMyProfile();
   const [editando, setEditando] = useState(false);
+  const [modoNuevo, setModoNuevo] = useState(false);
+  const [categoria, setCategoria] = useState<OficioCategory>('otro');
   const [descripcion, setDescripcion] = useState('');
   const [experiencia, setExperiencia] = useState('');
   const vouch = useVouch(id);
@@ -52,27 +57,46 @@ export default function OficioDetalle() {
     }
   };
 
-  const abrirEdicion = () => {
+  // nuevo = true: agregar otro oficio (categoría libre). nuevo = false: editar este oficio.
+  const abrirEdicion = (nuevo: boolean) => {
     if (!profile) return;
     upsert.reset();
-    setDescripcion(profile.description);
-    setExperiencia(profile.yearsExperience ? String(profile.yearsExperience) : '0');
+    setModoNuevo(nuevo);
+    if (nuevo) {
+      const usados = misOficios.map((o) => o.oficio.category);
+      const libre = (Object.keys(oficioLabel) as OficioCategory[]).find((c) => !usados.includes(c)) ?? 'otro';
+      setCategoria(libre);
+      setDescripcion('');
+      setExperiencia('0');
+    } else {
+      setCategoria(profile.oficio.category);
+      setDescripcion(profile.description);
+      setExperiencia(profile.yearsExperience ? String(profile.yearsExperience) : '0');
+    }
     setEditando(true);
   };
 
   const guardarEdicion = () => {
     if (!profile) return;
+    if (modoNuevo && misOficios.some((o) => o.oficio.category === categoria)) {
+      Alert.alert('Ya tienes ese oficio', 'Elige otra categoría o edita el oficio que ya tienes.');
+      return;
+    }
     upsert.mutate(
       {
-        category: profile.oficio.category,
+        category: categoria,
         description: descripcion.trim() || 'Servicios para vecinos de la zona.',
         yearsExperience: parseInt(experiencia, 10) || 0,
-        existingId: profile.id,
+        existingId: modoNuevo ? undefined : profile.id,
       },
       {
         onSuccess: () => {
           setEditando(false);
-          refetch();
+          if (modoNuevo) {
+            router.replace('/(tabs)/perfil');
+          } else {
+            refetch();
+          }
         },
       }
     );
@@ -162,7 +186,10 @@ export default function OficioDetalle() {
       {/* Botones de acción con jerarquía y colores diferenciados */}
       <View style={styles.actionButtons}>
         {esMio ? (
-          <AppButton label="Editar mi oficio" variant="accent" onPress={abrirEdicion} />
+          <>
+            <AppButton label="Editar mi oficio" variant="accent" onPress={() => abrirEdicion(false)} />
+            <AppButton label="Agregar otro oficio" variant="secondary" onPress={() => abrirEdicion(true)} />
+          </>
         ) : null}
         {esMio ? null : (
         <>
@@ -193,8 +220,16 @@ export default function OficioDetalle() {
         <Pressable style={styles.modalOverlay} onPress={() => setEditando(false)}>
           <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco, maxHeight: '85%' }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={[styles.modalTitle, { color: colors.azul }]}>Editar mi oficio</Text>
-              <Text style={styles.campoLabel}>{oficioLabel[profile?.oficio.category ?? 'otro']}</Text>
+              <Text style={[styles.modalTitle, { color: colors.azul }]}>
+                {modoNuevo ? 'Agregar otro oficio' : 'Editar mi oficio'}
+              </Text>
+
+              <Text style={styles.campoLabel}>Tipo de oficio</Text>
+              <View style={styles.chipsWrap}>
+                {(Object.keys(oficioLabel) as OficioCategory[]).map((c) => (
+                  <Chip key={c} label={oficioLabel[c]} selected={categoria === c} onPress={() => setCategoria(c)} />
+                ))}
+              </View>
 
               <Text style={styles.campoLabel}>Años de experiencia</Text>
               <TextInput
@@ -282,6 +317,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   campoArea: { minHeight: 100, textAlignVertical: 'top', paddingTop: 12 },
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.xs },
   errorTexto: { fontFamily: fonts.medium, fontSize: 14, color: colors.rojo, marginTop: spacing.xs },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: spacing.xl },
   headerInfo: {
