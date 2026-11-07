@@ -57,7 +57,7 @@ export default function Register() {
 
         <View style={styles.footer}>
           <Text style={[styles.privacyNote, { color: p.muted }]}>
-            🔒 Tu dirección exacta nunca será compartida públicamente.
+            Tu dirección exacta nunca será compartida públicamente.
           </Text>
 
           <AppButton
