@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -21,6 +21,9 @@ const PASOS = ['Elige el tipo', 'Escribe tu favor', 'Revisa y publica'];
 
 export default function NuevoFavor() {
   const p = usePalette();
+  const { modo } = useLocalSearchParams<{ modo?: string }>();
+  // "ofrecer" o "pedir" (por defecto). Cambia los textos y el prefijo del favor publicado.
+  const ofrecer = modo === 'ofrecer';
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
   const [tipo, setTipo] = useState<FavorType | null>(null);
   const [confirmando, setConfirmando] = useState(false);
@@ -55,7 +58,9 @@ export default function NuevoFavor() {
 
       {paso === 1 && (
         <>
-          <Text style={[styles.titulo, { color: p.text }]}>¿Qué necesitas o qué ofreces?</Text>
+          <Text style={[styles.titulo, { color: p.text }]}>
+            {ofrecer ? '¿Qué ofreces a tus vecinos?' : '¿Qué necesitas de tus vecinos?'}
+          </Text>
           <Text style={[styles.sub, { color: p.muted }]}>Toca la opción que mejor describe tu favor.</Text>
           <View style={styles.grid}>
             {tipos.map((t) => {
@@ -91,7 +96,11 @@ export default function NuevoFavor() {
       {paso === 2 && (
         <>
           <Text style={[styles.titulo, { color: p.text }]}>
-            {tipo === 'otros' ? '¿Qué otro favor necesitas u ofreces?' : 'Describe tu favor en una línea'}
+            {tipo === 'otros'
+              ? '¿Qué otro favor necesitas u ofreces?'
+              : ofrecer
+                ? 'Describe lo que ofreces'
+                : 'Describe lo que necesitas'}
           </Text>
           <Text style={[styles.sub, { color: p.muted }]}>
             {tipo === 'otros'

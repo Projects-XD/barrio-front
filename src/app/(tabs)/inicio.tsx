@@ -65,12 +65,12 @@ export default function Inicio() {
         { title: 'Servicios', desc: 'Salud, bomberos y policía', icon: 'medkit-outline', onPress: () => router.push('/emergencia') },
         { title: 'Reportar vecino', desc: 'Alguien necesita ayuda', icon: 'people-outline', onPress: () => router.push('/reportar'), tone: 'alerta' },
         { title: 'Recursos', desc: 'Agua, medicinas, transporte', icon: 'water-outline', onPress: () => router.push('/emergencia') },
-        { title: 'Ofrecer ayuda', desc: 'Comparte lo que tienes', icon: 'heart-outline', onPress: () => router.push('/favores/nuevo') },
+        { title: 'Ofrecer ayuda', desc: 'Comparte lo que tienes', icon: 'heart-outline', onPress: () => router.push('/favores/nuevo?modo=ofrecer') },
       ]
     : [
         { title: 'Buscar un oficio', desc: 'Gasfiteros, electricistas y más', icon: 'search-outline', onPress: () => router.push('/(tabs)/oficios') },
-        { title: 'Pedir un favor', desc: 'Herramientas, ayuda o traslado', icon: 'hand-left-outline', onPress: () => router.push('/favores/nuevo') },
-        { title: 'Ofrecer ayuda', desc: 'Comparte lo que sabes o tienes', icon: 'heart-outline', onPress: () => router.push('/favores/nuevo') },
+        { title: 'Pedir un favor', desc: 'Herramientas, ayuda o traslado', icon: 'hand-left-outline', onPress: () => router.push('/favores/nuevo?modo=pedir') },
+        { title: 'Ofrecer ayuda', desc: 'Comparte lo que sabes o tienes', icon: 'heart-outline', onPress: () => router.push('/favores/nuevo?modo=ofrecer') },
         { title: 'Emergencia', desc: 'Servicios y reportes', icon: 'alert-circle-outline', onPress: () => router.push('/emergencia'), tone: 'alerta' },
       ];
 
