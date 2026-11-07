@@ -56,6 +56,13 @@ export default function Register() {
       </View>
 
       <View style={styles.garantiaCard}>
+        <Text style={styles.garantiaTitulo}>Privacidad vecinal</Text>
+        <Text style={styles.garantiaTexto}>
+          Tus datos se usan únicamente dentro de tu barrio. Las direcciones exactas nunca se publican abiertamente.
+        </Text>
+      </View>
+
+      <View style={styles.garantiaCard}>
         <Text style={styles.garantiaTitulo}>🔒 Privacidad vecinal</Text>
         <Text style={styles.garantiaTexto}>
           Tus datos se usan únicamente dentro de tu barrio. Las direcciones exactas nunca se publican abiertamente.

@@ -1,24 +1,28 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
 import { colors, fonts, radius, spacing } from '@/theme';
 
+const oficiosImg = require('../../assets/welcome-oficios.jpg');
+const favoresImg = require('../../assets/welcome-favores.jpg');
+const emergenciaImg = require('../../assets/welcome-emergencia.jpg');
+
 const slides = [
   {
-    icono: '🛠️',
+    image: oficiosImg,
     titulo: 'Oficios validados por vecinos',
     texto: 'Encuentra gasfiteros, carpinteros y técnicos recomendados con el visto bueno de vecinos de tu misma zona.',
   },
   {
-    icono: '🤝',
+    image: favoresImg,
     titulo: 'Muro de favores sin dinero',
     texto: 'Préstamo de herramientas, apoyo temporal, donaciones e intercambio de habilidades solidarias.',
   },
   {
-    icono: '🚨',
+    image: emergenciaImg,
     titulo: 'Red de apoyo en emergencia',
     texto: 'La app se adapta ante emergencias para coordinar agua, medicinas, generadores y reportes de vecinos.',
   },
@@ -35,8 +39,13 @@ export default function Welcome() {
   return (
     <Screen scroll={false}>
       <View style={styles.slide}>
-        <View style={[styles.ilustra, { backgroundColor: '#E0ECFB', borderColor: colors.grisBorde }]}>
-          <Text style={styles.iconoText}>{slide.icono}</Text>
+        <View style={[styles.imageWrapper, { borderColor: colors.grisBorde }]}>
+          <Image
+            source={slide.image}
+            style={styles.image}
+            resizeMode="cover"
+            accessibilityLabel={slide.titulo}
+          />
         </View>
 
         <Text style={[styles.titulo, { color: p.text }]}>{slide.titulo}</Text>
@@ -77,27 +86,33 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: spacing.xl,
+    paddingTop: spacing.md,
     paddingHorizontal: spacing.sm,
   },
-  ilustra: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
-    borderWidth: 2,
+  imageWrapper: {
+    width: '100%',
+    height: 250,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    shadowColor: '#132E66',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    backgroundColor: colors.blanco,
   },
-  iconoText: {
-    fontSize: 56,
+  image: {
+    width: '100%',
+    height: '100%',
   },
   titulo: {
-    fontSize: 26,
+    fontSize: 24,
     fontFamily: fonts.bold,
     textAlign: 'center',
-    marginBottom: spacing.sm,
-    lineHeight: 34,
+    marginBottom: spacing.xs,
+    lineHeight: 32,
   },
   texto: {
     fontSize: 16,
@@ -109,7 +124,7 @@ const styles = StyleSheet.create({
   dots: {
     flexDirection: 'row',
     gap: 8,
-    marginVertical: spacing.xl,
+    marginVertical: spacing.lg,
     alignItems: 'center',
   },
   dot: {
