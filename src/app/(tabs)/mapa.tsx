@@ -148,21 +148,19 @@ export default function MapaBarrio() {
   );
 
   const zona = zonas.find((z) => z.id === zoneId);
-  const center: Coords =
-    zona && zona.center_lat != null && zona.center_lng != null
-      ? { lat: zona.center_lat, lng: zona.center_lng }
-      : CASTILLA_CENTER;
+  // Los sectores (Miraflores, Chapayra, etc.) son solo centros poblados DENTRO del distrito de
+  // Castilla, no zonas operativas propias: todo el contenido del barrio vive bajo Castilla, así
+  // que el mapa siempre se centra ahí, sin importar qué sector haya elegido el vecino al registrarse.
+  const center: Coords = CASTILLA_CENTER;
+  const nombreCastilla = zonas.find((z) => z.name === 'Castilla')?.name ?? 'Castilla';
 
   // Los favores siempre se filtran por la zona asignada en la BD (seguridad de zonas), aunque la
-  // ubicación marcada en el mapa esté lejos de esa zona (ej. se registró en otro barrio). Avisamos
-  // al vecino en ese caso para que no piense que el mapa está mostrando el lugar equivocado.
+  // ubicación marcada en el mapa esté lejos de Castilla. Avisamos al vecino en ese caso para que
+  // no piense que el mapa está mostrando el lugar equivocado.
   const fueraDeZonaAsignada = Boolean(
-    zona && activeUserLocation && distanceKm(
-      activeUserLocation.lat,
-      activeUserLocation.lng,
-      center.lat,
-      center.lng,
-    ) > ZONE_MATCH_RADIUS_KM,
+    activeUserLocation &&
+      distanceKm(activeUserLocation.lat, activeUserLocation.lng, center.lat, center.lng) >
+        ZONE_MATCH_RADIUS_KM,
   );
 
   const ubicarmeEnMapa = async () => {
@@ -483,11 +481,11 @@ export default function MapaBarrio() {
         </View>
       </View>
 
-      {fueraDeZonaAsignada && zona ? (
+      {fueraDeZonaAsignada ? (
         <View style={styles.zoneNotice}>
           <Ionicons name="information-circle-outline" size={16} color={colors.azul} />
           <Text style={[styles.zoneNoticeText, { color: colors.azul }]}>
-            Tu ubicación marcada está fuera de {zona.name}. Estás viendo los favores de tu zona asignada.
+            Tu ubicación marcada está fuera de {nombreCastilla}. Estás viendo los favores de tu zona asignada.
           </Text>
         </View>
       ) : null}
