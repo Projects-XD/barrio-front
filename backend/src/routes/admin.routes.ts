@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
-import { getSupabaseClient } from '../config/supabase';
+import { getSupabaseClient, supabaseAdmin } from '../config/supabase';
+import { AppError } from '../middlewares/errorHandler';
 import { requireAuth } from '../middlewares/requireAuth';
 import { requireAdmin } from '../middlewares/requireAdmin';
 import { moderationService } from '../services/moderation.service';
@@ -7,7 +8,38 @@ import { validate, listPendingFavorsQuerySchema, rejectFavorSchema } from '../ut
 
 const router = Router();
 
-// Montado a nivel de router para que ninguna ruta de admin pueda omitirlo.
+/**
+ * @openapi
+ * /admin/me:
+ *   get:
+ *     summary: Indicar si el usuario autenticado es administrador
+ *     tags:
+ *       - Administración
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Objeto con is_admin en true o false
+ *       401:
+ *         description: No autenticado
+ */
+// Antes de requireAdmin: no ser admin es una respuesta válida aquí. Usa los mismos criterios que
+// requireAdmin para que nadie vea el panel y luego reciba 403 en sus rutas.
+router.get('/me', requireAuth, (req: Request, res: Response, next: NextFunction): void => {
+  supabaseAdmin
+    .from('users')
+    .select('is_admin, status, zone_id')
+    .eq('id', req.user!.id)
+    .maybeSingle()
+    .then(({ data: user, error }) => {
+      if (error) throw new AppError('No se pudo verificar el rol de administrador', 500);
+      const isAdmin = Boolean(user?.is_admin && user.status === 'active' && user.zone_id);
+      res.json({ success: true, data: { is_admin: isAdmin }, code: 200 });
+    })
+    .then(undefined, next);
+});
+
+// Montado a nivel de router para que ninguna de las rutas siguientes pueda omitirlo.
 router.use(requireAuth, requireAdmin);
 
 // requireAuth y requireAdmin ya garantizan user y adminZoneId.
