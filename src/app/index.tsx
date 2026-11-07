@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
-import { colors, fonts, spacing } from '@/theme';
+import { colors, spacing } from '@/theme';
 
 const logoBarrio = require('../../assets/brand/logo-barrio.png');
 
@@ -11,9 +11,10 @@ export default function Index() {
   const userId = useAppStore((s) => s.userId);
 
   // Animaciones para la pantalla de carga (Splash Screen)
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const pulseAnim = useRef(new Animated.Value(0.4)).current;
+  // useState (no useRef) para que los valores animados se creen una sola vez sin leer refs durante el render.
+  const [fadeAnim] = useState(() => new Animated.Value(0));
+  const [scaleAnim] = useState(() => new Animated.Value(0.9));
+  const [pulseAnim] = useState(() => new Animated.Value(0.4));
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
   useEffect(() => {
@@ -59,7 +60,7 @@ export default function Index() {
       clearTimeout(timer);
       loop.stop();
     };
-  }, []);
+  }, [fadeAnim, scaleAnim, pulseAnim]);
 
   // Esperar tanto la hidratación del storage/sesión como el tiempo mínimo estético de presentación
   if (!hydrated || !minTimeElapsed) {

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -13,15 +15,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
+import { OtroInput } from '@/components/OtroInput';
 import { Screen } from '@/components/Screen';
 import { ToggleRow } from '@/components/ToggleRow';
 import { ValidationBadge } from '@/components/ValidationBadge';
 import { supabase } from '@/lib/supabase';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
-import { useFavors, useIsAdmin, useMyProfile, useUpsertMyProfile } from '@/hooks/useData';
+import { useFavors, useIsAdmin, useMyProfile, useMyProfiles, useUpsertMyProfile } from '@/hooks/useData';
 import { oficioLabel } from '@/i18n/labels';
-import type { OficioCategory } from '@/types';
+import type { OficioCategory, ProfessionalProfile } from '@/types';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 const categorias = Object.keys(oficioLabel) as OficioCategory[];
@@ -42,6 +45,8 @@ export default function Perfil() {
   const userEmail = useAppStore((s) => s.userEmail);
 
   const { data: myProfile } = useMyProfile();
+  const { data: misOficios = [], isPending: cargandoOficios } = useMyProfiles();
+  const [editingId, setEditingId] = useState<string | null>(null);
   const { data: favors = [] } = useFavors();
   const misFavores = favors.filter((f) => f.authorId === userId).length;
   const upsertProfile = useUpsertMyProfile();
@@ -64,23 +69,32 @@ export default function Perfil() {
     .join('')
     .toUpperCase();
 
-  const handleOpenModal = () => {
+  const handleOpenModal = (oficio: ProfessionalProfile | null) => {
     upsertProfile.reset();
-    if (myProfile) {
-      setSelectedCat(myProfile.oficio.category);
-      setDescripcion(myProfile.description);
-      setExperiencia(myProfile.yearsExperience ? String(myProfile.yearsExperience) : '2');
-    }
+    setEditingId(oficio?.id ?? null);
+    const usados = misOficios.map((o) => o.oficio.category);
+    const libre = categorias.find((c) => !usados.includes(c)) ?? 'otro';
+    setSelectedCat(oficio ? oficio.oficio.category : libre);
+    setDescripcion(oficio?.description ?? '');
+    setExperiencia(oficio?.yearsExperience ? String(oficio.yearsExperience) : '2');
     setModalVisible(true);
   };
 
+  const [otroOficio, setOtroOficio] = useState('');
+
   const handleSaveProfile = () => {
+    if (selectedCat === 'otro' && otroOficio.trim().length < 3) {
+      Alert.alert('Escribe el oficio', 'Cuando eliges "Otro", escribe qué oficio es.');
+      return;
+    }
     upsertProfile.mutate(
       {
         category: selectedCat,
-        description: descripcion.trim() || 'Servicios para vecinos de la zona.',
+        description:
+          (selectedCat === 'otro' ? `Oficio: ${otroOficio.trim()}. ` : '') +
+          (descripcion.trim() || 'Servicios para vecinos de la zona.'),
         yearsExperience: parseInt(experiencia, 10) || 0,
-        existingId: myProfile?.id,
+        existingId: editingId ?? undefined,
       },
       { onSuccess: () => setModalVisible(false) }
     );
@@ -118,55 +132,40 @@ export default function Perfil() {
       </Card>
 
       {/* Sección: Mi Oficio Profesional en el Barrio */}
-      <Text style={[styles.seccionLabel, { color: p.text }]}>Mi oficio en el barrio</Text>
-      {myProfile ? (
-        <Card>
+      <Text style={[styles.seccionLabel, { color: p.text }]}>Mis oficios en el barrio</Text>
+      {misOficios.map((of) => (
+        <Card key={of.id}>
           <View style={styles.oficioHeader}>
             <View>
-              <Text style={[styles.oficioNombre, { color: p.text }]}>
-                {oficioLabel[myProfile.oficio.category]}
-              </Text>
+              <Text style={[styles.oficioNombre, { color: p.text }]}>{oficioLabel[of.oficio.category]}</Text>
               <Text style={[styles.oficioExp, { color: p.muted }]}>
-                {myProfile.yearsExperience ? `${myProfile.yearsExperience} años de experiencia` : 'Oficio registrado'}
+                {of.yearsExperience ? `${of.yearsExperience} ${'a\u00f1os de experiencia'}` : 'Oficio registrado'}
               </Text>
             </View>
-            <ValidationBadge validatedCount={myProfile.validatedCount} />
+            <ValidationBadge validatedCount={of.validatedCount} />
           </View>
-
-          <Text style={[styles.oficioDesc, { color: colors.texto }]}>
-            {myProfile.description}
-          </Text>
-
+          <Text style={[styles.oficioDesc, { color: colors.texto }]}>{of.description}</Text>
           <View style={{ marginTop: spacing.sm }}>
-            <AppButton
-              label="Editar mi oficio"
-              variant="secondary"
-              onPress={handleOpenModal}
-            />
+            <AppButton label="Editar este oficio" variant="secondary" onPress={() => handleOpenModal(of)} />
           </View>
         </Card>
-      ) : (
+      ))}
+      {cargandoOficios ? (
+        <ActivityIndicator size="large" color={p.primary} style={{ marginVertical: spacing.md }} />
+      ) : misOficios.length === 0 ? (
         <Card>
           <View style={styles.sinOficioRow}>
             <Ionicons name="construct-outline" size={26} color={colors.azul} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.sinOficioTitulo, { color: p.text }]}>
-                ¿Ofreces algún oficio o servicio?
-              </Text>
+              <Text style={[styles.sinOficioTitulo, { color: p.text }]}>{'\u00bfOfreces alg\u00fan oficio o servicio?'}</Text>
               <Text style={[styles.sinOficioTexto, { color: p.muted }]}>
                 Publica tu especialidad para que tus vecinos te conozcan y te den su visto bueno.
               </Text>
             </View>
           </View>
-          <View style={{ marginTop: spacing.sm }}>
-            <AppButton
-              label="Ofrecer un oficio en el barrio"
-              variant="accent"
-              onPress={handleOpenModal}
-            />
-          </View>
         </Card>
-      )}
+      ) : null}
+      <AppButton label="Agregar otro oficio" variant="accent" onPress={() => handleOpenModal(null)} />
 
       {/* Sección: Reputación vecinal */}
       <Text style={[styles.seccionLabel, { color: p.text }]}>Mi confianza comunitaria</Text>
@@ -249,7 +248,7 @@ export default function Perfil() {
           <Pressable onPress={() => {}} style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.modalTitle, { color: p.text }]}>
-                {myProfile ? 'Editar mi Oficio' : 'Ofrecer Oficio en el Barrio'}
+                {editingId ? 'Editar mi oficio' : 'Agregar otro oficio'}
               </Text>
               <Text style={[styles.modalSub, { color: p.muted }]}>
                 Comparte tus habilidades técnicas con tus vecinos para recibir recomendaciones y avales.
@@ -266,6 +265,15 @@ export default function Perfil() {
                   />
                 ))}
               </View>
+
+              {selectedCat === 'otro' ? (
+                <OtroInput
+                  label="Escribe qué oficio es"
+                  value={otroOficio}
+                  onChangeText={setOtroOficio}
+                  placeholder="Ej: Tapicero"
+                />
+              ) : null}
 
               <Text style={[styles.inputLabel, { color: p.text }]}>Años de experiencia</Text>
               <TextInput

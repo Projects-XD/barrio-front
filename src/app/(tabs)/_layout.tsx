@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useEmergencyState, useUnreadNotificationCount } from '@/hooks/useData';
+import { useEmergencyState } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import type { IconName } from '@/i18n/icons';
 import { useAppStore } from '@/store/app-store';
@@ -22,7 +22,6 @@ export default function TabsLayout() {
   const p = usePalette();
   const insets = useSafeAreaInsets();
   const { data: emergency } = useEmergencyState();
-  const { data: unread } = useUnreadNotificationCount();
 
   const bottomPadding = Math.max(insets.bottom, 12);
   const totalBarHeight = 60 + bottomPadding;
@@ -70,14 +69,10 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="avisos"
+          name="mapa"
           options={{
-            title: 'Avisos',
-            tabBarBadge: unread && unread > 0 ? (unread > 9 ? '9+' : unread) : undefined,
-            tabBarBadgeStyle: styles.badge,
-            tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} on="notifications" off="notifications-outline" />
-            ),
+            title: 'Mapa',
+            tabBarIcon: ({ focused }) => <TabIcon focused={focused} on="map" off="map-outline" />,
           }}
         />
         <Tabs.Screen
@@ -104,7 +99,6 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   label: { fontFamily: fonts.semiBold, fontSize: 12, marginTop: 1 },
-  badge: { backgroundColor: colors.naranja, color: colors.azul, fontFamily: fonts.bold, fontSize: 11 },
   iconPill: {
     width: 44,
     height: 30,

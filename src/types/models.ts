@@ -36,6 +36,7 @@ export interface ProfessionalProfile {
   validatedCount: number;
   isValidated: boolean;
   hasVouchedByMe: boolean;
+  location?: { lat: number; lng: number } | null;
 }
 
 export interface Favor {
@@ -52,6 +53,7 @@ export interface Favor {
   hasInterestedByMe: boolean;
   createdAt: string;
   syncStatus: E.SyncStatus;
+  location?: { lat: number; lng: number } | null;
   urgency: E.FavorUrgency;
   moderationStatus: E.ModerationStatus;
   moderationReason: string | null;

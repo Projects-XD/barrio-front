@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { distanceKm, getRealPosition, normalizeText, openLocationSettings, placeTexts } from '@/utils/location';
 import { AppButton } from '@/components/AppButton';
@@ -44,6 +45,7 @@ export default function Register() {
   };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [nombre, setNombre] = useState('');
   // Las zonas vienen del backend (/zones): con RLS activo, la clave anon no puede leer la tabla.
   const zonesQuery = useZones();
@@ -332,17 +334,31 @@ export default function Register() {
           />
 
           <Text style={[styles.label, { color: p.text }]}>Contraseña</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Mínimo 6 caracteres"
-            placeholderTextColor={colors.gris}
-            secureTextEntry
-            style={[
-              styles.input,
-              { borderColor: p.border, color: p.text, backgroundColor: colors.blanco },
-            ]}
-          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Mínimo 6 caracteres"
+              placeholderTextColor={colors.gris}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={[
+                styles.input,
+                styles.passwordInput,
+                { borderColor: p.border, color: p.text, backgroundColor: colors.blanco },
+              ]}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              onPress={() => setShowPassword((v) => !v)}
+              hitSlop={8}
+              style={[styles.eyeButton, { borderColor: p.border, backgroundColor: colors.blanco }]}
+            >
+              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.azul} />
+            </Pressable>
+          </View>
 
           {mode === 'register' ? (
             <>
@@ -416,6 +432,9 @@ export default function Register() {
 const iconApp = require('../../assets/brand/icon-app.png');
 
 const styles = StyleSheet.create({
+  passwordRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  passwordInput: { flex: 1 },
+  eyeButton: { width: 52, height: 52, borderRadius: radius.md, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   marca: { width: 64, height: 64, borderRadius: 18, marginBottom: spacing.md },
   container: {
     flex: 1,

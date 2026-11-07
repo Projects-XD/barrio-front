@@ -1,38 +1,95 @@
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
+import { OtroInput } from '@/components/OtroInput';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
 import { UrgencyBadge } from '@/components/UrgencyBadge';
 import { usePalette } from '@/hooks/usePalette';
-import { useCreateFavor } from '@/hooks/useData';
+import { useCreateFavor, useZones } from '@/hooks/useData';
+import { ToggleRow } from '@/components/ToggleRow';
+import { useAppStore } from '@/store/app-store';
+import { getRealPosition } from '@/utils/location';
+import { roundForReport } from '@/utils/geo';
 import { favorTypeIcon } from '@/i18n/icons';
 import { favorTypeLabel, favorUrgencyLabel } from '@/i18n/labels';
 import type { FavorType, FavorUrgency } from '@/types';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
 
 const tipos = Object.keys(favorTypeLabel) as FavorType[];
+
+// Mismas categorías, redactadas desde quien pide o desde quien ofrece.
+const ETIQUETAS: Record<'pedir' | 'ofrecer', Record<FavorType, string>> = {
+  pedir: {
+    herramienta: 'Necesito prestada una herramienta',
+    ayuda_temporal: 'Necesito una mano por un rato',
+    donacion_materiales: 'Necesito materiales o donaciones',
+    intercambio_habilidades: 'Necesito aprender algo de alguien',
+    movilidad_solidaria: 'Necesito que me lleven o acompañen',
+    otros: 'Otra cosa que necesito',
+  },
+  ofrecer: {
+    herramienta: 'Tengo una herramienta para prestar',
+    ayuda_temporal: 'Puedo echar una mano por un rato',
+    donacion_materiales: 'Tengo materiales para donar',
+    intercambio_habilidades: 'Puedo enseñar lo que sé',
+    movilidad_solidaria: 'Puedo llevar o acompañar a alguien',
+    otros: 'Otra cosa que ofrezco',
+  },
+};
 const urgencias = Object.keys(favorUrgencyLabel) as FavorUrgency[];
 
 const PASOS = ['Elige el tipo', 'Escribe tu favor', 'Revisa y publica'];
 
 export default function NuevoFavor() {
   const p = usePalette();
+  const { modo } = useLocalSearchParams<{ modo?: string }>();
+  // "ofrecer" o "pedir" (por defecto). Cambia los textos y el prefijo del favor publicado.
+  const ofrecer = modo === 'ofrecer';
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
   const [tipo, setTipo] = useState<FavorType | null>(null);
   const [confirmando, setConfirmando] = useState(false);
   const [texto, setTexto] = useState('');
+  const [otroNombre, setOtroNombre] = useState('');
   const [urgencia, setUrgencia] = useState<FavorUrgency>('normal');
   const [resultado, setResultado] = useState<{ queued: boolean } | null>(null);
   const crear = useCreateFavor();
+  const [enMapa, setEnMapa] = useState(true);
+  const zoneId = useAppStore((s) => s.zoneId);
+  const { data: zonas = [] } = useZones();
 
-  const publicar = () => {
+  // Ubicación aproximada (110 m) para el mapa del barrio. Sin GPS, usa el centro de la zona.
+  const ubicacionParaMapa = async () => {
+    try {
+      const pos = await getRealPosition();
+      if (pos.status === 'granted') return roundForReport({ lat: pos.lat, lng: pos.lng });
+    } catch {
+      // Sin permiso o sin señal: se usa el centro de la zona.
+    }
+    const zona = zonas.find((z) => z.id === zoneId);
+    return zona && zona.center_lat != null && zona.center_lng != null
+      ? { lat: zona.center_lat, lng: zona.center_lng }
+      : null;
+  };
+
+  const publicar = async () => {
     if (!tipo || !texto.trim() || crear.isPending) return;
+    const ubicacion = enMapa ? await ubicacionParaMapa() : null;
     crear.mutate(
-      { type: tipo, title: texto.trim(), description: null, urgency: urgencia },
+      {
+          type: tipo,
+          // El título lleva el nombre de la opción "Otro" cuando la eliges, o Necesito/Ofrezco en el resto.
+          title: (tipo === 'otros'
+            ? `${ofrecer ? 'Ofrezco' : 'Necesito'} (${otroNombre.trim()}): ${texto.trim()}`
+            : `${ofrecer ? 'Ofrezco: ' : 'Necesito: '}${texto.trim()}`
+          ).slice(0, 120),
+          description: null,
+          urgency: urgencia,
+          location: ubicacion,
+        },
       { onSuccess: ({ queued }) => setResultado({ queued }) }
     );
   };
@@ -55,7 +112,9 @@ export default function NuevoFavor() {
 
       {paso === 1 && (
         <>
-          <Text style={[styles.titulo, { color: p.text }]}>¿Qué necesitas o qué ofreces?</Text>
+          <Text style={[styles.titulo, { color: p.text }]}>
+            {ofrecer ? '¿Qué ofreces a tus vecinos?' : '¿Qué necesitas de tus vecinos?'}
+          </Text>
           <Text style={[styles.sub, { color: p.muted }]}>Toca la opción que mejor describe tu favor.</Text>
           <View style={styles.grid}>
             {tipos.map((t) => {
@@ -74,7 +133,7 @@ export default function NuevoFavor() {
                   <View style={[styles.opcionIcono, { backgroundColor: activo ? p.cta : p.highlight }]}>
                     <Ionicons name={favorTypeIcon[t]} size={24} color={p.text} />
                   </View>
-                  <Text style={[styles.opcionTexto, { color: p.text }]}>{favorTypeLabel[t]}</Text>
+                  <Text style={[styles.opcionTexto, { color: p.text }]}>{ETIQUETAS[ofrecer ? 'ofrecer' : 'pedir'][t]}</Text>
                   {activo ? (
                     <Ionicons name="checkmark-circle" size={22} color={colors.verdeExito} style={styles.check} />
                   ) : null}
@@ -83,7 +142,20 @@ export default function NuevoFavor() {
             })}
           </View>
           <View style={{ marginTop: spacing.md }}>
-            <AppButton label="Siguiente" icon="arrow-forward" onPress={() => setPaso(2)} disabled={!tipo} />
+            {tipo === 'otros' ? (
+            <OtroInput
+              label="Escribe qué tipo de favor es"
+              value={otroNombre}
+              onChangeText={setOtroNombre}
+              placeholder="Ej: Cuidar plantas mientras viajo"
+            />
+          ) : null}
+          <AppButton
+            label="Siguiente"
+            icon="arrow-forward"
+            onPress={() => setPaso(2)}
+            disabled={!tipo || (tipo === 'otros' && otroNombre.trim().length < 3)}
+          />
           </View>
         </>
       )}
@@ -91,7 +163,11 @@ export default function NuevoFavor() {
       {paso === 2 && (
         <>
           <Text style={[styles.titulo, { color: p.text }]}>
-            {tipo === 'otros' ? '¿Qué otro favor necesitas u ofreces?' : 'Describe tu favor en una línea'}
+            {tipo === 'otros'
+              ? '¿Qué otro favor necesitas u ofreces?'
+              : ofrecer
+                ? 'Describe lo que ofreces'
+                : 'Describe lo que necesitas'}
           </Text>
           <Text style={[styles.sub, { color: p.muted }]}>
             {tipo === 'otros'
@@ -146,7 +222,7 @@ export default function NuevoFavor() {
               </View>
               <View style={{ flex: 1 }}>
                 <UrgencyBadge urgency={urgencia} />
-                <Text style={[styles.resumenTipo, { color: p.muted }]}>{favorTypeLabel[tipo]}</Text>
+                <Text style={[styles.resumenTipo, { color: p.muted }]}>{ETIQUETAS[ofrecer ? 'ofrecer' : 'pedir'][tipo]}</Text>
                 <Text style={[styles.resumenTitulo, { color: p.text }]}>{texto.trim()}</Text>
               </View>
             </View>
@@ -159,6 +235,7 @@ export default function NuevoFavor() {
           ) : null}
 
           <View style={{ marginTop: spacing.md }}>
+            <ToggleRow label="Mostrar en el mapa del barrio" value={enMapa} onChange={setEnMapa} />
             {crear.isPending ? (
               <View style={styles.loadingWrapper}>
                 <ActivityIndicator size="large" color={p.primary} />

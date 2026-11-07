@@ -7,7 +7,7 @@ import { Screen } from '@/components/Screen';
 import { SectionHeader } from '@/components/SectionHeader';
 import { StatusBanner } from '@/components/StatusBanner';
 import { usePalette } from '@/hooks/usePalette';
-import { useFavors, useIsAdmin, useZones } from '@/hooks/useData';
+import { useFavors, useIsAdmin, useUnreadNotificationCount, useZones } from '@/hooks/useData';
 import type { IconName } from '@/i18n/icons';
 import { selectEmergencyActive, useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
@@ -55,6 +55,7 @@ export default function Inicio() {
   const { data: favors = [], isLoading } = useFavors();
   const zona = zonas.find((z) => z.id === zoneId)?.name;
   const { data: isAdmin } = useIsAdmin();
+  const { data: unread } = useUnreadNotificationCount();
 
   // Login, reapertura y el tab Inicio pasan todos por aquí. No se bloquea mientras carga el rol:
   // los vecinos no deben esperar a /admin/me para ver su inicio.
@@ -65,12 +66,12 @@ export default function Inicio() {
         { title: 'Servicios', desc: 'Salud, bomberos y policía', icon: 'medkit-outline', onPress: () => router.push('/emergencia') },
         { title: 'Reportar vecino', desc: 'Alguien necesita ayuda', icon: 'people-outline', onPress: () => router.push('/reportar'), tone: 'alerta' },
         { title: 'Recursos', desc: 'Agua, medicinas, transporte', icon: 'water-outline', onPress: () => router.push('/emergencia') },
-        { title: 'Ofrecer ayuda', desc: 'Comparte lo que tienes', icon: 'heart-outline', onPress: () => router.push('/favores/nuevo') },
+        { title: 'Ofrecer ayuda', desc: 'Comparte lo que tienes', icon: 'heart-outline', onPress: () => router.push('/favores/nuevo?modo=ofrecer') },
       ]
     : [
         { title: 'Buscar un oficio', desc: 'Gasfiteros, electricistas y más', icon: 'search-outline', onPress: () => router.push('/(tabs)/oficios') },
-        { title: 'Pedir un favor', desc: 'Herramientas, ayuda o traslado', icon: 'hand-left-outline', onPress: () => router.push('/favores/nuevo') },
-        { title: 'Ofrecer ayuda', desc: 'Comparte lo que sabes o tienes', icon: 'heart-outline', onPress: () => router.push('/favores/nuevo') },
+        { title: 'Pedir un favor', desc: 'Herramientas, ayuda o traslado', icon: 'hand-left-outline', onPress: () => router.push('/favores/nuevo?modo=pedir') },
+        { title: 'Ofrecer ayuda', desc: 'Comparte lo que sabes o tienes', icon: 'heart-outline', onPress: () => router.push('/favores/nuevo?modo=ofrecer') },
         { title: 'Emergencia', desc: 'Servicios y reportes', icon: 'alert-circle-outline', onPress: () => router.push('/emergencia'), tone: 'alerta' },
       ];
 
@@ -87,6 +88,19 @@ export default function Inicio() {
             </View>
           ) : null}
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={unread ? `Avisos, ${unread} sin leer` : 'Avisos'}
+          onPress={() => router.push('/avisos')}
+          style={({ pressed }) => [styles.bell, pressed && { opacity: 0.85 }]}
+        >
+          <Ionicons name="notifications-outline" size={24} color={p.text} />
+          {unread && unread > 0 ? (
+            <View style={styles.bellBadge}>
+              <Text style={styles.bellBadgeText}>{unread > 9 ? '9+' : unread}</Text>
+            </View>
+          ) : null}
+        </Pressable>
       </View>
 
       <StatusBanner variant="offline" visible={offline} />
@@ -163,6 +177,28 @@ export default function Inicio() {
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.md },
+  bell: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.blanco,
+    ...shadow,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.naranja,
+  },
+  bellBadgeText: { fontFamily: fonts.bold, fontSize: 11, color: colors.azul },
   logo: { width: 48, height: 48, borderRadius: 14 },
   hola: { fontFamily: fonts.bold, fontSize: 26 },
   zonaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },

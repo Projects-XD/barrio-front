@@ -4,6 +4,7 @@ import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Chip } from '@/components/Chip';
+import { OtroInput } from '@/components/OtroInput';
 import { Screen } from '@/components/Screen';
 import { ToggleRow } from '@/components/ToggleRow';
 import { usePalette } from '@/hooks/usePalette';
@@ -19,6 +20,7 @@ export default function Reportar() {
   const crear = useCreateReport();
   const [descripcion, setDescripcion] = useState('');
   const [needs, setNeeds] = useState<ResourceType[]>([]);
+  const [otraNecesidad, setOtraNecesidad] = useState('');
   const [anonimo, setAnonimo] = useState(true);
   const [conUbicacion, setConUbicacion] = useState(false);
 
@@ -36,7 +38,10 @@ export default function Reportar() {
     try {
       const location = conUbicacion ? await obtenerUbicacion().catch(() => null) : null;
       const { queued } = await crear.mutateAsync({
-        description: descripcion.trim(),
+        description:
+          needs.includes('otro') && otraNecesidad.trim()
+            ? `${descripcion.trim()} (Otra necesidad: ${otraNecesidad.trim()})`
+            : descripcion.trim(),
         needs,
         isAnonymous: anonimo,
         location,
@@ -73,6 +78,14 @@ export default function Reportar() {
         ))}
       </View>
 
+      {needs.includes('otro') ? (
+        <OtroInput
+          label="Escribe qué otra cosa necesita"
+          value={otraNecesidad}
+          onChangeText={setOtraNecesidad}
+          placeholder="Ej: Silla de ruedas"
+        />
+      ) : null}
       <ToggleRow label="Reportar de forma anónima" value={anonimo} onChange={setAnonimo} />
       <ToggleRow label="Agregar mi ubicación aproximada" value={conUbicacion} onChange={setConUbicacion} />
       <Text style={[styles.nota, { color: p.muted }]}>
@@ -86,7 +99,7 @@ export default function Reportar() {
         label={crear.isPending ? 'Enviando...' : 'Enviar reporte'}
         variant="primary"
         onPress={enviar}
-        disabled={descripcion.trim().length < 5 || crear.isPending}
+        disabled={descripcion.trim().length < 5 || (needs.includes('otro') && otraNecesidad.trim().length < 3) || crear.isPending}
       />
     </Screen>
   );

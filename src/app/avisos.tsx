@@ -70,8 +70,6 @@ export default function Avisos() {
 
   return (
     <Screen>
-      <Text style={[styles.titulo, { color: p.text }]}>Avisos</Text>
-
       {isLoading ? (
         <ActivityIndicator size="large" color={p.primary} style={{ marginTop: spacing.xl }} />
       ) : isError ? (
@@ -117,7 +115,6 @@ export default function Avisos() {
 }
 
 const styles = StyleSheet.create({
-  titulo: { fontFamily: fonts.bold, fontSize: 28, marginBottom: spacing.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   icon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1 },

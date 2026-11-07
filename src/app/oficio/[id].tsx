@@ -4,18 +4,23 @@ import {
   Alert,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { AppButton } from '@/components/AppButton';
+import { Chip } from '@/components/Chip';
+import { OtroInput } from '@/components/OtroInput';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
-import { useProfile, useVouch } from '@/hooks/useData';
+import { useMyProfiles, useProfile, useUpsertMyProfile, useVouch } from '@/hooks/useData';
+import type { OficioCategory } from '@/types';
 import { useAppStore } from '@/store/app-store';
 import { oficioLabel } from '@/i18n/labels';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -23,7 +28,15 @@ import { colors, fonts, radius, spacing } from '@/theme';
 export default function OficioDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
-  const { data: profile, isLoading } = useProfile(id);
+  const { data: profile, isLoading, refetch } = useProfile(id);
+  const { data: misOficios = [] } = useMyProfiles();
+  const upsert = useUpsertMyProfile();
+  const [editando, setEditando] = useState(false);
+  const [modoNuevo, setModoNuevo] = useState(false);
+  const [categoria, setCategoria] = useState<OficioCategory>('otro');
+  const [otroOficio, setOtroOficio] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [experiencia, setExperiencia] = useState('');
   const vouch = useVouch(id);
   const [showContactModal, setShowContactModal] = useState(false);
   const userId = useAppStore((s) => s.userId);
@@ -44,6 +57,57 @@ export default function OficioDetalle() {
         'No se pudo registrar el visto bueno. Recuerda que solo vecinos de la misma zona pueden validar un perfil.';
       Alert.alert('No se pudo otorgar el visto bueno', errorMsg);
     }
+  };
+
+  // nuevo = true: agregar otro oficio (categoría libre). nuevo = false: editar este oficio.
+  const abrirEdicion = (nuevo: boolean) => {
+    if (!profile) return;
+    upsert.reset();
+    setModoNuevo(nuevo);
+    if (nuevo) {
+      const usados = misOficios.map((o) => o.oficio.category);
+      const libre = (Object.keys(oficioLabel) as OficioCategory[]).find((c) => !usados.includes(c)) ?? 'otro';
+      setCategoria(libre);
+      setDescripcion('');
+      setExperiencia('0');
+    } else {
+      setCategoria(profile.oficio.category);
+      setDescripcion(profile.description);
+      setExperiencia(profile.yearsExperience ? String(profile.yearsExperience) : '0');
+    }
+    setEditando(true);
+  };
+
+  const guardarEdicion = () => {
+    if (!profile) return;
+    if (categoria === 'otro' && otroOficio.trim().length < 3) {
+      Alert.alert('Escribe el oficio', 'Cuando eliges "Otro", escribe qué oficio es.');
+      return;
+    }
+    if (modoNuevo && misOficios.some((o) => o.oficio.category === categoria)) {
+      Alert.alert('Ya tienes ese oficio', 'Elige otra categoría o edita el oficio que ya tienes.');
+      return;
+    }
+    upsert.mutate(
+      {
+        category: categoria,
+        description:
+          (categoria === 'otro' ? `Oficio: ${otroOficio.trim()}. ` : '') +
+          (descripcion.trim() || 'Servicios para vecinos de la zona.'),
+        yearsExperience: parseInt(experiencia, 10) || 0,
+        existingId: modoNuevo ? undefined : profile.id,
+      },
+      {
+        onSuccess: () => {
+          setEditando(false);
+          if (modoNuevo) {
+            router.replace('/(tabs)/perfil');
+          } else {
+            refetch();
+          }
+        },
+      }
+    );
   };
 
   if (isLoading) {
@@ -129,6 +193,14 @@ export default function OficioDetalle() {
 
       {/* Botones de acción con jerarquía y colores diferenciados */}
       <View style={styles.actionButtons}>
+        {esMio ? (
+          <>
+            <AppButton label="Editar mi oficio" variant="accent" onPress={() => abrirEdicion(false)} />
+            <AppButton label="Agregar otro oficio" variant="secondary" onPress={() => abrirEdicion(true)} />
+          </>
+        ) : null}
+        {esMio ? null : (
+        <>
         <AppButton
           label="Contactar técnico"
           variant="accent"
@@ -146,7 +218,73 @@ export default function OficioDetalle() {
           onPress={handleVouch}
           disabled={esMio || profile.hasVouchedByMe || vouch.isPending}
         />
+      
+        </>
+        )}
       </View>
+
+      {/* Formulario para editar mi oficio sin salir de esta pantalla */}
+      <Modal visible={editando} transparent animationType="fade" onRequestClose={() => setEditando(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setEditando(false)}>
+          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco, maxHeight: '85%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[styles.modalTitle, { color: colors.azul }]}>
+                {modoNuevo ? 'Agregar otro oficio' : 'Editar mi oficio'}
+              </Text>
+
+              <Text style={styles.campoLabel}>Tipo de oficio</Text>
+              <View style={styles.chipsWrap}>
+                {(Object.keys(oficioLabel) as OficioCategory[]).map((c) => (
+                  <Chip key={c} label={oficioLabel[c]} selected={categoria === c} onPress={() => setCategoria(c)} />
+                ))}
+              </View>
+
+              {categoria === 'otro' ? (
+                <OtroInput
+                  label="Escribe qué oficio es"
+                  value={otroOficio}
+                  onChangeText={setOtroOficio}
+                  placeholder="Ej: Tapicero"
+                />
+              ) : null}
+
+              <Text style={styles.campoLabel}>Años de experiencia</Text>
+              <TextInput
+                value={experiencia}
+                onChangeText={setExperiencia}
+                keyboardType="numeric"
+                placeholder="Ej. 5"
+                placeholderTextColor={colors.gris}
+                style={styles.campoInput}
+              />
+
+              <Text style={styles.campoLabel}>Descripción del servicio</Text>
+              <TextInput
+                value={descripcion}
+                onChangeText={setDescripcion}
+                placeholder="Qué trabajos haces y cómo ayudas a tus vecinos"
+                placeholderTextColor={colors.gris}
+                multiline
+                style={[styles.campoInput, styles.campoArea]}
+              />
+
+              {upsert.error ? (
+                <Text style={styles.errorTexto}>No se pudo guardar: {upsert.error.message}</Text>
+              ) : null}
+
+              <View style={{ marginTop: spacing.md }}>
+                <AppButton
+                  label={upsert.isPending ? 'Guardando...' : 'Guardar cambios'}
+                  variant="accent"
+                  onPress={guardarEdicion}
+                  disabled={upsert.isPending}
+                />
+                <AppButton label="Cancelar" variant="link" onPress={() => setEditando(false)} />
+              </View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Modal de opciones de contacto vecinal */}
       <Modal
@@ -182,6 +320,22 @@ export default function OficioDetalle() {
 }
 
 const styles = StyleSheet.create({
+  campoLabel: { fontFamily: fonts.semiBold, fontSize: 15, color: colors.azul, marginTop: spacing.sm, marginBottom: 6 },
+  campoInput: {
+    minHeight: 50,
+    borderWidth: 1.5,
+    borderColor: colors.grisBorde,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    fontFamily: fonts.regular,
+    color: colors.azul,
+    backgroundColor: colors.blanco,
+    marginBottom: spacing.xs,
+  },
+  campoArea: { minHeight: 100, textAlignVertical: 'top', paddingTop: 12 },
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.xs },
+  errorTexto: { fontFamily: fonts.medium, fontSize: 14, color: colors.rojo, marginTop: spacing.xs },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: spacing.xl },
   headerInfo: {
     marginBottom: spacing.xs,

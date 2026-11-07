@@ -110,6 +110,7 @@ export function mapBackendFavorToFrontend(bf: BackendFavor, currentUserId?: stri
     interestedCount: interests.length,
     hasInterestedByMe: Boolean(currentUserId) && interests.some((i) => i.user_id === currentUserId),
     createdAt: bf.created_at,
+    location: bf.location_lat != null && bf.location_lng != null ? { lat: bf.location_lat, lng: bf.location_lng } : null,
     syncStatus: 'enviado',
     urgency: bf.urgency,
     moderationStatus: bf.moderation_status,
@@ -133,6 +134,7 @@ function mapPendingFavor(item: OutboxItem, userId: string | null, userName: stri
     interestedCount: 0,
     hasInterestedByMe: false,
     createdAt: item.createdAt,
+    location: typeof p.location_lat === 'number' && typeof p.location_lng === 'number' ? { lat: p.location_lat, lng: p.location_lng } : null,
     syncStatus: item.attempts > 0 ? 'error' : 'pendiente',
     // Las operaciones encoladas antes de existir este campo no lo traen.
     urgency: (p.urgency as FavorUrgency | undefined) ?? 'normal',
@@ -259,6 +261,20 @@ export function useMyProfile() {
   });
 }
 
+export function useMyProfiles() {
+  const zoneId = useAppStore((s) => s.zoneId);
+  const userId = useAppStore((s) => s.userId);
+
+  return useQuery({
+    queryKey: ['myProfile', zoneId, userId, 'all'],
+    enabled: Boolean(zoneId && userId),
+    queryFn: async (): Promise<ProfessionalProfile[]> => {
+      const data = await listProfiles({ zoneId: zoneId! });
+      return data.filter((bp) => bp.user_id === userId).map((bp) => mapBackendProfileToFrontend(bp));
+    },
+  });
+}
+
 export function useUpsertMyProfile() {
   const qc = useQueryClient();
 
@@ -302,6 +318,8 @@ export function useFavors(type?: FavorType) {
 
   return useQuery({
     queryKey: ['favors', zoneId, type ?? 'todos'],
+    // Actualiza el mapa del barrio cada 10 s sin que el vecino recargue.
+    refetchInterval: 10_000,
     enabled: Boolean(zoneId),
     queryFn: async (): Promise<Favor[]> => {
       const pending = (await listPending('create_favor'))
@@ -394,7 +412,7 @@ export function useCreateFavor() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { type: FavorType; title: string; description: string | null; urgency: FavorUrgency }) => {
+    mutationFn: async (input: { type: FavorType; title: string; description: string | null; urgency: FavorUrgency; location?: { lat: number; lng: number } | null }) => {
       const { zoneId, isOnline } = useAppStore.getState();
       if (!zoneId) throw new Error('Tu cuenta no tiene zona asignada.');
 
@@ -406,6 +424,8 @@ export function useCreateFavor() {
         title: input.title,
         description: input.description,
         urgency: input.urgency,
+        location_lat: input.location?.lat ?? null,
+        location_lng: input.location?.lng ?? null,
       };
 
       if (isOnline) {
