@@ -8,6 +8,22 @@ export function roundForReport(c: Coords): Coords {
 // Centro aproximado de Castilla (Piura), para centrar el mapa antes de que el usuario elija un punto.
 export const CASTILLA_CENTER: Coords = { lat: -5.19, lng: -80.63 };
 
+// Límites geográficos del distrito de Castilla (Piura) para delimitar el mapa y la detección.
+export const CASTILLA_BOUNDS: [[number, number], [number, number]] = [
+  [-5.26, -80.665], // Suroeste (límite sur con Catacaos / oeste con río Piura)
+  [-4.95, -80.35],  // Noreste (límite norte con Tambogrande / este con Chulucanas)
+];
+
+// Comprueba si una coordenada está dentro del distrito de Castilla.
+export function isWithinCastilla(coords: Coords): boolean {
+  return (
+    coords.lat >= CASTILLA_BOUNDS[0][0] &&
+    coords.lat <= CASTILLA_BOUNDS[1][0] &&
+    coords.lng >= CASTILLA_BOUNDS[0][1] &&
+    coords.lng <= CASTILLA_BOUNDS[1][1]
+  );
+}
+
 // Distancia en metros mediante fórmula de Haversine.
 export function distanceMetersBetween(a: Coords, b: Coords): number {
   const toRad = (deg: number) => (deg * Math.PI) / 180;

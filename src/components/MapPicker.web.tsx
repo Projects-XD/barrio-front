@@ -3,47 +3,67 @@ import { StyleSheet, View } from 'react-native';
 import type { Coords } from '@/utils/geo';
 import { buildMapHtml } from './mapHtml';
 
-export type MapPickerHandle = { setPoint: (c: Coords) => void };
+export type MapPickerHandle = {
+  setPoint: (c: Coords) => void;
+  setZones?: (zones: { id: string; name: string; lat: number; lng: number }[]) => void;
+};
 
 type Props = {
   initial: Coords;
   height?: number;
-  onChange: (c: Coords) => void;
+  maxBounds?: [[number, number], [number, number]];
+  minZoom?: number;
+  maxZoom?: number;
+  initialZoom?: number;
+  zones?: { id: string; name: string; lat: number; lng: number }[];
+  onChange: (c: Coords, zoneId?: string) => void;
 };
 
 type FrameWindow = Window & {
   setPoint?: (lat: number, lng: number) => void;
+  setZones?: (zones: { id: string; name: string; lat: number; lng: number }[]) => void;
   setEventCallback?: (fn: (raw: string) => void) => void;
 };
 
 // En navegador de escritorio el mapa va dentro de un iframe (el WebView es solo para móvil).
 export const MapPicker = forwardRef<MapPickerHandle, Props>(function MapPicker(
-  { initial, height = 300, onChange },
+  { initial, height = 300, maxBounds, minZoom, maxZoom, initialZoom, zones, onChange },
   ref,
 ) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
-  const [srcDoc] = useState(() => buildMapHtml(initial));
+  const [srcDoc] = useState(() =>
+    buildMapHtml(initial, { maxBounds, minZoom, maxZoom, zoom: initialZoom, zones }),
+  );
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  const zonesRef = useRef(zones);
+  useEffect(() => {
+    zonesRef.current = zones;
+    const win = frameRef.current?.contentWindow as FrameWindow | null | undefined;
+    if (zones && zones.length > 0) {
+      win?.setZones?.(zones);
+    }
+  }, [zones]);
+
   const handleRawMessage = useCallback((raw: unknown) => {
     const parsed = (() => {
       if (typeof raw === 'string') {
         try {
-          return JSON.parse(raw) as { source?: string; lat?: number; lng?: number };
+          return JSON.parse(raw) as { source?: string; lat?: number; lng?: number; zoneId?: string };
         } catch {
           return null;
         }
       }
       if (raw && typeof raw === 'object') {
-        return raw as { source?: string; lat?: number; lng?: number };
+        return raw as { source?: string; lat?: number; lng?: number; zoneId?: string };
       }
       return null;
     })();
     if (parsed && parsed.source === 'barrio-map' && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
-      onChangeRef.current({ lat: parsed.lat, lng: parsed.lng });
+      onChangeRef.current({ lat: parsed.lat, lng: parsed.lng }, parsed.zoneId);
     }
   }, []);
 
@@ -56,6 +76,9 @@ export const MapPicker = forwardRef<MapPickerHandle, Props>(function MapPicker(
     const win = frameRef.current?.contentWindow as FrameWindow | null | undefined;
     win?.setEventCallback?.(handleRawMessage);
     win?.setPoint?.(initialRef.current.lat, initialRef.current.lng);
+    if (zonesRef.current && zonesRef.current.length > 0) {
+      win?.setZones?.(zonesRef.current);
+    }
   }, [handleRawMessage]);
 
   useEffect(() => {
@@ -70,6 +93,10 @@ export const MapPicker = forwardRef<MapPickerHandle, Props>(function MapPicker(
     setPoint: (c: Coords) => {
       const win = frameRef.current?.contentWindow as FrameWindow | null | undefined;
       win?.setPoint?.(c.lat, c.lng);
+    },
+    setZones: (zList) => {
+      const win = frameRef.current?.contentWindow as FrameWindow | null | undefined;
+      win?.setZones?.(zList);
     },
   }));
 

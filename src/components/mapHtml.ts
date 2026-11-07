@@ -1,9 +1,26 @@
 import type { Coords } from '@/utils/geo';
 import type { FavorType, FavorUrgency, OficioCategory } from '@/types';
 
+export type MapHtmlOptions = {
+  maxBounds?: [[number, number], [number, number]];
+  minZoom?: number;
+  maxZoom?: number;
+  zoom?: number;
+  zones?: { id: string; name: string; lat: number; lng: number }[];
+};
+
 // HTML de Leaflet compartido por el mapa nativo (WebView) y el mapa web (iframe).
 // Cada click envía un mensaje: al WebView de React Native o al documento padre en web.
-export function buildMapHtml(initial: Coords) {
+export function buildMapHtml(initial: Coords, options?: MapHtmlOptions) {
+  const initialZoom = options?.zoom ?? 16;
+  const minZoom = options?.minZoom ?? 10;
+  const maxZoom = options?.maxZoom ?? 19;
+  const boundsJson = options?.maxBounds ? JSON.stringify(options.maxBounds) : 'null';
+  const zonesJson =
+    options?.zones && options.zones.length
+      ? JSON.stringify(options.zones).replace(/</g, '\\u003c')
+      : '[]';
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -11,28 +28,99 @@ export function buildMapHtml(initial: Coords) {
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <style>html,body,#map{height:100%;margin:0;padding:0}</style>
+  <style>
+    html,body,#map{height:100%;margin:0;padding:0;background:#FBF7F1}
+    .zone-label {
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid #132E66;
+      border-radius: 6px;
+      color: #132E66;
+      font-size: 11px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-weight: 700;
+      padding: 2px 6px;
+      box-shadow: 0 1px 4px rgba(19, 46, 102, 0.18);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .leaflet-tooltip-top.zone-label:before {
+      border-top-color: #132E66;
+    }
+  </style>
 </head>
 <body>
   <div id="map"></div>
   <script>
-    var map = L.map('map').setView([${initial.lat}, ${initial.lng}], 16);
+    var boundsData = ${boundsJson};
+    var mapOptions = {
+      minZoom: ${minZoom},
+      maxZoom: ${maxZoom}
+    };
+    var bounds = null;
+    if (boundsData) {
+      bounds = L.latLngBounds(boundsData[0], boundsData[1]);
+      mapOptions.maxBounds = bounds;
+      mapOptions.maxBoundsViscosity = 1.0;
+    }
+
+    var map = L.map('map', mapOptions).setView([${initial.lat}, ${initial.lng}], ${initialZoom});
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
+      maxZoom: ${maxZoom},
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
+
     var marker = L.circleMarker([${initial.lat}, ${initial.lng}], {
-      radius: 10, color: '#132E66', fillColor: '#EA982B', fillOpacity: 1, weight: 3
+      radius: 9, color: '#132E66', fillColor: '#EA982B', fillOpacity: 1, weight: 3
     }).addTo(map);
+
+    var zoneLayer = L.layerGroup().addTo(map);
+
+    function renderZones(list) {
+      zoneLayer.clearLayers();
+      if (!list || !list.length) return;
+      list.forEach(function (z) {
+        if (typeof z.lat !== 'number' || typeof z.lng !== 'number') return;
+        var zMarker = L.circleMarker([z.lat, z.lng], {
+          radius: 6,
+          color: '#132E66',
+          fillColor: '#FFFFFF',
+          fillOpacity: 1,
+          weight: 2
+        }).addTo(zoneLayer);
+
+        zMarker.bindTooltip(z.name, {
+          permanent: true,
+          direction: 'top',
+          className: 'zone-label',
+          offset: [0, -6]
+        });
+
+        zMarker.on('click', function (e) {
+          L.DomEvent.stopPropagation(e);
+          send(L.latLng(z.lat, z.lng), z.id);
+        });
+      });
+    }
+
+    var initialZones = ${zonesJson};
+    if (initialZones && initialZones.length) {
+      renderZones(initialZones);
+    }
+
+    window.setZones = function (list) {
+      renderZones(list);
+    };
 
     var eventCallback = null;
     window.setEventCallback = function (fn) {
       eventCallback = fn;
     };
 
-    function send(ll) {
+    function send(ll, zoneId) {
       marker.setLatLng(ll);
-      var msg = JSON.stringify({ source: 'barrio-map', lat: ll.lat, lng: ll.lng });
+      var payload = { source: 'barrio-map', lat: ll.lat, lng: ll.lng };
+      if (zoneId) payload.zoneId = zoneId;
+      var msg = JSON.stringify(payload);
       if (typeof eventCallback === 'function') {
         try { eventCallback(msg); } catch (err) {}
       }
@@ -43,12 +131,17 @@ export function buildMapHtml(initial: Coords) {
       }
     }
 
-    map.on('click', function (e) { send(e.latlng); });
+    map.on('click', function (e) {
+      if (bounds && !bounds.contains(e.latlng)) {
+        return;
+      }
+      send(e.latlng);
+    });
 
     window.setPoint = function (lat, lng) {
       var ll = L.latLng(lat, lng);
       marker.setLatLng(ll);
-      map.setView(ll, 17);
+      map.setView(ll, Math.max(map.getZoom(), 13));
     };
   </script>
 </body>
