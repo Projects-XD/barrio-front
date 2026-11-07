@@ -2,6 +2,7 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env';
 import apiRouter from './routes';
@@ -50,7 +51,27 @@ export function createApp(): Application {
   }));
 
   // 4. Rutas de la API (soportando /api y /api/v1)
-  app.use('/api/v1', apiRouter);
+  // Límites por IP. El tope general es alto porque el chat consulta cada 4 s; las escrituras
+// (publicar, responder, reportar) tienen un tope propio más bajo.
+const limitMessage = { success: false, error: 'Demasiadas peticiones. Intenta de nuevo en unos minutos.', code: 429 };
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 1500,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: limitMessage,
+});
+const writeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 200,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
+  message: limitMessage,
+});
+app.use('/api', generalLimiter, writeLimiter);
+
+app.use('/api/v1', apiRouter);
   app.use('/api', apiRouter);
 
   // Ruta raíz de verificación básica

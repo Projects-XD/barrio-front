@@ -534,8 +534,8 @@ export function useFavors(type?: FavorType) {
 
   return useQuery({
     queryKey: ['favors', zoneId, type ?? 'todos'],
-    // Actualiza el mapa del barrio cada 10 s sin que el vecino recargue.
-    refetchInterval: 10_000,
+    // Respaldo del Realtime (useFavorRealtime): si el canal se cae, la lista se refresca cada 30 s.
+    refetchInterval: 30_000,
     staleTime: FRESH_LIVE_MS,
     gcTime: KEEP_LONG_MS,
     subscribed: isFocused,

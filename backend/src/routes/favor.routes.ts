@@ -17,7 +17,7 @@ const router = Router();
  * /favors:
  *   get:
  *     summary: Listar favores activos por zona
- *     description: Solo devuelve favores aprobados por un administrador, más los del propio usuario autenticado en cualquier estado de moderación.
+ *     description: Solo devuelve favores aprobados, más los del propio usuario autenticado en cualquier estado de moderación.
  *     tags:
  *       - Favores Vecinales
  *     parameters:
@@ -49,7 +49,7 @@ router.get(
  * /favors:
  *   post:
  *     summary: Crear un nuevo favor comunitario
- *     description: Todo favor nace con moderation_status pendiente, sin importar su urgencia, y requiere aprobación de un administrador antes de ser visible en el feed público.
+ *     description: Todo favor nace con moderation_status aprobado y es visible de inmediato en el feed de la zona. Los reportes de vecinos pueden ocultarlo después.
  *     tags:
  *       - Favores Vecinales
  *     security:
@@ -91,7 +91,7 @@ router.get(
  *                 description: Nivel de urgencia. No cambia la moderación; la insignia solo se muestra si el favor está aprobado.
  *     responses:
  *       201:
- *         description: Favor creado, pendiente de aprobación
+ *         description: Favor creado y publicado
  *       400:
  *         description: Datos inválidos
  *       401:
@@ -131,7 +131,7 @@ router.get('/:id', requireAuth, (req, res, next) => favorController.getById(req,
  * /favors/{id}:
  *   patch:
  *     summary: Editar, cambiar de estado o asignar un favor
- *     description: Editar título, descripción o tipo lo devuelve a moderation_status pendiente y requiere una nueva aprobación de un administrador. Cambiar solo el estado o la asignación no afecta la moderación.
+ *     description: Editar título, descripción o tipo no cambia la moderación del favor. Cambiar solo el estado o la asignación tampoco la afecta.
  *     tags:
  *       - Favores Vecinales
  *     security:
