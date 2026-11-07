@@ -35,7 +35,7 @@ export default function NuevoFavor() {
         queued
           ? 'Tu favor se guardó en el teléfono y se publicará solo cuando vuelva la conexión.'
           : 'Tu publicación ya está disponible en el muro de favores de tu barrio.',
-        [{ text: 'Entendido', onPress: () => router.back() }]
+        [{ text: 'Entendido', onPress: () => router.replace('/(tabs)/favores') }]
       );
     } catch (err: any) {
       const errorMsg =
