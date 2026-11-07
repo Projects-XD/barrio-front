@@ -9,7 +9,7 @@ import { useAppStore } from '@/store/app-store';
 import { fonts, colors, radius, spacing } from '@/theme';
 import { ZONE_ID } from '@/data/mock';
 
-const zonas = ['Centro', 'Los Álamos', 'La Plaza', 'Villa Norte'];
+const zonas = ['Piura Centro', 'Castilla', 'Veintiséis de Octubre'];
 
 export default function Register() {
   const p = usePalette();
@@ -37,7 +37,7 @@ export default function Register() {
         style={[styles.input, { borderColor: p.border }]}
       />
 
-      <Text style={[styles.label, { color: p.text }]}>Zona (colonia o barrio)</Text>
+      <Text style={[styles.label, { color: p.text }]}>Distrito o zona de Piura</Text>
       <View style={styles.chips}>
         {zonas.map((z) => (
           <Chip key={z} label={z} selected={zona === z} onPress={() => setZona(z)} />
