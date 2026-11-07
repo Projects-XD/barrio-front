@@ -162,13 +162,13 @@ export default function NuevoFavor() {
       <Modal visible={confirmando} transparent animationType="fade" onRequestClose={() => setConfirmando(false)}>
         <Pressable style={styles.overlay} onPress={() => setConfirmando(false)}>
           <Pressable onPress={() => {}} style={[styles.tarjeta, { backgroundColor: colors.blanco }]}>
-            <Text style={[styles.tituloModal, { color: p.text }]}>Â¿Publicar tu favor?</Text>
+            <Text style={[styles.tituloModal, { color: p.text }]}>¿Publicar tu favor?</Text>
             <Text style={[styles.textoModal, { color: p.muted }]}>
               {tipo ? favorTypeLabel[tipo] : ''}: {texto.trim()}
             </Text>
-            <Text style={[styles.textoModal, { color: p.muted }]}>Lo verÃ¡n los vecinos de tu zona.</Text>
+            <Text style={[styles.textoModal, { color: p.muted }]}>Lo verán los vecinos de tu zona.</Text>
             <AppButton
-              label="SÃ­, publicar"
+              label="Sí, publicar"
               variant="accent"
               onPress={() => {
                 setConfirmando(false);
