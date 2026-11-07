@@ -142,6 +142,14 @@ export const createProfessionalProfileSchema = z.object({
 });
 export type CreateProfessionalProfileDTO = z.infer<typeof createProfessionalProfileSchema>;
 
+export const suggestDescriptionSchema = z.object({
+  category: oficioCategorySchema,
+  oficio_name: z.string().trim().min(1).max(60).optional(),
+  years_experience: z.number().int().min(0).max(80).optional(),
+  notes: z.string().trim().max(300).optional(),
+});
+export type SuggestDescriptionDTO = z.infer<typeof suggestDescriptionSchema>;
+
 export const upsertProfessionalProfileSchema = z.object({
   id: z.string().uuid('id debe ser un UUID válido').optional(),
   oficio_id: z.string().uuid('oficio_id debe ser un UUID válido'),

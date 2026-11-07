@@ -165,6 +165,17 @@ export interface UpsertProfilePayload {
 export const upsertProfile = (payload: UpsertProfilePayload) =>
   api.post<BackendProfile>('/profiles', payload);
 
+export interface SuggestDescriptionPayload {
+  category: OficioCategory;
+  oficio_name?: string;
+  years_experience?: number;
+  notes?: string;
+}
+
+// Borrador de descripción generado con IA en el backend; el vecino lo edita antes de guardar.
+export const suggestProfileDescription = (payload: SuggestDescriptionPayload) =>
+  api.post<{ description: string }>('/profiles/suggest-description', payload);
+
 export const deleteProfile = (id: string) =>
   api.delete<{ id: string }>(`/profiles/${id}`);
 

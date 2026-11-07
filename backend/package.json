@@ -9,7 +9,7 @@
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/services/favor.service.test.ts src/services/conversation.service.test.ts src/services/moderation.service.test.ts",
+    "test": "tsx --test src/services/favor.service.test.ts src/services/conversation.service.test.ts src/services/moderation.service.test.ts src/services/ai.service.test.ts",
     "seed": "tsx scripts/seed-auth.ts"
   },
   "keywords": [

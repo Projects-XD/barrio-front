@@ -30,6 +30,7 @@ import {
   unblockConversationUser,
   updateConversation,
   updateFavor,
+  suggestProfileDescription,
   upsertProfile,
   vouchProfile,
   type BackendConversation,
@@ -316,6 +317,10 @@ export function useMyProfiles() {
       return data.filter((bp) => bp.user_id === userId).map((bp) => mapBackendProfileToFrontend(bp));
     },
   });
+}
+
+export function useSuggestDescription() {
+  return useMutation({ mutationFn: suggestProfileDescription });
 }
 
 export function useUpsertMyProfile() {

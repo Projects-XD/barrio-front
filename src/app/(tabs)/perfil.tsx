@@ -20,6 +20,7 @@ import { Screen } from '@/components/Screen';
 import { ToggleRow } from '@/components/ToggleRow';
 import { ValidationBadge } from '@/components/ValidationBadge';
 import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
 import {
@@ -29,6 +30,7 @@ import {
   useMyProfiles,
   useMySavedLocation,
   useOutboxPending,
+  useSuggestDescription,
   useUpsertMyProfile,
   useZones,
 } from '@/hooks/useData';
@@ -80,6 +82,7 @@ export default function Perfil() {
   const misFavores = favors.filter((f) => f.authorId === userId).length;
   const totalVistosBuenos = misOficios.reduce((acc, o) => acc + (o.validatedCount ?? 0), 0);
   const upsertProfile = useUpsertMyProfile();
+  const suggestDescription = useSuggestDescription();
   const deleteProfile = useDeleteProfile();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -101,7 +104,22 @@ export default function Perfil() {
     setSelectedCat(oficio ? oficio.oficio.category : libre);
     setDescripcion(oficio?.description ?? '');
     setExperiencia(oficio?.yearsExperience ? String(oficio.yearsExperience) : '2');
+    suggestDescription.reset();
     setModalVisible(true);
+  };
+
+  // Lo escrito en la descripción sirve de notas para la IA; el resultado reemplaza el texto y se puede editar.
+  const handleSuggestDescription = () => {
+    if (suggestDescription.isPending) return;
+    suggestDescription.mutate(
+      {
+        category: selectedCat,
+        ...(selectedCat === 'otro' && otroOficio.trim() ? { oficio_name: otroOficio.trim() } : {}),
+        ...(parseInt(experiencia, 10) >= 0 ? { years_experience: parseInt(experiencia, 10) } : {}),
+        ...(descripcion.trim() ? { notes: descripcion.trim().slice(0, 300) } : {}),
+      },
+      { onSuccess: (r) => setDescripcion(r.description) }
+    );
   };
 
   const handleSaveProfile = () => {
@@ -144,6 +162,9 @@ export default function Perfil() {
   };
 
   const handleLogout = async () => {
+    // Evita que consultas en curso/reintentos salgan sin token mientras se cierra la sesión.
+    await queryClient.cancelQueries();
+    queryClient.clear();
     try {
       await supabase.auth.signOut();
     } catch {}
@@ -586,6 +607,23 @@ export default function Perfil() {
                   { minHeight: 80, textAlignVertical: 'top', borderColor: p.border, color: p.text },
                 ]}
               />
+              <Text style={[styles.modalSub, { color: p.muted, marginTop: spacing.xs }]}>
+                {isOnline
+                  ? 'Escribe unas palabras (ej. "arreglo caños, atiendo fines de semana") y mejóralas con IA. Siempre puedes editar el resultado.'
+                  : 'La sugerencia con IA necesita conexión a internet.'}
+              </Text>
+              <AppButton
+                label={suggestDescription.isPending ? 'Generando...' : 'Mejorar con IA'}
+                variant="secondary"
+                icon="sparkles-outline"
+                disabled={!isOnline || suggestDescription.isPending || upsertProfile.isPending}
+                onPress={handleSuggestDescription}
+              />
+              {suggestDescription.error ? (
+                <Text accessibilityRole="alert" style={styles.modalError}>
+                  {suggestDescription.error.message}
+                </Text>
+              ) : null}
 
               {upsertProfile.error ? (
                 <Text accessibilityRole="alert" style={styles.modalError}>
