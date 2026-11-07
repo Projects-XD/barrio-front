@@ -185,6 +185,37 @@ export const expressInterest = (favorId: string, message?: string) =>
   api.post<unknown>(`/favors/${favorId}/interest`, { message: message ?? null });
 
 // ============================================================================
+// NOTIFICACIONES
+// ============================================================================
+
+export type BackendNotificationType =
+  | 'visto_bueno_recibido'
+  | 'interes_en_favor'
+  | 'reporte_actualizado'
+  | 'emergencia_activada'
+  | 'sistema'
+  | 'nuevo_mensaje';
+
+export interface BackendNotification {
+  id: string;
+  user_id: string;
+  type: BackendNotificationType;
+  // Depende del tipo: interes_en_favor trae favor_id, favor_title, conversation_id, responder_name.
+  payload: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+}
+
+export const listNotifications = (limit = 30, offset = 0) =>
+  api.get<BackendNotification[]>(`/notifications?limit=${limit}&offset=${offset}`);
+
+export const getUnreadNotificationCount = () =>
+  api.get<{ count: number }>('/notifications/unread-count');
+
+export const markNotificationRead = (id: string) =>
+  api.patch<BackendNotification>(`/notifications/${id}/read`);
+
+// ============================================================================
 // EMERGENCIA
 // ============================================================================
 

@@ -7,6 +7,7 @@ import vulnerabilityRoutes from './vulnerability.routes';
 import resourceRoutes from './resource.routes';
 import syncRoutes from './sync.routes';
 import zoneRoutes from './zone.routes';
+import notificationRoutes from './notification.routes';
 
 const apiRouter = Router();
 
@@ -19,6 +20,7 @@ apiRouter.use('/reports', vulnerabilityRoutes);
 apiRouter.use('/resources', resourceRoutes);
 apiRouter.use('/sync', syncRoutes);
 apiRouter.use('/zones', zoneRoutes);
+apiRouter.use('/notifications', notificationRoutes);
 
 export default apiRouter;
 

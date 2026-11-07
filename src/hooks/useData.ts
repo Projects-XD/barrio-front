@@ -6,18 +6,22 @@ import {
   expressInterest,
   getEmergencyState,
   getFavorById,
+  getUnreadNotificationCount,
   getProfileById,
   getVouchStatus,
   listFavors,
+  listNotifications,
   listOficios,
   listProfiles,
   listReports,
   listResources,
   listServices,
   listZones,
+  markNotificationRead,
   upsertProfile,
   vouchProfile,
   type BackendFavor,
+  type BackendNotification,
   type BackendProfile,
   type BackendReport,
   type BackendResource,
@@ -479,5 +483,40 @@ export function useCreateReport() {
       qc.invalidateQueries({ queryKey: ['reports'] });
       void flushOutbox();
     },
+  });
+}
+
+// ============================================================================
+// NOTIFICACIONES
+// ============================================================================
+
+// Sin tiempo real: el contador se consulta cada 30 s mientras la app está abierta y con red.
+const UNREAD_POLL_MS = 30_000;
+
+export function useNotifications() {
+  const userId = useAppStore((s) => s.userId);
+  return useQuery<BackendNotification[]>({
+    queryKey: ['notifications', userId, 'list'],
+    enabled: Boolean(userId),
+    queryFn: () => listNotifications(),
+  });
+}
+
+export function useUnreadNotificationCount() {
+  const userId = useAppStore((s) => s.userId);
+  const isOnline = useAppStore((s) => s.isOnline);
+  return useQuery({
+    queryKey: ['notifications', userId, 'unread'],
+    enabled: Boolean(userId) && isOnline,
+    refetchInterval: UNREAD_POLL_MS,
+    queryFn: async () => (await getUnreadNotificationCount()).count,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => markNotificationRead(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
 }
