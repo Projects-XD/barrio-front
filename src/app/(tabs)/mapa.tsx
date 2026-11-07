@@ -188,25 +188,48 @@ export default function MapaBarrio() {
   // Mapeo unificado de Favores (pedir/ofrecer) + Oficios + Reportes de vulnerabilidad
   const allMapped = useMemo(() => {
     const seenCoords = new Map<string, number>();
-    const normalizeCoord = (id: string, rawLat: number | null | undefined, rawLng: number | null | undefined, idx: number) => {
-      let baseLat = rawLat ?? center.lat;
-      let baseLng = rawLng ?? center.lng;
-      const outOfZone =
-        rawLat == null || rawLng == null || distanceKm(baseLat, baseLng, center.lat, center.lng) > 8;
-      if (outOfZone) {
-        const off = deterministicOffset(id, idx);
-        baseLat = Number((center.lat + off.dLat * 2.4).toFixed(5));
-        baseLng = Number((center.lng + off.dLng * 2.4).toFixed(5));
-      } else {
+    const normalizeCoord = (
+      id: string,
+      rawLat: number | null | undefined,
+      rawLng: number | null | undefined,
+      itemZoneId: string | null | undefined,
+      idx: number,
+    ) => {
+      // 1. Si el ítem ya tiene coordenadas geográficas registradas válidas (dentro de Castilla o en rango Piura),
+      // se respetan y quedan FIJAS en el mapa. Nunca deben teletransportarse siguiendo la ubicación del usuario que mira la pantalla.
+      if (
+        typeof rawLat === 'number' &&
+        typeof rawLng === 'number' &&
+        !Number.isNaN(rawLat) &&
+        !Number.isNaN(rawLng) &&
+        (isWithinCastilla({ lat: rawLat, lng: rawLng }) || distanceKm(rawLat, rawLng, CASTILLA_CENTER.lat, CASTILLA_CENTER.lng) <= 25)
+      ) {
+        let baseLat = rawLat;
+        let baseLng = rawLng;
+        // Si varios ítems coinciden exactamente en la misma coordenada, aplicar un micro-desplazamiento de separación
         const key = `${baseLat.toFixed(4)},${baseLng.toFixed(4)}`;
         const count = seenCoords.get(key) ?? 0;
         seenCoords.set(key, count + 1);
         if (count > 0) {
           const off = deterministicOffset(id, count);
-          baseLat = Number((baseLat + off.dLat).toFixed(5));
-          baseLng = Number((baseLng + off.dLng).toFixed(5));
+          baseLat = Number((baseLat + off.dLat * 0.35).toFixed(5));
+          baseLng = Number((baseLng + off.dLng * 0.35).toFixed(5));
         }
+        return { lat: baseLat, lng: baseLng };
       }
+
+      // 2. Si no tiene coordenadas explícitas, se ubica de forma fija en el centro de SU PROPIA ZONA (itemZoneId),
+      // NUNCA sobre la ubicación actual del usuario que está navegando el mapa.
+      const itemZone = itemZoneId ? zonas.find((z) => z.id === itemZoneId) : null;
+      const zoneCenter =
+        itemZone && typeof itemZone.center_lat === 'number' && typeof itemZone.center_lng === 'number'
+          ? { lat: itemZone.center_lat, lng: itemZone.center_lng }
+          : CASTILLA_CENTER;
+
+      const off = deterministicOffset(id, idx);
+      const baseLat = Number((zoneCenter.lat + off.dLat * 1.5).toFixed(5));
+      const baseLng = Number((zoneCenter.lng + off.dLng * 1.5).toFixed(5));
+
       return { lat: baseLat, lng: baseLng };
     };
 
@@ -221,7 +244,7 @@ export default function MapaBarrio() {
     const activeFavors = favores.filter((f) => f.status === 'abierta' || f.status === 'en_curso');
     activeFavors.forEach((f, idx) => {
       const kind = f.intent;
-      const { lat, lng } = normalizeCoord(f.id, f.location?.lat, f.location?.lng, idx);
+      const { lat, lng } = normalizeCoord(f.id, f.location?.lat, f.location?.lng, f.zoneId, idx);
       entries.push({
         id: f.id,
         kind,
@@ -256,6 +279,7 @@ export default function MapaBarrio() {
           entryId,
           prof.location?.lat,
           prof.location?.lng,
+          prof.zoneId,
           idx + 30,
         );
         const label = `${prof.oficio.name}: ${prof.user.fullName}`;
@@ -287,7 +311,7 @@ export default function MapaBarrio() {
       const activeReports = reportes.filter((r) => r.status === 'activo');
       activeReports.forEach((rep, idx) => {
         const entryId = `reporte:${rep.id}`;
-        const { lat, lng } = normalizeCoord(entryId, rep.approxLat, rep.approxLng, idx + 60);
+        const { lat, lng } = normalizeCoord(entryId, rep.approxLat, rep.approxLng, rep.zoneId, idx + 60);
         const needsTxt =
           rep.needs.length > 0
             ? `Necesita: ${rep.needs.map((n) => resourceLabel[n]).join(', ')}`
@@ -321,11 +345,10 @@ export default function MapaBarrio() {
     favores,
     oficios,
     reportes,
+    zonas,
     mostrarCapaOficios,
     mostrarCapaAlertas,
     filtroIntencion,
-    center.lat,
-    center.lng,
     activeUserLocation,
   ]);
 
