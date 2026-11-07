@@ -1,9 +1,26 @@
 import type { Coords } from '@/utils/geo';
 import type { FavorType, FavorUrgency, OficioCategory } from '@/types';
 
+export type MapHtmlOptions = {
+  maxBounds?: [[number, number], [number, number]];
+  minZoom?: number;
+  maxZoom?: number;
+  zoom?: number;
+  zones?: { id: string; name: string; lat: number; lng: number }[];
+};
+
 // HTML de Leaflet compartido por el mapa nativo (WebView) y el mapa web (iframe).
 // Cada click envía un mensaje: al WebView de React Native o al documento padre en web.
-export function buildMapHtml(initial: Coords) {
+export function buildMapHtml(initial: Coords, options?: MapHtmlOptions) {
+  const initialZoom = options?.zoom ?? 16;
+  const minZoom = options?.minZoom ?? 10;
+  const maxZoom = options?.maxZoom ?? 19;
+  const boundsJson = options?.maxBounds ? JSON.stringify(options.maxBounds) : 'null';
+  const zonesJson =
+    options?.zones && options.zones.length
+      ? JSON.stringify(options.zones).replace(/</g, '\\u003c')
+      : '[]';
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -11,36 +28,120 @@ export function buildMapHtml(initial: Coords) {
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <style>html,body,#map{height:100%;margin:0;padding:0}</style>
+  <style>
+    html,body,#map{height:100%;margin:0;padding:0;background:#FBF7F1}
+    .zone-label {
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid #132E66;
+      border-radius: 6px;
+      color: #132E66;
+      font-size: 11px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-weight: 700;
+      padding: 2px 6px;
+      box-shadow: 0 1px 4px rgba(19, 46, 102, 0.18);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .leaflet-tooltip-top.zone-label:before {
+      border-top-color: #132E66;
+    }
+  </style>
 </head>
 <body>
   <div id="map"></div>
   <script>
-    var map = L.map('map').setView([${initial.lat}, ${initial.lng}], 16);
+    var boundsData = ${boundsJson};
+    var mapOptions = {
+      minZoom: ${minZoom},
+      maxZoom: ${maxZoom}
+    };
+    var bounds = null;
+    if (boundsData) {
+      bounds = L.latLngBounds(boundsData[0], boundsData[1]);
+      mapOptions.maxBounds = bounds;
+      mapOptions.maxBoundsViscosity = 1.0;
+    }
+
+    var map = L.map('map', mapOptions).setView([${initial.lat}, ${initial.lng}], ${initialZoom});
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
+      maxZoom: ${maxZoom},
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
+
     var marker = L.circleMarker([${initial.lat}, ${initial.lng}], {
-      radius: 10, color: '#132E66', fillColor: '#EA982B', fillOpacity: 1, weight: 3
+      radius: 9, color: '#132E66', fillColor: '#EA982B', fillOpacity: 1, weight: 3
     }).addTo(map);
 
-    function send(ll) {
+    var zoneLayer = L.layerGroup().addTo(map);
+
+    function renderZones(list) {
+      zoneLayer.clearLayers();
+      if (!list || !list.length) return;
+      list.forEach(function (z) {
+        if (typeof z.lat !== 'number' || typeof z.lng !== 'number') return;
+        var zMarker = L.circleMarker([z.lat, z.lng], {
+          radius: 6,
+          color: '#132E66',
+          fillColor: '#FFFFFF',
+          fillOpacity: 1,
+          weight: 2
+        }).addTo(zoneLayer);
+
+        zMarker.bindTooltip(z.name, {
+          permanent: true,
+          direction: 'top',
+          className: 'zone-label',
+          offset: [0, -6]
+        });
+
+        zMarker.on('click', function (e) {
+          L.DomEvent.stopPropagation(e);
+          send(L.latLng(z.lat, z.lng), z.id);
+        });
+      });
+    }
+
+    var initialZones = ${zonesJson};
+    if (initialZones && initialZones.length) {
+      renderZones(initialZones);
+    }
+
+    window.setZones = function (list) {
+      renderZones(list);
+    };
+
+    var eventCallback = null;
+    window.setEventCallback = function (fn) {
+      eventCallback = fn;
+    };
+
+    function send(ll, zoneId) {
       marker.setLatLng(ll);
-      var msg = JSON.stringify({ source: 'barrio-map', lat: ll.lat, lng: ll.lng });
-      if (window.ReactNativeWebView) {
+      var payload = { source: 'barrio-map', lat: ll.lat, lng: ll.lng };
+      if (zoneId) payload.zoneId = zoneId;
+      var msg = JSON.stringify(payload);
+      if (typeof eventCallback === 'function') {
+        try { eventCallback(msg); } catch (err) {}
+      }
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
         window.ReactNativeWebView.postMessage(msg);
       } else if (window.parent && window.parent !== window) {
         window.parent.postMessage(msg, '*');
       }
     }
 
-    map.on('click', function (e) { send(e.latlng); });
+    map.on('click', function (e) {
+      if (bounds && !bounds.contains(e.latlng)) {
+        return;
+      }
+      send(e.latlng);
+    });
 
     window.setPoint = function (lat, lng) {
       var ll = L.latLng(lat, lng);
       marker.setLatLng(ll);
-      map.setView(ll, 17);
+      map.setView(ll, Math.max(map.getZoom(), 13));
     };
   </script>
 </body>
@@ -77,9 +178,12 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     .leg-item{display:inline-flex;align-items:center;gap:5px}
     .dot{display:inline-block;width:9px;height:9px;border-radius:50%}
     .vacio{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:999;background:rgba(255,255,255,.96);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;color:#5E6B82;box-shadow:0 3px 12px rgba(19,46,102,.18);display:none;white-space:nowrap}
-    .pin-wrap{display:flex;align-items:center;justify-content:center;position:relative;width:36px;height:36px}
-    .pin-core{width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 3px 8px rgba(19,46,102,.32);display:flex;align-items:center;justify-content:center;transition:transform .18s ease,box-shadow .18s ease}
-    .pin-selected .pin-core{transform:scale(1.32);border-color:#132E66;box-shadow:0 5px 14px rgba(19,46,102,.55)}
+    .pin-wrap{display:flex;align-items:center;justify-content:center;position:relative;width:38px;height:38px;cursor:pointer}
+    .pin-core{width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 3px 8px rgba(19,46,102,.32);display:flex;align-items:center;justify-content:center;transition:transform .18s ease,box-shadow .18s ease;pointer-events:none}
+    .pin-core svg{pointer-events:none}
+    .pin-wrap:hover .pin-core{transform:scale(1.14)}
+    .pin-selected .pin-core{transform:scale(1.36) !important;border-color:#132E66;box-shadow:0 5px 14px rgba(19,46,102,.55)}
+    .pin-ring-sel{position:absolute;width:38px;height:38px;border-radius:50%;border:2.5px solid #132E66;background:rgba(234,152,43,.22);pointer-events:none}
     .pin-urg{position:absolute;width:36px;height:36px;border-radius:50%;border:2px solid #B8442F;animation:pulse 1.8s infinite;pointer-events:none}
     .user-wrap{display:flex;align-items:center;justify-content:center;position:relative;width:32px;height:32px}
     .user-pulse{position:absolute;width:30px;height:30px;border-radius:50%;background:rgba(43,74,140,.28);animation:pulse 2s infinite;pointer-events:none}
@@ -109,11 +213,23 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     var layer = L.layerGroup().addTo(map);
     var userLayer = L.layerGroup().addTo(map);
     var currentPoints = [];
+    var markersById = {};
     var selectedId = null;
     var hasAutoFitted = false;
 
+    var eventCb = null;
+    window.setEventCallback = function (cb) {
+      eventCb = cb;
+    };
+
     function send(msg) {
-      var s = JSON.stringify(Object.assign({ source: 'barrio-map' }, msg));
+      var payloadObj = Object.assign({ source: 'barrio-map' }, msg);
+      var s = JSON.stringify(payloadObj);
+      if (typeof eventCb === 'function') {
+        try {
+          eventCb(payloadObj);
+        } catch (e) {}
+      }
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(s);
       } else if (window.parent && window.parent !== window) {
@@ -148,60 +264,160 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
       return '<svg ' + common + '><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
     }
 
+    function buildPinIcon(p, isSelected) {
+      var bg = '#132E66';
+      var fg = '#ffffff';
+      if (p.kind === 'ofrecer') {
+        bg = '#EA982B';
+        fg = '#132E66';
+      } else if (p.kind === 'oficio') {
+        bg = '#2E7D5B';
+        fg = '#ffffff';
+      } else if (p.kind === 'emergencia') {
+        bg = '#B8442F';
+        fg = '#ffffff';
+      }
+
+      var isUrgent = p.urgency === 'urgente' || p.urgency === 'emergencia' || p.kind === 'emergencia';
+      var svg = svgIconFor(p, fg);
+      var safeId = String(p.id).replace(/"/g, '');
+      var html = '<div class="pin-wrap ' + (isSelected ? 'pin-selected' : '') + '" data-pin-id="' + safeId + '">' +
+        (isSelected ? '<div class="pin-ring-sel"></div>' : '') +
+        (isUrgent ? '<div class="pin-urg"></div>' : '') +
+        '<div class="pin-core" style="background:' + bg + ';color:' + fg + '">' + svg + '</div>' +
+        '</div>';
+
+      return L.divIcon({
+        className: '',
+        html: html,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19]
+      });
+    }
+
+    function updateSelectionVisuals() {
+      currentPoints.forEach(function (p) {
+        var m = markersById[p.id];
+        if (!m) return;
+        var isSel = selectedId === p.id;
+        var el = m.getElement ? m.getElement() : null;
+        if (el) {
+          var wrap = el.querySelector('.pin-wrap');
+          if (wrap) {
+            if (isSel) wrap.classList.add('pin-selected');
+            else wrap.classList.remove('pin-selected');
+          }
+          var ring = el.querySelector('.pin-ring-sel');
+          if (isSel && !ring && wrap) {
+            var r = document.createElement('div');
+            r.className = 'pin-ring-sel';
+            wrap.insertBefore(r, wrap.firstChild);
+          } else if (!isSel && ring && ring.parentNode) {
+            ring.parentNode.removeChild(ring);
+          }
+        }
+        var zOffset = isSel ? 1000 : p.kind === 'emergencia' ? 400 : p.kind === 'ofrecer' ? 200 : 100;
+        m.setZIndexOffset(zOffset);
+      });
+    }
+
+    var lastClickId = null;
+    var lastClickTs = 0;
+
+    window.handlePinClick = function (id) {
+      var now = Date.now();
+      if (lastClickId === id && now - lastClickTs < 120) return;
+      lastClickId = id;
+      lastClickTs = now;
+
+      var found = null;
+      for (var i = 0; i < currentPoints.length; i++) {
+        if (currentPoints[i].id === id) {
+          found = currentPoints[i];
+          break;
+        }
+      }
+      if (!found) return;
+      var isSame = selectedId === found.id;
+      selectedId = found.id;
+      updateSelectionVisuals();
+      map.panTo([found.lat, found.lng], { animate: true });
+      send({ type: 'point', id: found.id, same: isSame });
+    };
+
+    function findPinByLatLng(latlng) {
+      if (!latlng || !currentPoints.length) return null;
+      var clickPt = map.latLngToContainerPoint(latlng);
+      var best = null;
+      var bestDist = 26; // radio generoso de 26px alrededor del centro del marcador
+      for (var i = 0; i < currentPoints.length; i++) {
+        var p = currentPoints[i];
+        var mPt = map.latLngToContainerPoint([p.lat, p.lng]);
+        var dx = clickPt.x - mPt.x;
+        var dy = clickPt.y - mPt.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= bestDist) {
+          bestDist = dist;
+          best = p;
+        }
+      }
+      return best;
+    }
+
     function renderMarkers() {
       layer.clearLayers();
+      markersById = {};
       var vacioEl = document.getElementById('vacio');
       if (vacioEl) vacioEl.style.display = currentPoints.length ? 'none' : 'block';
 
       currentPoints.forEach(function (p) {
-        var bg = '#132E66';
-        var fg = '#ffffff';
-        if (p.kind === 'ofrecer') {
-          bg = '#EA982B';
-          fg = '#132E66';
-        } else if (p.kind === 'oficio') {
-          bg = '#2E7D5B';
-          fg = '#ffffff';
-        } else if (p.kind === 'emergencia') {
-          bg = '#B8442F';
-          fg = '#ffffff';
-        }
-
         var isSelected = selectedId === p.id;
-        var isUrgent = p.urgency === 'urgente' || p.urgency === 'emergencia' || p.kind === 'emergencia';
-        var svg = svgIconFor(p, fg);
-        var html = '<div class="pin-wrap ' + (isSelected ? 'pin-selected' : '') + '">' +
-          (isUrgent ? '<div class="pin-urg"></div>' : '') +
-          '<div class="pin-core" style="background:' + bg + ';color:' + fg + '">' + svg + '</div>' +
-          '</div>';
-
-        var icon = L.divIcon({
-          className: '',
-          html: html,
-          iconSize: [36, 36],
-          iconAnchor: [18, 18]
-        });
-
+        var icon = buildPinIcon(p, isSelected);
         var zOffset = isSelected ? 1000 : p.kind === 'emergencia' ? 400 : p.kind === 'ofrecer' ? 200 : 100;
         var m = L.marker([p.lat, p.lng], {
           icon: icon,
           zIndexOffset: zOffset
         }).addTo(layer);
 
-        m.bindTooltip(p.label, { direction: 'top', offset: [0, -14], className: 'barrio-tip' });
-        m.on('click', function (e) {
-          L.DomEvent.stopPropagation(e);
-          selectedId = p.id;
-          renderMarkers();
-          send({ type: 'point', id: p.id });
+        markersById[p.id] = m;
+        m.bindTooltip(p.label, { direction: 'top', offset: [0, -15], className: 'barrio-tip', interactive: false });
+        m.on('click', function () {
+          window.handlePinClick(p.id);
+        });
+        m.on('mousedown', function () {
+          window.handlePinClick(p.id);
         });
       });
     }
 
-    map.on('click', function () {
+    // Respaldo 1: DOM pointerdown sobre cualquier marcador
+    document.addEventListener('pointerdown', function (ev) {
+      var tgt = ev.target;
+      var wrap = tgt && tgt.closest ? tgt.closest('[data-pin-id]') : null;
+      if (wrap) {
+        var pid = wrap.getAttribute('data-pin-id');
+        if (pid) {
+          window.handlePinClick(pid);
+        }
+      }
+    }, true);
+
+    // Respaldo 2: Detección geométrica en píxeles sobre el mapa (infalible aunque algún overlay intercepte el icono)
+    map.on('click', function (e) {
+      var hit = findPinByLatLng(e.latlng);
+      if (hit) {
+        window.handlePinClick(hit.id);
+        return;
+      }
+      var orig = e && e.originalEvent ? e.originalEvent : null;
+      var tgt = orig && orig.target ? orig.target : null;
+      if (tgt && tgt.closest && (tgt.closest('.leaflet-marker-icon') || tgt.closest('[data-pin-id]'))) {
+        return;
+      }
+      if (Date.now() - lastClickTs < 400) return;
       if (selectedId !== null) {
         selectedId = null;
-        renderMarkers();
+        updateSelectionVisuals();
         send({ type: 'clear' });
       }
     });
@@ -230,23 +446,32 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
 
     window.focusPoint = function (id, lat, lng) {
       selectedId = id || null;
-      renderMarkers();
+      updateSelectionVisuals();
       if (typeof lat === 'number' && typeof lng === 'number') {
-        map.setView([lat, lng], 16, { animate: true });
+        map.panTo([lat, lng], { animate: true });
       }
     };
 
     window.setUserLocation = function (lat, lng, centerOnUser) {
       userLayer.clearLayers();
       if (typeof lat !== 'number' || typeof lng !== 'number') return;
+      L.circle([lat, lng], {
+        radius: 500,
+        color: '#2B4A8C',
+        weight: 1.5,
+        dashArray: '5, 6',
+        fillColor: '#2B4A8C',
+        fillOpacity: 0.06,
+        interactive: false
+      }).addTo(userLayer);
       var uIcon = L.divIcon({
         className: '',
         html: '<div class="user-wrap"><div class="user-pulse"></div><div class="user-dot"></div></div>',
         iconSize: [32, 32],
         iconAnchor: [16, 16]
       });
-      var um = L.marker([lat, lng], { icon: uIcon, zIndexOffset: 900 }).addTo(userLayer);
-      um.bindTooltip('Tu ubicación aproximada', { direction: 'top', offset: [0, -12], className: 'barrio-tip' });
+      var um = L.marker([lat, lng], { icon: uIcon, zIndexOffset: 900, interactive: false }).addTo(userLayer);
+      um.bindTooltip('Tu ubicación · Radio vecinal 500 m', { direction: 'top', offset: [0, -12], className: 'barrio-tip' });
       if (centerOnUser) {
         map.setView([lat, lng], 16, { animate: true });
       }
@@ -266,5 +491,3 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
 </body>
 </html>`;
 }
-
-

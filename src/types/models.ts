@@ -60,6 +60,7 @@ export interface Favor {
   // Solo GET /favors/:id los calcula; en los listados quedan en false.
   canEdit: boolean;
   isDeactivated: boolean;
+  assignedToUserId?: string | null;
 }
 
 export interface SupportService {

@@ -261,7 +261,7 @@ export class SyncService {
         status: 'abierta',
         sync_status: 'enviado',
         urgency: payload.urgency,
-        moderation_status: 'pendiente', // igual que createFavor: todo favor nuevo espera aprobación
+        moderation_status: 'aprobado',
       })
       .select()
       .single();

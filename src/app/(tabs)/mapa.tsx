@@ -19,7 +19,7 @@ import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
 import { UrgencyBadge } from '@/components/UrgencyBadge';
 import type { BarrioPoint } from '@/components/mapHtml';
-import { useFavors, useProfiles, useReports, useZones } from '@/hooks/useData';
+import { useFavors, useMySavedLocation, useProfiles, useReports, useZones } from '@/hooks/useData';
 import { expressInterest, listConversations } from '@/api/endpoints';
 import { usePalette } from '@/hooks/usePalette';
 import { favorTypeIcon, type IconName } from '@/i18n/icons';
@@ -33,7 +33,7 @@ import type {
   ProfessionalProfile,
   VulnerabilityReport,
 } from '@/types';
-import { CASTILLA_CENTER, roundForReport, type Coords } from '@/utils/geo';
+import { CASTILLA_CENTER, formatDistanceAndWalk, roundForReport, type Coords } from '@/utils/geo';
 import { distanceKm, getRealPosition } from '@/utils/location';
 import { timeAgo } from '@/utils/time';
 
@@ -87,9 +87,7 @@ function deterministicOffset(id: string, index: number): { dLat: number; dLng: n
 }
 
 function formatDistance(meters: number | null): string | null {
-  if (meters == null) return null;
-  if (meters < 1000) return `A ~${Math.max(50, Math.round(meters / 10) * 10)} m`;
-  return `A ${(meters / 1000).toFixed(1)} km`;
+  return formatDistanceAndWalk(meters);
 }
 
 export default function MapaBarrio() {
@@ -103,6 +101,7 @@ export default function MapaBarrio() {
   const { data: favores = [], isLoading, isError, refetch } = useFavors();
   const { data: oficios = [] } = useProfiles();
   const { data: reportes = [] } = useReports();
+  const { data: savedLocation } = useMySavedLocation();
 
   const [busqueda, setBusqueda] = useState('');
   const [filtroIntencion, setFiltroIntencion] = useState<KindFilter>('todos');
@@ -146,6 +145,11 @@ export default function MapaBarrio() {
   const [userLocation, setUserLocation] = useState<Coords | null>(null);
   const [userFocusTrigger, setUserFocusTrigger] = useState(0);
   const [locating, setLocating] = useState(false);
+
+  const activeUserLocation: Coords | null = useMemo(
+    () => userLocation ?? (savedLocation ? { lat: savedLocation.lat, lng: savedLocation.lng } : null),
+    [userLocation, savedLocation],
+  );
 
   const zona = zonas.find((z) => z.id === zoneId);
   const center: Coords =
@@ -204,7 +208,9 @@ export default function MapaBarrio() {
     };
 
     const calcDist = (lat: number, lng: number) =>
-      userLocation ? Math.round(distanceKm(userLocation.lat, userLocation.lng, lat, lng) * 1000) : null;
+      activeUserLocation
+        ? Math.round(distanceKm(activeUserLocation.lat, activeUserLocation.lng, lat, lng) * 1000)
+        : null;
 
     const entries: MapEntry[] = [];
 
@@ -317,7 +323,7 @@ export default function MapaBarrio() {
     filtroIntencion,
     center.lat,
     center.lng,
-    userLocation,
+    activeUserLocation,
   ]);
 
   const totalPedidos = useMemo(
@@ -347,11 +353,11 @@ export default function MapaBarrio() {
       return true;
     });
 
-    if (userLocation) {
+    if (activeUserLocation) {
       return [...list].sort((a, b) => (a.distanceMeters ?? 999999) - (b.distanceMeters ?? 999999));
     }
     return list;
-  }, [allMapped, busqueda, filtroIntencion, filtroCategoria, filtroUrgencia, soloCercanos, userLocation]);
+  }, [allMapped, busqueda, filtroIntencion, filtroCategoria, filtroUrgencia, soloCercanos, activeUserLocation]);
 
   const points = useMemo(() => filteredItems.map((x) => x.point), [filteredItems]);
 
@@ -431,7 +437,7 @@ export default function MapaBarrio() {
           <Text style={[styles.sub, { color: p.muted }]} numberOfLines={1}>
             {zona?.name ? `Zona ${zona.name} · ` : ''}
             {filteredItems.length} punto{filteredItems.length === 1 ? '' : 's'} en el mapa
-            {userLocation ? ' · Ordenados por cercanía' : ''}
+            {activeUserLocation ? ' · Ordenados por cercanía' : ''}
           </Text>
         </View>
 
@@ -632,10 +638,17 @@ export default function MapaBarrio() {
               center={center}
               points={points}
               selectedId={selectedId}
-              userLocation={userLocation}
+              userLocation={activeUserLocation}
               userFocusTrigger={userFocusTrigger}
               fitTrigger={fitTrigger}
-              onPointPress={(id) => setSelectedId(id)}
+              onPointPress={(id, same) => {
+                if (same) {
+                  const found = filteredItems.find((x) => x.id === id);
+                  if (found) abrirDetalleEntry(found);
+                } else {
+                  setSelectedId(id);
+                }
+              }}
               onMapClear={() => setSelectedId(null)}
             />
 
@@ -840,14 +853,14 @@ export default function MapaBarrio() {
                 onPress={ubicarmeEnMapa}
                 style={[
                   styles.sideBtn,
-                  userLocation ? { backgroundColor: colors.azulSuave, borderColor: colors.azul } : null,
+                  activeUserLocation ? { backgroundColor: colors.azulSuave, borderColor: colors.azul } : null,
                 ]}
               >
                 {locating ? (
                   <ActivityIndicator size="small" color={colors.azul} />
                 ) : (
                   <Ionicons
-                    name={userLocation ? 'locate' : 'locate-outline'}
+                    name={activeUserLocation ? 'locate' : 'locate-outline'}
                     size={20}
                     color={colors.azul}
                   />
@@ -1046,7 +1059,7 @@ export default function MapaBarrio() {
                   selected={mostrarCapaAlertas}
                   onPress={() => setMostrarCapaAlertas((v: boolean) => !v)}
                 />
-                {userLocation ? (
+                {activeUserLocation ? (
                   <Chip
                     label="A menos de 700 m de mí"
                     selected={soloCercanos}

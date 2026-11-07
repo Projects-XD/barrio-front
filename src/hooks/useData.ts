@@ -5,6 +5,7 @@ import {
   createFavor,
   createReport,
   deleteFavor,
+  deleteProfile,
   expressInterest,
   getEmergencyState,
   getConversation,
@@ -24,6 +25,7 @@ import {
   listZones,
   markNotificationRead,
   reportConversationUser,
+  reportFavor,
   sendMessage,
   unblockConversationUser,
   updateConversation,
@@ -118,6 +120,7 @@ export function mapBackendFavorToFrontend(bf: BackendFavor, currentUserId?: stri
     moderationReason: bf.moderation_reason ?? null,
     canEdit: bf.can_edit ?? false,
     isDeactivated: bf.is_deactivated ?? false,
+    assignedToUserId: bf.assigned_to_user_id ?? null,
   };
 }
 
@@ -139,7 +142,7 @@ function mapPendingFavor(item: OutboxItem, userId: string | null, userName: stri
     syncStatus: item.attempts > 0 ? 'error' : 'pendiente',
     // Las operaciones encoladas antes de existir este campo no lo traen.
     urgency: (p.urgency as FavorUrgency | undefined) ?? 'normal',
-    moderationStatus: 'pendiente',
+    moderationStatus: 'aprobado',
     moderationReason: null,
     canEdit: false,
     isDeactivated: false,
@@ -349,6 +352,162 @@ export function useUpsertMyProfile() {
   });
 }
 
+export function useDeleteProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteProfile(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ['myProfile'] });
+      qc.invalidateQueries({ queryKey: ['profiles'] });
+      qc.invalidateQueries({ queryKey: ['profile', id] });
+    },
+  });
+}
+
+export interface SavedUserLocation {
+  lat: number;
+  lng: number;
+  address: string;
+}
+
+interface NominatimReversePayload {
+  display_name?: string;
+  address?: {
+    road?: string;
+    pedestrian?: string;
+    house_number?: string;
+    neighbourhood?: string;
+    suburb?: string;
+    quarter?: string;
+    city_district?: string;
+    town?: string;
+    city?: string;
+  };
+}
+
+export async function reverseGeocodeCoords(c: { lat: number; lng: number }): Promise<string> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${c.lat}&lon=${c.lng}&accept-language=es`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (res.ok) {
+      const data = (await res.json()) as NominatimReversePayload;
+      const addr = data.address;
+      if (addr) {
+        const calle = [addr.road || addr.pedestrian, addr.house_number].filter(Boolean).join(' ');
+        const zona = addr.neighbourhood || addr.suburb || addr.quarter || addr.city_district;
+        const ciudad = addr.town || addr.city || 'Castilla';
+        const parts = [calle, zona, ciudad].filter(
+          (part, idx, arr) => Boolean(part) && arr.indexOf(part) === idx
+        );
+        if (parts.length > 0) return parts.join(', ');
+      }
+      if (data.display_name) {
+        return data.display_name
+          .split(',')
+          .slice(0, 3)
+          .map((s) => s.trim())
+          .join(', ');
+      }
+    }
+  } catch {
+    // Fallback abajo
+  }
+  return `Castilla, Piura (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`;
+}
+
+export function useMySavedLocation() {
+  const userId = useAppStore((s) => s.userId);
+  const zoneId = useAppStore((s) => s.zoneId);
+
+  return useQuery({
+    queryKey: ['mySavedLocation', userId, zoneId],
+    enabled: Boolean(userId),
+    queryFn: async (): Promise<SavedUserLocation | null> => {
+      // 1. Leer de Supabase Auth user_metadata (persistido en BD para cualquier usuario)
+      const { data: authData } = await supabase.auth.getUser();
+      const meta = authData.user?.user_metadata as
+        | { location_lat?: number; location_lng?: number; location_address?: string }
+        | undefined;
+
+      let lat = typeof meta?.location_lat === 'number' ? meta.location_lat : null;
+      let lng = typeof meta?.location_lng === 'number' ? meta.location_lng : null;
+      let address = typeof meta?.location_address === 'string' ? meta.location_address.trim() : '';
+
+      // 2. Respaldo desde professional_profiles si aún no estaba en metadata
+      if ((lat === null || lng === null) && zoneId) {
+        try {
+          const profiles = await listProfiles({ zoneId });
+          const mineWithLoc = profiles.find(
+            (p) => p.user_id === userId && p.location_lat != null && p.location_lng != null
+          );
+          if (mineWithLoc && mineWithLoc.location_lat != null && mineWithLoc.location_lng != null) {
+            lat = mineWithLoc.location_lat;
+            lng = mineWithLoc.location_lng;
+          }
+        } catch {
+          // Ignorar error de red
+        }
+      }
+
+      if (lat === null || lng === null) return null;
+
+      if (!address) {
+        address = await reverseGeocodeCoords({ lat, lng });
+      }
+
+      return { lat, lng, address };
+    },
+  });
+}
+
+export function useSaveMyLocation() {
+  const qc = useQueryClient();
+  const userId = useAppStore((s) => s.userId);
+  const zoneId = useAppStore((s) => s.zoneId);
+
+  return useMutation({
+    mutationFn: async (input: { lat: number; lng: number; address: string }): Promise<SavedUserLocation> => {
+      if (!userId) throw new Error('Tu sesión no está activa.');
+      const cleanAddress = input.address.trim() || (await reverseGeocodeCoords(input));
+
+      // 1. Guardar en Supabase Auth user_metadata (persiste en BD aunque no tenga oficios aún)
+      const { error: authErr } = await supabase.auth.updateUser({
+        data: {
+          location_lat: input.lat,
+          location_lng: input.lng,
+          location_address: cleanAddress,
+        },
+      });
+      if (authErr) throw new Error(authErr.message);
+
+      // 2. Si tiene oficios registrados en su zona, actualizar también sus coordenadas en professional_profiles
+      if (zoneId) {
+        const profiles = await listProfiles({ zoneId });
+        const mine = profiles.filter((p) => p.user_id === userId);
+        for (const prof of mine) {
+          await upsertProfile({
+            id: prof.id,
+            oficio_id: prof.oficio_id,
+            zone_id: zoneId,
+            description: prof.description,
+            years_experience: prof.years_experience,
+            location_lat: input.lat,
+            location_lng: input.lng,
+          });
+        }
+      }
+
+      return { lat: input.lat, lng: input.lng, address: cleanAddress };
+    },
+    onSuccess: (saved) => {
+      qc.setQueryData(['mySavedLocation', userId, zoneId], saved);
+      qc.invalidateQueries({ queryKey: ['mySavedLocation'] });
+      qc.invalidateQueries({ queryKey: ['myProfile'] });
+      qc.invalidateQueries({ queryKey: ['profiles'] });
+    },
+  });
+}
+
 // =====================================================================// FAVORES
 // =====================================================================
 export function useFavors(type?: FavorType) {
@@ -436,17 +595,15 @@ export function useFavor(id: string) {
 }
 
 export function useReportFavor(favorId: string) {
+  const qc = useQueryClient();
   const userId = useAppStore((s) => s.userId);
   return useMutation({
-    mutationFn: async (reason: string): Promise<void> => {
+    mutationFn: async (reason: string): Promise<{ hidden: boolean }> => {
       if (!userId) throw new Error('Tu sesión no está activa.');
-      const { error } = await supabase
-        .from('favor_reports')
-        .insert({ favor_id: favorId, reporter_id: userId, reason });
-      if (error) {
-        if (error.code === '23505') throw new Error('Ya reportaste este favor.');
-        throw new Error(error.message);
-      }
+      return await reportFavor(favorId, reason);
+    },
+    onSuccess: () => {
+      invalidateFavor(qc, favorId);
     },
   });
 }
@@ -498,8 +655,19 @@ export function useCreateFavor() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['favors'] });
+      qc.invalidateQueries({ queryKey: ['outboxPending'] });
       void flushOutbox();
     },
+  });
+}
+
+export function useOutboxPending() {
+  const userId = useAppStore((s) => s.userId);
+  const isOnline = useAppStore((s) => s.isOnline);
+  return useQuery({
+    queryKey: ['outboxPending', userId, isOnline],
+    enabled: Boolean(userId),
+    queryFn: () => listPending(),
   });
 }
 
@@ -600,6 +768,7 @@ export function useCreateReport() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['reports'] });
+      qc.invalidateQueries({ queryKey: ['outboxPending'] });
       void flushOutbox();
     },
   });

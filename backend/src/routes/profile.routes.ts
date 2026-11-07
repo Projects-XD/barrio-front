@@ -117,6 +117,8 @@ router.post(
  */
 router.get('/:id', requireAuth, (req, res, next) => profileController.getById(req, res, next));
 
+router.delete('/:id', requireAuth, (req, res, next) => profileController.remove(req, res, next));
+
 /**
  * @openapi
  * /profiles/{id}/vouch:

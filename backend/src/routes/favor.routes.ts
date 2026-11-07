@@ -7,6 +7,7 @@ import {
   updateFavorSchema,
   createFavorInterestSchema,
   listFavorsQuerySchema,
+  reportFavorSchema,
 } from '../utils/validators';
 
 const router = Router();
@@ -242,6 +243,13 @@ router.post(
   requireAuth,
   validate(createFavorInterestSchema),
   (req, res, next) => favorController.addInterest(req, res, next)
+);
+
+router.post(
+  '/:id/report',
+  requireAuth,
+  validate(reportFavorSchema),
+  (req, res, next) => favorController.report(req, res, next)
 );
 
 export default router;

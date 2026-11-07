@@ -69,6 +69,7 @@ export interface BackendFavor {
   // Solo vienen en GET /favors/:id.
   can_edit?: boolean;
   is_deactivated?: boolean;
+  assigned_to_user_id?: string | null;
   location_lat?: number | null;
   location_lng?: number | null;
   author?: {
@@ -164,6 +165,9 @@ export interface UpsertProfilePayload {
 export const upsertProfile = (payload: UpsertProfilePayload) =>
   api.post<BackendProfile>('/profiles', payload);
 
+export const deleteProfile = (id: string) =>
+  api.delete<{ id: string }>(`/profiles/${id}`);
+
 // =====================================================================
 // ============================================================================
 // FAVORES
@@ -202,9 +206,11 @@ export const createFavor = (payload: CreateFavorPayload) =>
 
 // El backend no admite cambiar urgency en PATCH: solo contenido.
 export interface UpdateFavorPayload {
-  type: FavorType;
-  title: string;
-  description: string | null;
+  type?: FavorType;
+  title?: string;
+  description?: string | null;
+  status?: 'abierta' | 'en_curso' | 'cerrada' | 'cancelada';
+  assigned_to_user_id?: string | null;
 }
 
 export const updateFavor = (id: string, payload: UpdateFavorPayload) =>
@@ -215,6 +221,9 @@ export const deleteFavor = (id: string) => api.delete<BackendFavor>(`/favors/${i
 // El backend abre la conversación con el autor al responder y devuelve su id.
 export const expressInterest = (favorId: string, message?: string) =>
   api.post<{ conversation_id: string }>(`/favors/${favorId}/interest`, { message: message ?? null });
+
+export const reportFavor = (favorId: string, reason: string) =>
+  api.post<{ hidden: boolean }>(`/favors/${favorId}/report`, { reason });
 
 // =====================================================================
 // ============================================================================

@@ -40,7 +40,7 @@ BEGIN
   END IF;
 
   v_reputacion := public.fn_reputacion_favor(NEW.author_id);
-  v_limite := CASE WHEN v_reputacion >= 3 THEN 15 ELSE 3 END;
+  v_limite := CASE WHEN v_reputacion >= 3 THEN 15 ELSE 5 END;
 
   SELECT COUNT(*) INTO v_publicados FROM public.favors
   WHERE author_id = NEW.author_id AND created_at > now() - interval '24 hours';

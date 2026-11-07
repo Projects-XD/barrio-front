@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Chip } from '@/components/Chip';
@@ -7,6 +7,7 @@ import { EmergencyButton } from '@/components/EmergencyButton';
 import { EmptyState } from '@/components/EmptyState';
 import { FavorCard } from '@/components/FavorCard';
 import { Screen } from '@/components/Screen';
+import { SkeletonFavores } from '@/components/SkeletonFavores';
 import { usePalette } from '@/hooks/usePalette';
 import { useFavorsPage } from '@/hooks/useData';
 import { favorTypeLabel } from '@/i18n/labels';
@@ -45,9 +46,7 @@ export default function Favores() {
       </ScrollView>
 
       {isLoading ? (
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color={p.primary} />
-        </View>
+        <SkeletonFavores count={4} />
       ) : (
         <FlatList
           data={favores}
