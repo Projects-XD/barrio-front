@@ -10,12 +10,10 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import * as Linking from 'expo-linking';
-import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
-import { ValidationBadge } from '@/components/ValidationBadge';
 import { usePalette } from '@/hooks/usePalette';
 import { useProfile, useVouch } from '@/hooks/useData';
 import { oficioLabel } from '@/i18n/labels';
@@ -63,69 +61,76 @@ export default function OficioDetalle() {
     });
   };
 
+  const stats = [
+    {
+      value: `${profile.validatedCount}`,
+      label: profile.validatedCount === 1 ? 'Aval vecinal' : 'Avales vecinales',
+    },
+    ...(profile.distanceKm !== undefined
+      ? [{ value: `${profile.distanceKm} km`, label: 'En tu zona' }]
+      : []),
+    ...(profile.yearsExperience
+      ? [{ value: `${profile.yearsExperience} años`, label: 'Experiencia' }]
+      : []),
+  ];
+
   return (
     <Screen>
-      <Stack.Screen options={{ title: profile.user.fullName }} />
+      <Stack.Screen options={{ title: 'Detalle de oficio', headerBackTitle: 'Volver' }} />
 
+      {/* Tarjeta principal con jerarquía limpia */}
       <Card>
         <View style={styles.headerInfo}>
           <Text style={[styles.nombre, { color: p.text }]}>{profile.user.fullName}</Text>
           <Text style={styles.oficio}>{oficioLabel[profile.oficio.category]}</Text>
         </View>
 
-        <View style={styles.statsRow}>
-          <ValidationBadge validatedCount={profile.validatedCount} />
-
-          <View style={styles.metricsRow}>
-            {profile.distanceKm !== undefined ? (
-              <View style={styles.metricBadge}>
-                <Ionicons name="location-outline" size={13} color={colors.azul} />
-                <Text style={styles.metricText}>{profile.distanceKm} km en tu zona</Text>
+        {/* Barra de métricas tipográfica (sin iconos genéricos) */}
+        <View style={styles.statsBar}>
+          {stats.map((st, idx) => (
+            <View key={st.label} style={styles.statColWrapper}>
+              {idx > 0 ? <View style={styles.statDivider} /> : null}
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{st.value}</Text>
+                <Text style={styles.statLabel}>{st.label}</Text>
               </View>
-            ) : null}
-
-            {profile.yearsExperience ? (
-              <View style={styles.metricBadge}>
-                <Ionicons name="briefcase-outline" size={13} color={colors.azul} />
-                <Text style={styles.metricText}>{profile.yearsExperience} años de experiencia</Text>
-              </View>
-            ) : null}
-          </View>
+            </View>
+          ))}
         </View>
 
         <View style={styles.divider} />
 
-        <Text style={[styles.seccionTitulo, { color: p.text }]}>Servicio y especialidad</Text>
+        <Text style={[styles.seccionTitulo, { color: p.text }]}>Sobre el servicio</Text>
         <Text style={[styles.descripcion, { color: colors.texto }]}>{profile.description}</Text>
       </Card>
 
-      <View style={styles.reglaCard}>
-        <View style={styles.reglaHeader}>
-          <Ionicons name="shield-checkmark-outline" size={16} color={colors.azul} />
-          <Text style={styles.reglaTitulo}>Garantía comunitaria</Text>
-        </View>
-        <Text style={styles.reglaTexto}>
-          Solo vecinos de la misma zona pueden otorgar avales. Al sumar 2 o más recomendaciones, el perfil queda oficialmente validado.
+      {/* Nota comunitaria sutil y humana (sin cajas ni escudos genéricos) */}
+      <View style={styles.notaComunitaria}>
+        <Text style={styles.notaTexto}>
+          {profile.validatedCount >= 2
+            ? 'Perfil validado con visto bueno de vecinos de Castilla. Las recomendaciones son otorgadas únicamente por residentes de la misma zona.'
+            : 'Este oficio necesita 2 vistos buenos de vecinos de Castilla para considerarse oficialmente validado.'}
         </Text>
       </View>
 
-      <View style={{ marginTop: spacing.md }}>
+      {/* Botones de acción principales */}
+      <View style={styles.actionButtons}>
+        <AppButton
+          label="Contactar técnico"
+          variant="primary"
+          onPress={() => setShowContactModal(true)}
+        />
         <AppButton
           label={
             profile.hasVouchedByMe
-              ? 'Aval registrado'
+              ? 'Visto bueno registrado'
               : vouch.isPending
-                ? 'Registrando aval...'
+                ? 'Registrando visto bueno...'
                 : 'Dar visto bueno'
           }
           variant={profile.hasVouchedByMe ? 'secondary' : 'accent'}
           onPress={() => vouch.mutate()}
           disabled={profile.hasVouchedByMe || vouch.isPending}
-        />
-        <AppButton
-          label="Contactar técnico"
-          variant="secondary"
-          onPress={() => setShowContactModal(true)}
         />
       </View>
 
@@ -140,7 +145,7 @@ export default function OficioDetalle() {
           <View style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>Contactar a {profile.user.fullName}</Text>
             <Text style={[styles.modalSub, { color: p.muted }]}>
-              Coordina el servicio directamente con tu vecino:
+              Coordina el servicio directamente con tu vecino de Castilla:
             </Text>
 
             <View style={styles.modalButtons}>
@@ -155,7 +160,7 @@ export default function OficioDetalle() {
                 onPress={handleWhatsApp}
               />
               <AppButton
-                label="Cerrar"
+                label="Cancelar"
                 variant="link"
                 onPress={() => setShowContactModal(false)}
               />
@@ -169,48 +174,94 @@ export default function OficioDetalle() {
 
 const styles = StyleSheet.create({
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: spacing.xl },
-  headerInfo: { marginBottom: spacing.xs },
-  nombre: { fontSize: 21, fontFamily: fonts.bold, letterSpacing: -0.3 },
-  oficio: { fontSize: 15, fontFamily: fonts.semiBold, color: colors.azul, marginTop: 2 },
-  statsRow: {
-    gap: 10,
-    marginTop: spacing.sm,
+  headerInfo: {
+    marginBottom: spacing.xs,
   },
-  metricsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  nombre: {
+    fontSize: 22,
+    fontFamily: fonts.bold,
+    letterSpacing: -0.3,
   },
-  metricBadge: {
+  oficio: {
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
+    color: colors.azul,
+    marginTop: 2,
+  },
+  statsBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  metricText: {
-    fontSize: 12.5,
-    fontFamily: fonts.medium,
-    color: '#334155',
-  },
-  divider: { height: 1, backgroundColor: colors.grisBorde, marginVertical: spacing.md },
-  seccionTitulo: { fontSize: 15, fontFamily: fonts.semiBold, marginBottom: 6 },
-  descripcion: { fontSize: 15, fontFamily: fonts.regular, lineHeight: 22 },
-  reglaCard: {
     backgroundColor: '#F8FAFC',
     borderRadius: radius.md,
-    padding: 14,
     borderWidth: 1,
-    borderColor: colors.grisBorde,
-    marginVertical: spacing.sm,
+    borderColor: '#E2E8F0',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
   },
-  reglaHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  reglaTitulo: { fontSize: 13.5, fontFamily: fonts.semiBold, color: colors.azul },
-  reglaTexto: { fontSize: 13, fontFamily: fonts.regular, color: colors.gris, lineHeight: 18 },
+  statColWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 26,
+    backgroundColor: '#E2E8F0',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statValue: {
+    fontSize: 16,
+    fontFamily: fonts.bold,
+    color: colors.azul,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 11.5,
+    fontFamily: fonts.medium,
+    color: '#64748B',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: spacing.md,
+  },
+  seccionTitulo: {
+    fontSize: 14.5,
+    fontFamily: fonts.semiBold,
+    marginBottom: 6,
+  },
+  descripcion: {
+    fontSize: 14.5,
+    fontFamily: fonts.regular,
+    lineHeight: 22,
+    color: '#334155',
+  },
+  notaComunitaria: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: spacing.sm,
+  },
+  notaTexto: {
+    fontSize: 12.5,
+    fontFamily: fonts.regular,
+    color: '#64748B',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  actionButtons: {
+    marginTop: spacing.md,
+    gap: 10,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(19, 46, 102, 0.45)',
