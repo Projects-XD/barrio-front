@@ -15,6 +15,26 @@ import type { FavorType, FavorUrgency } from '@/types';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
 
 const tipos = Object.keys(favorTypeLabel) as FavorType[];
+
+// Mismas categorías, redactadas desde quien pide o desde quien ofrece.
+const ETIQUETAS: Record<'pedir' | 'ofrecer', Record<FavorType, string>> = {
+  pedir: {
+    herramienta: 'Necesito prestada una herramienta',
+    ayuda_temporal: 'Necesito una mano por un rato',
+    donacion_materiales: 'Necesito materiales o donaciones',
+    intercambio_habilidades: 'Necesito aprender algo de alguien',
+    movilidad_solidaria: 'Necesito que me lleven o acompañen',
+    otros: 'Otra cosa que necesito',
+  },
+  ofrecer: {
+    herramienta: 'Tengo una herramienta para prestar',
+    ayuda_temporal: 'Puedo echar una mano por un rato',
+    donacion_materiales: 'Tengo materiales para donar',
+    intercambio_habilidades: 'Puedo enseñar lo que sé',
+    movilidad_solidaria: 'Puedo llevar o acompañar a alguien',
+    otros: 'Otra cosa que ofrezco',
+  },
+};
 const urgencias = Object.keys(favorUrgencyLabel) as FavorUrgency[];
 
 const PASOS = ['Elige el tipo', 'Escribe tu favor', 'Revisa y publica'];
@@ -79,7 +99,7 @@ export default function NuevoFavor() {
                   <View style={[styles.opcionIcono, { backgroundColor: activo ? p.cta : p.highlight }]}>
                     <Ionicons name={favorTypeIcon[t]} size={24} color={p.text} />
                   </View>
-                  <Text style={[styles.opcionTexto, { color: p.text }]}>{favorTypeLabel[t]}</Text>
+                  <Text style={[styles.opcionTexto, { color: p.text }]}>{ETIQUETAS[ofrecer ? 'ofrecer' : 'pedir'][t]}</Text>
                   {activo ? (
                     <Ionicons name="checkmark-circle" size={22} color={colors.verdeExito} style={styles.check} />
                   ) : null}
@@ -155,7 +175,7 @@ export default function NuevoFavor() {
               </View>
               <View style={{ flex: 1 }}>
                 <UrgencyBadge urgency={urgencia} />
-                <Text style={[styles.resumenTipo, { color: p.muted }]}>{favorTypeLabel[tipo]}</Text>
+                <Text style={[styles.resumenTipo, { color: p.muted }]}>{ETIQUETAS[ofrecer ? 'ofrecer' : 'pedir'][tipo]}</Text>
                 <Text style={[styles.resumenTitulo, { color: p.text }]}>{texto.trim()}</Text>
               </View>
             </View>
