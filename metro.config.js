@@ -1,7 +1,12 @@
+// Learn more https://docs.expo.io/guides/customizing-metro
 const { getDefaultConfig } = require('expo/metro-config');
 
+/** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
-config.resolver.assetExts.push('wasm');
+// Permite cargar módulos .wasm requeridos por expo-sqlite en web
+if (!config.resolver.assetExts.includes('wasm')) {
+  config.resolver.assetExts.push('wasm');
+}
 
 module.exports = config;
