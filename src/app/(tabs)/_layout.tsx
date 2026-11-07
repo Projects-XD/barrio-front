@@ -13,7 +13,7 @@ function TabIcon({ focused, on, off }: { focused: boolean; on: IconName; off: Ic
   const p = usePalette();
   return (
     <View style={[styles.iconPill, focused && { backgroundColor: p.highlight }]}>
-      <Ionicons name={focused ? on : off} size={23} color={focused ? p.text : colors.gris} />
+      <Ionicons name={focused ? on : off} size={22} color={focused ? p.text : colors.gris} />
     </View>
   );
 }
@@ -87,16 +87,22 @@ const styles = StyleSheet.create({
   bar: {
     backgroundColor: colors.blanco,
     borderTopWidth: 0,
-    height: 76,
-    paddingTop: 8,
-    paddingBottom: 10,
+    height: 64,
+    paddingTop: 4,
+    paddingBottom: 8,
     shadowColor: '#132E66',
     shadowOpacity: 0.08,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: -4 },
     elevation: 12,
   },
-  label: { fontFamily: fonts.semiBold, fontSize: 13, marginTop: 2 },
+  label: { fontFamily: fonts.semiBold, fontSize: 12, marginTop: 1 },
   badge: { backgroundColor: colors.naranja, color: colors.azul, fontFamily: fonts.bold, fontSize: 11 },
-  iconPill: { paddingHorizontal: 16, paddingVertical: 4, borderRadius: radius.pill },
+  iconPill: {
+    width: 44,
+    height: 30,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

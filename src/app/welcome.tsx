@@ -1,135 +1,353 @@
-import { useEffect, useState } from 'react';
-import { Animated, Easing, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  Image,
+  PanResponder,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { router } from 'expo-router';
-import { AppButton } from '@/components/AppButton';
-import { Screen } from '@/components/Screen';
-import { usePalette } from '@/hooks/usePalette';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, fonts, radius, shadow, spacing } from '@/theme';
 
 const logoBarrio = require('../../assets/brand/logo-barrio.png');
-const oficiosImg = require('../../assets/welcome-oficios.jpg');
-const favoresImg = require('../../assets/welcome-favores.jpg');
-const emergenciaImg = require('../../assets/welcome-emergencia.jpg');
+const imgOficios = require('../../assets/Welcome/work_welcome_1.avif');
+const imgFavores = require('../../assets/Welcome/work_welcome_2.png');
+const imgEmergencia = require('../../assets/Welcome/work_welcome_3.jpg');
 
-const slides = [
+interface SlideItem {
+  id: string;
+  tag: string;
+  image: any;
+  title: string;
+  subtitle: string;
+  bgColor: string;      // Color exacto del fondo de la imagen
+  accentColor: string;  // Color del tag y dot activo
+}
+
+const SLIDES: SlideItem[] = [
   {
     id: 'oficios',
-    image: oficiosImg,
-    titulo: 'Oficios validados por vecinos',
-    texto: 'Encuentra gasfiteros, carpinteros y técnicos recomendados con el visto bueno de vecinos de tu misma zona.',
+    tag: 'Servicios de proximidad',
+    image: imgOficios,
+    title: 'Oficios de confianza en tu barrio',
+    subtitle: 'Encuentra gasfiteros, electricistas y técnicos recomendados y avalados directamente por tus propios vecinos.',
+    bgColor: '#FFFFFF', // Blanco puro igual al fondo de la imagen 1
+    accentColor: colors.naranja,
   },
   {
     id: 'favores',
-    image: favoresImg,
-    titulo: 'Muro de favores sin dinero',
-    texto: 'Préstamo de herramientas, apoyo temporal, donaciones e intercambio de habilidades solidarias.',
+    tag: 'Economía solidaria',
+    image: imgFavores,
+    title: 'Apoyo mutuo sin dinero',
+    subtitle: 'Préstamo de herramientas, ayuda temporal, donación de materiales y una red solidaria donde todos suman.',
+    bgColor: colors.naranjaClaro, // Fondo cálido (la imagen 2 es PNG transparente, se adapta perfecto)
+    accentColor: colors.naranja,
   },
   {
     id: 'emergencia',
-    image: emergenciaImg,
-    titulo: 'Red de apoyo en emergencia',
-    texto: 'La app se adapta ante emergencias para coordinar agua, medicinas, generadores y reportes de vecinos.',
+    tag: 'Red comunitaria',
+    image: imgEmergencia,
+    title: 'Coordinación en emergencias',
+    subtitle: 'Geolocalización de ayuda crítica, víveres y soporte ante contingencias, disponible tanto online como offline.',
+    bgColor: '#8BCCC4', // Color exacto del fondo de la imagen 3
+    accentColor: colors.azul,
   },
 ];
 
 export default function Welcome() {
-  const p = usePalette();
   const { width, height } = useWindowDimensions();
-  const [index, setIndex] = useState(0);
-  // Un solo valor animado: el carrusel entero se desplaza hacia la izquierda o la derecha.
-  const [offset] = useState(() => new Animated.Value(0));
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const isLast = currentIndex === SLIDES.length - 1;
 
-  const slideWidth = Math.min(Math.max(width - spacing.md * 2, 280), 520);
-  const imageHeight = Math.min(height * 0.25, 220);
-  const imageWidth = Math.min(slideWidth * 0.85, 300);
-  const last = index === slides.length - 1;
+  // Ancho útil del contenedor principal (máximo 500px en PC para preservar relación de aspecto)
+  const containerWidth = Math.min(width, 500);
+  const slideWidth = containerWidth;
+  const imageHeight = Math.min(Math.max(height * 0.38, 220), 320);
+
+  // Animación del carrusel completo
+  const animX = useRef(new Animated.Value(0)).current;
+  const currentIndexRef = useRef(currentIndex);
+  currentIndexRef.current = currentIndex;
+
+  const goToSlide = (newIndex: number) => {
+    if (newIndex < 0 || newIndex >= SLIDES.length) return;
+    setCurrentIndex(newIndex);
+    Animated.timing(animX, {
+      toValue: -newIndex * slideWidth,
+      duration: 340,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  };
 
   useEffect(() => {
-    Animated.timing(offset, {
-      toValue: -index * slideWidth,
-      duration: 380,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [index, slideWidth, offset]);
+    animX.setValue(-currentIndex * slideWidth);
+  }, [slideWidth]);
 
-  const next = () => {
-    if (last) {
+  // Gestor de deslizamiento con Mouse (PC) y Touch (Celular)
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 12,
+      onPanResponderRelease: (_, gesture) => {
+        const threshold = 45;
+        if (gesture.dx < -threshold && currentIndexRef.current < SLIDES.length - 1) {
+          goToSlide(currentIndexRef.current + 1);
+        } else if (gesture.dx > threshold && currentIndexRef.current > 0) {
+          goToSlide(currentIndexRef.current - 1);
+        } else {
+          goToSlide(currentIndexRef.current);
+        }
+      },
+    })
+  ).current;
+
+  const handleNext = () => {
+    if (isLast) {
       router.replace('/register');
     } else {
-      setIndex((i) => i + 1);
+      goToSlide(currentIndex + 1);
     }
   };
 
+  const handleSkip = () => {
+    router.replace('/register');
+  };
+
   return (
-    <Screen scroll={false}>
-      <Image source={logoBarrio} style={styles.logo} resizeMode="contain" accessibilityLabel="Barrio" />
-      <View style={styles.carouselContainer}>
-        <View style={{ width: slideWidth, overflow: 'hidden' }}>
+    <View style={styles.outerScreen}>
+      {/* Contenedor con ancho delimitado en PC y 100% en celular */}
+      <View style={[styles.mainWrapper, { width: containerWidth }]}>
+        {/* Cabecera */}
+        <SafeAreaView edges={['top']} style={styles.topSafeArea}>
+          <View style={styles.header}>
+            <Image source={logoBarrio} style={styles.logo} resizeMode="contain" />
+            <Pressable onPress={handleSkip} hitSlop={16} style={styles.skipBtn}>
+              <Text style={styles.skipText}>Saltar</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+
+        {/* Viewport del Carrusel */}
+        <View style={styles.sliderViewport} {...panResponder.panHandlers}>
           <Animated.View
-            style={{
-              flexDirection: 'row',
-              width: slideWidth * slides.length,
-              transform: [{ translateX: offset }],
-            }}
+            style={[
+              styles.sliderTrack,
+              {
+                width: slideWidth * SLIDES.length,
+                transform: [{ translateX: animX }],
+              },
+            ]}
           >
-            {slides.map((item) => (
-              <View key={item.id} style={[styles.slideItem, { width: slideWidth }]}>
-                <View
-                  style={[
-                    styles.imageCard,
-                    { width: imageWidth, height: imageHeight, borderColor: colors.grisBorde },
-                  ]}
-                >
-                  <Image source={item.image} style={styles.image} resizeMode="cover" accessibilityLabel={item.titulo} />
+            {SLIDES.map((item) => (
+              <View
+                key={item.id}
+                style={[
+                  styles.slide,
+                  {
+                    width: slideWidth,
+                    backgroundColor: item.bgColor, // Cada slide llena su área completa de su color
+                  },
+                ]}
+              >
+                {/* Ilustración */}
+                <View style={[styles.imageContainer, { height: imageHeight }]}>
+                  <Image
+                    source={item.image}
+                    style={styles.image}
+                    resizeMode="contain"
+                  />
                 </View>
-                <Text style={[styles.titulo, { color: p.text }]}>{item.titulo}</Text>
-                <Text style={[styles.texto, { color: p.muted }]}>{item.texto}</Text>
+
+                {/* Contenido Textual */}
+                <View style={styles.textContainer}>
+                  <Text style={[styles.tagText, { color: item.accentColor }]}>
+                    {item.tag.toUpperCase()}
+                  </Text>
+                  <Text style={styles.title}>{item.title}</Text>
+                  <Text style={styles.subtitle}>{item.subtitle}</Text>
+                </View>
               </View>
             ))}
           </Animated.View>
         </View>
 
-        <View style={styles.dots}>
-          {slides.map((_, i) => {
-            const active = i === index;
-            return (
-              <Pressable
-                key={i}
-                accessibilityRole="button"
-                accessibilityLabel={`Ir a diapositiva ${i + 1}`}
-                onPress={() => setIndex(i)}
-                style={[styles.dot, { backgroundColor: active ? p.primary : p.border, width: active ? 22 : 8 }]}
-              />
-            );
-          })}
-        </View>
-      </View>
+        {/* Footer flotante con fondo transparente */}
+        <SafeAreaView edges={['bottom']} style={styles.bottomSafeArea}>
+          <View style={styles.footer}>
+            <View style={styles.paginationDots}>
+              {SLIDES.map((item, i) => {
+                const active = i === currentIndex;
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => goToSlide(i)}
+                    hitSlop={8}
+                    style={[
+                      styles.dot,
+                      active
+                        ? [styles.dotActive, { backgroundColor: item.accentColor }]
+                        : styles.dotInactive,
+                    ]}
+                  />
+                );
+              })}
+            </View>
 
-      <View style={styles.actions}>
-        <AppButton label={last ? 'Empezar ahora' : 'Siguiente'} variant="accent" onPress={next} />
-        <AppButton label="Saltar introducción" variant="link" onPress={() => router.replace('/register')} />
+            <Pressable
+              onPress={handleNext}
+              style={({ pressed }) => [
+                styles.ctaButton,
+                pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+              ]}
+            >
+              <Text style={styles.ctaText}>
+                {isLast ? 'Empezar ahora' : 'Continuar'}
+              </Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
       </View>
-    </Screen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  logo: { width: '70%', height: 80, alignSelf: 'center', marginTop: spacing.sm },
-  carouselContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  slideItem: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.sm },
-  imageCard: {
-    borderRadius: radius.md,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    backgroundColor: colors.blanco,
-    alignSelf: 'center',
+  outerScreen: {
+    flex: 1,
+    backgroundColor: colors.fondo, // Fondo general de la app
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  image: { width: '100%', height: '100%' },
-  titulo: { fontSize: 22, fontFamily: fonts.bold, textAlign: 'center', marginBottom: spacing.xs, lineHeight: 28 },
-  texto: { fontSize: 15, fontFamily: fonts.regular, textAlign: 'center', lineHeight: 22, paddingHorizontal: spacing.xs },
-  dots: { flexDirection: 'row', gap: 8, marginVertical: spacing.md, alignItems: 'center', justifyContent: 'center' },
-  dot: { height: 8, borderRadius: radius.pill },
-  actions: { paddingTop: spacing.xs },
+  mainWrapper: {
+    flex: 1,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  topSafeArea: {
+    zIndex: 10,
+    backgroundColor: 'transparent',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+  },
+  logo: {
+    width: 110,
+    height: 36,
+  },
+  skipBtn: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  skipText: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    color: colors.gris,
+  },
+  sliderViewport: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+  },
+  sliderTrack: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  slide: {
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  imageContainer: {
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  textContainer: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  tagText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    marginBottom: spacing.xs,
+  },
+  title: {
+    fontFamily: fonts.bold,
+    fontSize: 23,
+    lineHeight: 29,
+    color: colors.azul,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.texto,
+    textAlign: 'center',
+    maxWidth: 320,
+    opacity: 0.85,
+  },
+  bottomSafeArea: {
+    zIndex: 10,
+    marginTop: 'auto',
+    backgroundColor: 'transparent',
+  },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    gap: spacing.md,
+  },
+  paginationDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dot: {
+    height: 6,
+    borderRadius: radius.pill,
+  },
+  dotActive: {
+    width: 24,
+  },
+  dotInactive: {
+    width: 6,
+    backgroundColor: 'rgba(94, 107, 130, 0.25)',
+  },
+  ctaButton: {
+    backgroundColor: colors.naranja,
+    paddingVertical: 14,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow,
+  },
+  ctaText: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    color: colors.blanco,
+  },
 });
