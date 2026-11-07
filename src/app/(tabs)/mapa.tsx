@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -19,6 +20,7 @@ import { Screen } from '@/components/Screen';
 import { UrgencyBadge } from '@/components/UrgencyBadge';
 import type { BarrioPoint } from '@/components/mapHtml';
 import { useFavors, useProfiles, useReports, useZones } from '@/hooks/useData';
+import { expressInterest, listConversations } from '@/api/endpoints';
 import { usePalette } from '@/hooks/usePalette';
 import { favorTypeIcon, type IconName } from '@/i18n/icons';
 import { favorTypeLabel, favorUrgencyLabel, resourceLabel } from '@/i18n/labels';
@@ -106,6 +108,31 @@ export default function MapaBarrio() {
   const [filtroIntencion, setFiltroIntencion] = useState<KindFilter>('todos');
   const [filtroCategoria, setFiltroCategoria] = useState<FavorType | undefined>(undefined);
   const [filtroUrgencia, setFiltroUrgencia] = useState<FavorUrgency | undefined>(undefined);
+  const userId = useAppStore((s) => s.userId);
+
+  // Mismo flujo que la pantalla del favor: el autor abre su chat, el interesado abre o crea el suyo.
+  const abrirChat = async (entry: MapEntry) => {
+    const favor = entry.favor;
+    if (!favor) return;
+    try {
+      if (favor.authorId === userId || favor.hasInterestedByMe) {
+        const convs = await listConversations(favor.id);
+        if (convs.length > 0) {
+          router.push(`/chat/${convs[0].id}`);
+          return;
+        }
+        if (favor.authorId === userId) {
+          Alert.alert('Sin chats', 'Aún nadie ha respondido a este favor.');
+          return;
+        }
+      }
+      const { conversation_id } = await expressInterest(favor.id);
+      router.push(`/chat/${conversation_id}`);
+    } catch (err) {
+      Alert.alert('No se pudo abrir el chat', (err as Error).message);
+    }
+  };
+
   const [mostrarCapaOficios, setMostrarCapaOficios] = useState<boolean>(false);
   const [mostrarCapaAlertas, setMostrarCapaAlertas] = useState<boolean>(emergencyActive);
   const [soloCercanos, setSoloCercanos] = useState<boolean>(false);
@@ -935,11 +962,21 @@ export default function MapaBarrio() {
                   </View>
                 </View>
 
-                <View style={styles.previewActions}>
+                <View style={[styles.previewActions, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+                  {selectedEntry.favor ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Abrir chat con este vecino"
+                      onPress={() => abrirChat(selectedEntry)}
+                      style={({ pressed }) => [styles.chatBubble, pressed && { opacity: 0.85 }]}
+                    >
+                      <Ionicons name="chatbubble-ellipses" size={22} color={colors.blanco} />
+                    </Pressable>
+                  ) : null}
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => abrirDetalleEntry(selectedEntry)}
-                    style={[styles.previewPrimaryBtn, { backgroundColor: p.cta }]}
+                    style={[styles.previewPrimaryBtn, { backgroundColor: p.cta, flex: 1 }]}
                   >
                     <Text style={[styles.previewPrimaryText, { color: p.ctaText }]}>
                       {selectedEntry.kind === 'oficio'
@@ -1541,6 +1578,14 @@ const styles = StyleSheet.create({
   },
   previewActions: {
     marginTop: 10,
+  },
+  chatBubble: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.azul,
   },
   previewPrimaryBtn: {
     flexDirection: 'row',
