@@ -114,6 +114,7 @@ export default function NuevoFavor() {
           ).slice(0, 120),
           description: null,
           urgency: urgencia,
+          intent: ofrecer ? 'ofrecer' : 'pedir',
           location: ubicacion,
         },
       {

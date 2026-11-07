@@ -52,6 +52,7 @@ import type {
   CriticalResource,
   Favor,
   FavorType,
+  FavorIntent,
   FavorUrgency,
   OficioCategory,
   ProfessionalProfile,
@@ -126,6 +127,7 @@ export function mapBackendFavorToFrontend(bf: BackendFavor, currentUserId?: stri
     location: bf.location_lat != null && bf.location_lng != null ? { lat: bf.location_lat, lng: bf.location_lng } : null,
     syncStatus: 'enviado',
     urgency: bf.urgency,
+    intent: bf.intent ?? 'pedir',
     moderationStatus: bf.moderation_status,
     moderationReason: bf.moderation_reason ?? null,
     canEdit: bf.can_edit ?? false,
@@ -152,6 +154,7 @@ function mapPendingFavor(item: OutboxItem, userId: string | null, userName: stri
     syncStatus: item.attempts > 0 ? 'error' : 'pendiente',
     // Las operaciones encoladas antes de existir este campo no lo traen.
     urgency: (p.urgency as FavorUrgency | undefined) ?? 'normal',
+    intent: (p.intent as FavorIntent | undefined) ?? 'pedir',
     moderationStatus: 'aprobado',
     moderationReason: null,
     canEdit: false,
@@ -649,7 +652,7 @@ export function useCreateFavor() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { type: FavorType; title: string; description: string | null; urgency: FavorUrgency; location?: { lat: number; lng: number } | null }) => {
+    mutationFn: async (input: { type: FavorType; title: string; description: string | null; urgency: FavorUrgency; intent: FavorIntent; location?: { lat: number; lng: number } | null }) => {
       const { zoneId, isOnline } = useAppStore.getState();
       if (!zoneId) throw new Error('Tu cuenta no tiene zona asignada.');
 
@@ -661,6 +664,7 @@ export function useCreateFavor() {
         title: input.title,
         description: input.description,
         urgency: input.urgency,
+        intent: input.intent,
         location_lat: input.location?.lat ?? null,
         location_lng: input.location?.lng ?? null,
       };

@@ -261,6 +261,7 @@ export class SyncService {
         status: 'abierta',
         sync_status: 'enviado',
         urgency: payload.urgency,
+        intent: payload.intent,
         moderation_status: 'aprobado',
       })
       .select()
