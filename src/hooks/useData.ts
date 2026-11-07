@@ -1,14 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Favor, FavorType } from '@/types';
+import type { Favor, FavorType, OficioCategory, ProfessionalProfile } from '@/types';
 import { favorsMock, profilesMock, reportsMock, resourcesMock, servicesMock, ZONE_ID } from '@/data/mock';
 
-const delay = <T,>(value: T, ms = 300) => new Promise<T>((resolve) => setTimeout(() => resolve(value), ms));
+const delay = <T,>(value: T, ms = 250) => new Promise<T>((resolve) => setTimeout(() => resolve(value), ms));
 
-export function useProfiles(oficio?: string) {
+export function useProfiles(oficio?: string, search?: string) {
   return useQuery({
-    queryKey: ['profiles', oficio ?? 'todos'],
-    queryFn: () =>
-      delay(profilesMock.filter((p) => !oficio || p.oficio.category === oficio)),
+    queryKey: ['profiles', oficio ?? 'todos', search ?? ''],
+    queryFn: () => {
+      let result = profilesMock;
+      if (oficio) {
+        result = result.filter((p) => p.oficio.category === oficio);
+      }
+      if (search && search.trim()) {
+        const q = search.toLowerCase().trim();
+        result = result.filter(
+          (p) =>
+            p.user.fullName.toLowerCase().includes(q) ||
+            p.description.toLowerCase().includes(q) ||
+            p.oficio.name.toLowerCase().includes(q)
+        );
+      }
+      return delay(result);
+    },
   });
 }
 
@@ -19,10 +33,55 @@ export function useProfile(id: string) {
   });
 }
 
+export function useMyProfile() {
+  return useQuery({
+    queryKey: ['myProfile'],
+    queryFn: () => delay(profilesMock.find((p) => p.userId === 'me') ?? null),
+  });
+}
+
+export function useUpsertMyProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      category: OficioCategory;
+      description: string;
+      yearsExperience: number;
+    }) => {
+      const existingIdx = profilesMock.findIndex((p) => p.userId === 'me');
+      const profileData: ProfessionalProfile = {
+        id: existingIdx >= 0 ? profilesMock[existingIdx].id : `p-me-${Date.now()}`,
+        userId: 'me',
+        user: { id: 'me', fullName: 'Alexander García', avatarUrl: null },
+        oficio: { id: `o-${input.category}`, category: input.category, name: input.category },
+        zoneId: ZONE_ID,
+        description: input.description,
+        yearsExperience: input.yearsExperience,
+        distanceKm: 0.1,
+        validatedCount: existingIdx >= 0 ? profilesMock[existingIdx].validatedCount : 0,
+        isValidated: existingIdx >= 0 ? profilesMock[existingIdx].isValidated : false,
+        hasVouchedByMe: false,
+      };
+
+      if (existingIdx >= 0) {
+        profilesMock[existingIdx] = profileData;
+      } else {
+        profilesMock.unshift(profileData);
+      }
+
+      return delay(profileData, 150);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profiles'] });
+      qc.invalidateQueries({ queryKey: ['myProfile'] });
+    },
+  });
+}
+
 export function useVouch(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => delay(null, 200),
+    mutationFn: () => delay(null, 150),
     onSuccess: () => {
       const profile = profilesMock.find((p) => p.id === id);
       if (profile && !profile.hasVouchedByMe) {
@@ -32,6 +91,7 @@ export function useVouch(id: string) {
       }
       qc.invalidateQueries({ queryKey: ['profile', id] });
       qc.invalidateQueries({ queryKey: ['profiles'] });
+      qc.invalidateQueries({ queryKey: ['myProfile'] });
     },
   });
 }

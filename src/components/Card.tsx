@@ -5,10 +5,14 @@ import { colors, radius } from '@/theme';
 type Props = { children: ReactNode; onPress?: () => void; backgroundColor?: string };
 
 export function Card({ children, onPress, backgroundColor = colors.blanco }: Props) {
-  const body = <View style={[styles.card, { backgroundColor }]}>{children}</View>;
+  const body = (
+    <View style={[styles.card, { backgroundColor, borderColor: colors.grisBorde }]}>
+      {children}
+    </View>
+  );
   if (!onPress) return body;
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => (pressed ? { opacity: 0.88 } : null)}>
       {body}
     </Pressable>
   );
@@ -19,8 +23,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
+    borderWidth: 1,
+    shadowColor: '#132E66',
+    shadowOpacity: 0.05,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,

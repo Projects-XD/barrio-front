@@ -6,16 +6,16 @@ import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
-import { colors, radius, spacing } from '@/theme';
+import { colors, fonts, radius, spacing } from '@/theme';
 import { ZONE_ID } from '@/data/mock';
 
-const zonas = ['Centro', 'Los Álamos', 'La Plaza', 'Villa Norte'];
+const zonas = ['Centro', 'Los Álamos', 'La Plaza', 'Villa Norte', 'San Isidro'];
 
 export default function Register() {
   const p = usePalette();
   const setSession = useAppStore((s) => s.setSession);
   const [nombre, setNombre] = useState('');
-  const [zona, setZona] = useState<string | null>(null);
+  const [zona, setZona] = useState<string | null>(zonas[0]);
 
   const canSubmit = nombre.trim().length > 1 && zona !== null;
 
@@ -25,43 +25,103 @@ export default function Register() {
   };
 
   return (
-    <Screen>
-      <Text style={[styles.titulo, { color: p.text }]}>Crea tu perfil</Text>
-      <Text style={[styles.sub, { color: p.muted }]}>Solo te pedimos lo necesario para empezar.</Text>
+    <Screen scroll={false}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={[styles.titulo, { color: p.text }]}>Únete a tu Barrio</Text>
+          <Text style={[styles.sub, { color: p.muted }]}>
+            Conéctate con tus vecinos de forma cercana y segura.
+          </Text>
+        </View>
 
-      <Text style={[styles.label, { color: p.text }]}>Nombre</Text>
-      <TextInput
-        value={nombre}
-        onChangeText={setNombre}
-        placeholder="Tu nombre"
-        style={[styles.input, { borderColor: p.border }]}
-      />
+        <View style={styles.form}>
+          <Text style={[styles.label, { color: p.text }]}>Nombre y apellido</Text>
+          <TextInput
+            value={nombre}
+            onChangeText={setNombre}
+            placeholder="Ej. Alexander García"
+            placeholderTextColor={colors.gris}
+            style={[
+              styles.input,
+              { borderColor: p.border, color: p.text, backgroundColor: colors.blanco },
+            ]}
+          />
 
-      <Text style={[styles.label, { color: p.text }]}>Zona (colonia o barrio)</Text>
-      <View style={styles.chips}>
-        {zonas.map((z) => (
-          <Chip key={z} label={z} selected={zona === z} onPress={() => setZona(z)} />
-        ))}
-      </View>
+          <Text style={[styles.label, { color: p.text }]}>Tu zona o barrio</Text>
+          <View style={styles.chips}>
+            {zonas.map((z) => (
+              <Chip key={z} label={z} selected={zona === z} onPress={() => setZona(z)} />
+            ))}
+          </View>
+        </View>
 
-      <View style={{ marginTop: spacing.lg }}>
-        <AppButton label="Entrar al barrio" onPress={submit} disabled={!canSubmit} />
+        <View style={styles.footer}>
+          <Text style={[styles.privacyNote, { color: p.muted }]}>
+            Tu dirección exacta nunca será compartida públicamente.
+          </Text>
+
+          <AppButton
+            label="Entrar al barrio"
+            variant="accent"
+            onPress={submit}
+            disabled={!canSubmit}
+          />
+        </View>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  titulo: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
-  sub: { fontSize: 16, marginBottom: spacing.md },
-  label: { fontSize: 16, fontWeight: '600', marginTop: spacing.md, marginBottom: 6 },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    fontSize: 18,
-    backgroundColor: colors.blanco,
+  container: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
   },
-  chips: { flexDirection: 'row', flexWrap: 'wrap' },
+  header: {
+    marginBottom: spacing.md,
+    marginTop: spacing.xs,
+  },
+  titulo: {
+    fontSize: 28,
+    fontFamily: fonts.bold,
+    marginBottom: 6,
+  },
+  sub: {
+    fontSize: 15,
+    fontFamily: fonts.regular,
+    lineHeight: 22,
+  },
+  form: {
+    flex: 1,
+  },
+  label: {
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
+    marginBottom: 8,
+    marginTop: spacing.sm,
+  },
+  input: {
+    minHeight: 50,
+    borderWidth: 1.5,
+    borderRadius: radius.md,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    fontFamily: fonts.regular,
+    marginBottom: spacing.xs,
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 2,
+  },
+  footer: {
+    marginTop: spacing.md,
+  },
+  privacyNote: {
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
 });
