@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -20,7 +19,7 @@ import { ValidationBadge } from '@/components/ValidationBadge';
 import { supabase } from '@/lib/supabase';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
-import { useFavors, useMyProfile, useUpsertMyProfile } from '@/hooks/useData';
+import { useFavors, useIsAdmin, useMyProfile, useUpsertMyProfile } from '@/hooks/useData';
 import { oficioLabel } from '@/i18n/labels';
 import type { OficioCategory } from '@/types';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -46,6 +45,7 @@ export default function Perfil() {
   const { data: favors = [] } = useFavors();
   const misFavores = favors.filter((f) => f.authorId === userId).length;
   const upsertProfile = useUpsertMyProfile();
+  const { data: isAdmin } = useIsAdmin();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCat, setSelectedCat] = useState<OficioCategory>(
@@ -65,6 +65,7 @@ export default function Perfil() {
     .toUpperCase();
 
   const handleOpenModal = () => {
+    upsertProfile.reset();
     if (myProfile) {
       setSelectedCat(myProfile.oficio.category);
       setDescripcion(myProfile.description);
@@ -81,10 +82,7 @@ export default function Perfil() {
         yearsExperience: parseInt(experiencia, 10) || 0,
         existingId: myProfile?.id,
       },
-      {
-        onSuccess: () => setModalVisible(false),
-        onError: (err) => Alert.alert('No se pudo guardar tu oficio', err.message),
-      }
+      { onSuccess: () => setModalVisible(false) }
     );
   };
 
@@ -214,6 +212,13 @@ export default function Perfil() {
       ) : null}
 
       <View style={{ marginTop: spacing.md }}>
+        {isAdmin ? (
+          <AppButton
+            label="Panel de Administración"
+            icon="shield-checkmark-outline"
+            onPress={() => router.push('/admin')}
+          />
+        ) : null}
         <AppButton
           label="Marcar mi ubicación"
           variant="secondary"
@@ -285,6 +290,13 @@ export default function Perfil() {
                   { minHeight: 80, textAlignVertical: 'top', borderColor: p.border, color: p.text },
                 ]}
               />
+
+              {/* En pantalla y no con Alert.alert, que en web (react-native-web) no hace nada. */}
+              {upsertProfile.error ? (
+                <Text accessibilityRole="alert" style={styles.modalError}>
+                  No se pudo guardar tu oficio: {upsertProfile.error.message}
+                </Text>
+              ) : null}
 
               <View style={{ marginTop: spacing.md, gap: 8 }}>
                 <AppButton
@@ -358,6 +370,7 @@ const styles = StyleSheet.create({
   modalSub: { fontSize: 14, fontFamily: fonts.regular, lineHeight: 20, marginBottom: spacing.md },
   inputLabel: { fontSize: 15, fontFamily: fonts.semiBold, marginBottom: 6, marginTop: spacing.sm },
   catChips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.xs },
+  modalError: { color: colors.rojo, fontSize: 14, fontFamily: fonts.medium, lineHeight: 20, marginTop: spacing.sm },
   modalInput: {
     minHeight: 48,
     borderWidth: 1.5,

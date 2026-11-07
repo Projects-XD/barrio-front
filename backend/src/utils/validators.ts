@@ -54,6 +54,8 @@ export const favorStatusSchema = z.enum([
   'cancelada',
 ]);
 
+export const favorUrgencySchema = z.enum(['normal', 'urgente', 'emergencia']);
+
 export const syncStatusSchema = z.enum(['pendiente', 'enviado', 'error']);
 
 export const emergencyStatusSchema = z.enum(['inactiva', 'activa']);
@@ -202,6 +204,8 @@ export const createFavorSchema = z.object({
   description: z.string().nullable().optional(),
   location_lat: latitudeSchema.nullable().optional(),
   location_lng: longitudeSchema.nullable().optional(),
+  // Con default, las operaciones offline encoladas antes de este campo siguen siendo válidas.
+  urgency: favorUrgencySchema.default('normal'),
 });
 export type CreateFavorDTO = z.infer<typeof createFavorSchema>;
 
@@ -310,6 +314,19 @@ export const createUserReportSchema = z.object({
   details: z.string().nullable().optional(),
 });
 export type CreateUserReportDTO = z.infer<typeof createUserReportSchema>;
+
+export const listPendingFavorsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export const rejectFavorSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, 'El motivo del rechazo debe tener al menos 3 caracteres')
+    .max(500, 'El motivo del rechazo no puede exceder 500 caracteres'),
+});
 
 export const registerPushTokenSchema = z.object({
   token: z.string().min(1, 'El token push es requerido'),

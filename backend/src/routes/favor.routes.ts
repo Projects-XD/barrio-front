@@ -16,6 +16,7 @@ const router = Router();
  * /favors:
  *   get:
  *     summary: Listar favores activos por zona
+ *     description: Solo devuelve favores aprobados por un administrador, más los del propio usuario autenticado en cualquier estado de moderación.
  *     tags:
  *       - Favores Vecinales
  *     parameters:
@@ -33,7 +34,7 @@ const router = Router();
  *           enum: [herramienta, ayuda_temporal, donacion_materiales, intercambio_habilidades, movilidad_solidaria]
  *     responses:
  *       200:
- *         description: Lista de favores vecinales activos
+ *         description: Lista de favores aprobados de la zona y favores propios
  */
 router.get(
   '/',
@@ -47,6 +48,7 @@ router.get(
  * /favors:
  *   post:
  *     summary: Crear un nuevo favor comunitario
+ *     description: Todo favor nace con moderation_status pendiente, sin importar su urgencia, y requiere aprobación de un administrador antes de ser visible en el feed público.
  *     tags:
  *       - Favores Vecinales
  *     security:
@@ -81,9 +83,14 @@ router.get(
  *                 type: number
  *               location_lng:
  *                 type: number
+ *               urgency:
+ *                 type: string
+ *                 enum: [normal, urgente, emergencia]
+ *                 default: normal
+ *                 description: Nivel de urgencia. No cambia la moderación; la insignia solo se muestra si el favor está aprobado.
  *     responses:
  *       201:
- *         description: Favor creado exitosamente
+ *         description: Favor creado, pendiente de aprobación
  *       400:
  *         description: Datos inválidos
  *       401:
@@ -122,7 +129,8 @@ router.get('/:id', requireAuth, (req, res, next) => favorController.getById(req,
  * @openapi
  * /favors/{id}:
  *   patch:
- *     summary: Actualizar estado o asignar un favor
+ *     summary: Editar, cambiar de estado o asignar un favor
+ *     description: Editar título, descripción o tipo lo devuelve a moderation_status pendiente y requiere una nueva aprobación de un administrador. Cambiar solo el estado o la asignación no afecta la moderación.
  *     tags:
  *       - Favores Vecinales
  *     security:
@@ -140,6 +148,16 @@ router.get('/:id', requireAuth, (req, res, next) => favorController.getById(req,
  *           schema:
  *             type: object
  *             properties:
+ *               title:
+ *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 120
+ *               description:
+ *                 type: string
+ *                 nullable: true
+ *               type:
+ *                 type: string
+ *                 enum: [herramienta, ayuda_temporal, donacion_materiales, intercambio_habilidades, movilidad_solidaria, otros]
  *               status:
  *                 type: string
  *                 enum: [abierta, en_curso, cerrada, cancelada]
@@ -149,6 +167,8 @@ router.get('/:id', requireAuth, (req, res, next) => favorController.getById(req,
  *     responses:
  *       200:
  *         description: Favor actualizado exitosamente
+ *       403:
+ *         description: Favor desactivado o plazo de edición de 24 horas vencido
  */
 router.patch(
   '/:id',
@@ -156,6 +176,30 @@ router.patch(
   validate(updateFavorSchema),
   (req, res, next) => favorController.update(req, res, next)
 );
+
+/**
+ * @openapi
+ * /favors/{id}:
+ *   delete:
+ *     summary: Desactivar un favor propio (soft-delete)
+ *     tags:
+ *       - Favores Vecinales
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Favor desactivado
+ *       404:
+ *         description: Favor no encontrado o de otro autor
+ */
+router.delete('/:id', requireAuth, (req, res, next) => favorController.remove(req, res, next));
 
 /**
  * @openapi

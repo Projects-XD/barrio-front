@@ -29,6 +29,8 @@ export type FavorType =
   | 'movilidad_solidaria'
   | 'otros';
 export type FavorStatus = 'abierta' | 'en_curso' | 'cerrada' | 'cancelada';
+export type FavorUrgency = 'normal' | 'urgente' | 'emergencia';
+export type ModerationStatus = 'pendiente' | 'aprobado' | 'rechazado';
 export type SyncStatus = 'pendiente' | 'enviado' | 'error';
 export type EmergencyStatus = 'inactiva' | 'activa';
 export type ServiceType =
@@ -104,6 +106,7 @@ export interface Database {
           status: UserStatus;
           is_anonymous_by_default: boolean;
           emergency_role: boolean;
+          is_admin: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -115,6 +118,7 @@ export interface Database {
           status?: UserStatus;
           is_anonymous_by_default?: boolean;
           emergency_role?: boolean;
+          is_admin?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -126,6 +130,7 @@ export interface Database {
           status?: UserStatus;
           is_anonymous_by_default?: boolean;
           emergency_role?: boolean;
+          is_admin?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -330,6 +335,13 @@ export interface Database {
           client_id: string;
           sync_status: SyncStatus;
           closed_at: string | null;
+          deleted_at: string | null;
+          edited_at: string | null;
+          urgency: FavorUrgency;
+          moderation_status: ModerationStatus;
+          moderated_by: string | null;
+          moderated_at: string | null;
+          moderation_reason: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -347,6 +359,13 @@ export interface Database {
           client_id: string;
           sync_status?: SyncStatus;
           closed_at?: string | null;
+          deleted_at?: string | null;
+          edited_at?: string | null;
+          urgency?: FavorUrgency;
+          moderation_status?: ModerationStatus;
+          moderated_by?: string | null;
+          moderated_at?: string | null;
+          moderation_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -364,6 +383,13 @@ export interface Database {
           client_id?: string;
           sync_status?: SyncStatus;
           closed_at?: string | null;
+          deleted_at?: string | null;
+          edited_at?: string | null;
+          urgency?: FavorUrgency;
+          moderation_status?: ModerationStatus;
+          moderated_by?: string | null;
+          moderated_at?: string | null;
+          moderation_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -385,6 +411,13 @@ export interface Database {
           {
             foreignKeyName: 'favors_assigned_to_user_id_fkey';
             columns: ['assigned_to_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'favors_moderated_by_fkey';
+            columns: ['moderated_by'];
             isOneToOne: false;
             referencedRelation: 'users';
             referencedColumns: ['id'];

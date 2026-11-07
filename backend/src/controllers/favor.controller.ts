@@ -149,6 +149,34 @@ export class FavorController {
       next(error);
     }
   }
+
+  /**
+   * DELETE /api/favors/:id
+   * Desactiva un favor (soft-delete). No lo borra de la base de datos.
+   */
+  public async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+
+      const id = String(req.params.id ?? '');
+      if (!id) {
+        throw new AppError('ID de favor requerido', 400);
+      }
+
+      const supabase = getSupabaseClient(req);
+      const favor = await favorService.softDeleteFavor(supabase, req.user.id, id);
+
+      res.json({
+        success: true,
+        data: favor,
+        code: 200,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const favorController = new FavorController();

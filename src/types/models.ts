@@ -52,6 +52,12 @@ export interface Favor {
   hasInterestedByMe: boolean;
   createdAt: string;
   syncStatus: E.SyncStatus;
+  urgency: E.FavorUrgency;
+  moderationStatus: E.ModerationStatus;
+  moderationReason: string | null;
+  // Solo GET /favors/:id los calcula; en los listados quedan en false.
+  canEdit: boolean;
+  isDeactivated: boolean;
 }
 
 export interface SupportService {

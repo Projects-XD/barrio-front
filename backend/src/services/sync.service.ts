@@ -260,6 +260,8 @@ export class SyncService {
         location_lng: payload.location_lng ?? null,
         status: 'abierta',
         sync_status: 'enviado',
+        urgency: payload.urgency,
+        moderation_status: 'pendiente', // igual que createFavor: todo favor nuevo espera aprobación
       })
       .select()
       .single();

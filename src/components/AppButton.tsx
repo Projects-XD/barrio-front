@@ -8,7 +8,7 @@ type Props = {
   label: string;
   onPress: () => void;
   // primary y accent son la misma acción principal (naranja); se mantienen ambos por compatibilidad.
-  variant?: 'primary' | 'secondary' | 'accent' | 'link' | 'danger';
+  variant?: 'primary' | 'secondary' | 'accent' | 'link' | 'danger' | 'success';
   disabled?: boolean;
   icon?: IconName;
 };
@@ -19,9 +19,10 @@ export function AppButton({ label, onPress, variant = 'primary', disabled = fals
   const isSecondary = variant === 'secondary';
   const isDanger = variant === 'danger';
   const isLink = variant === 'link';
+  const isSuccess = variant === 'success';
 
-  const bg = isMain ? p.cta : isSecondary ? colors.azulSuave : isDanger ? colors.rojo : 'transparent';
-  const fg = isMain ? p.ctaText : isDanger ? colors.blanco : p.primary;
+  const bg = isMain ? p.cta : isSecondary ? colors.azulSuave : isDanger ? colors.rojo : isSuccess ? colors.verdeExito : 'transparent';
+  const fg = isMain ? p.ctaText : isDanger || isSuccess ? colors.blanco : p.primary;
 
   return (
     <Pressable
