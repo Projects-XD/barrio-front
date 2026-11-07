@@ -4,6 +4,7 @@ import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
 import { ToggleRow } from '@/components/ToggleRow';
+import { supabase } from '@/lib/supabase';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, spacing } from '@/theme';
@@ -15,8 +16,21 @@ export default function Perfil() {
   const isOnline = useAppStore((s) => s.isOnline);
   const setOnline = useAppStore((s) => s.setOnline);
   const clearSession = useAppStore((s) => s.clearSession);
+  const userFullName = useAppStore((s) => s.userFullName) || 'Alexander García';
+  const userEmail = useAppStore((s) => s.userEmail);
 
-  const handleLogout = () => {
+  const initials = userFullName
+    .split(' ')
+    .filter(Boolean)
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch {}
     clearSession();
     router.replace('/welcome');
   };
@@ -33,11 +47,13 @@ export default function Perfil() {
       <Card>
         <View style={styles.usuarioRow}>
           <View style={[styles.avatar, { backgroundColor: colors.azul }]}>
-            <Text style={styles.avatarText}>AG</Text>
+            <Text style={styles.avatarText}>{initials || 'V'}</Text>
           </View>
           <View style={styles.usuarioInfo}>
-            <Text style={[styles.nombre, { color: p.text }]}>Alexander García</Text>
-            <Text style={[styles.zona, { color: p.muted }]}>Zona: Centro · Miembro activo</Text>
+            <Text style={[styles.nombre, { color: p.text }]}>{userFullName}</Text>
+            <Text style={[styles.zona, { color: p.muted }]}>
+              {userEmail ? `${userEmail} · ` : ''}Miembro activo
+            </Text>
           </View>
         </View>
       </Card>
