@@ -24,13 +24,7 @@ interface ZoneOption {
   name: string;
 }
 
-const DEFAULT_ZONES: ZoneOption[] = [
-  { id: 'a23c2ac0-4434-48bb-a091-89fbedf46dc6', name: 'Centro' },
-  { id: 'd062b24d-36a4-4b88-928c-6bebd264d34b', name: 'Los Álamos' },
-  { id: '7c05526f-05e2-43d0-bbfc-eea87a86dc25', name: 'La Plaza' },
-  { id: '9d14d1ee-2723-4a19-99f6-d2413c134ff2', name: 'Villa Norte' },
-  { id: '97347874-77b0-414c-b5f7-014b63ce8cbb', name: 'San Isidro' },
-];
+const DEFAULT_ZONES: ZoneOption[] = [];
 
 export default function Register() {
   const p = usePalette();
@@ -41,7 +35,7 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [zonas, setZonas] = useState<ZoneOption[]>(DEFAULT_ZONES);
-  const [zonaSeleccionada, setZonaSeleccionada] = useState<ZoneOption>(DEFAULT_ZONES[0]);
+  const [zonaSeleccionada, setZonaSeleccionada] = useState<ZoneOption | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [locStatus, setLocStatus] = useState<'idle' | 'loading' | 'found' | 'notfound' | 'denied'>('idle');
@@ -55,7 +49,7 @@ export default function Register() {
           logger.warn('AUTH_REGISTER', `No se pudieron cargar zonas de Supabase: ${error.message}`);
         } else if (data && data.length > 0) {
           setZonas(data as ZoneOption[]);
-          setZonaSeleccionada(data[0] as ZoneOption);
+          setZonaSeleccionada(null);
           logger.debug('AUTH_REGISTER', `Zonas cargadas desde Supabase (${data.length})`);
         }
       } catch (err: any) {
@@ -100,10 +94,11 @@ export default function Register() {
   const canSubmit =
     isValidEmail(email) &&
     password.length >= 6 &&
-    (mode === 'login' || (mode === 'register' && nombre.trim().length >= 2));
+    (mode === 'login' || (mode === 'register' && nombre.trim().length >= 2 && zonaSeleccionada !== null));
 
   const handleSubmit = async () => {
     if (!canSubmit || isLoading) return;
+    if (mode === 'register' && !zonaSeleccionada) return;
     setIsLoading(true);
     setErrorMsg(null);
 
@@ -146,7 +141,7 @@ export default function Register() {
           logger.warn('AUTH_LOGIN', 'No se pudo leer perfil desde public.users, usando metadata', dbErr);
         }
 
-        const effectiveZoneId = userZoneId || zonaSeleccionada.id;
+        const effectiveZoneId = userZoneId || zonaSeleccionada?.id || '';
 
         // Guardar sesión en el store
         setSession({
@@ -163,7 +158,7 @@ export default function Register() {
         // 2. Registro de nuevo usuario contra Supabase Auth
         logger.info('AUTH_REGISTER', `Iniciando registro para: ${cleanEmail}`, {
           nombre: nombre.trim(),
-          zone_id: zonaSeleccionada.id,
+          zone_id: zonaSeleccionada?.id,
         });
 
         const { data, error } = await supabase.auth.signUp({
@@ -172,7 +167,7 @@ export default function Register() {
           options: {
             data: {
               full_name: nombre.trim(),
-              zone_id: zonaSeleccionada.id,
+              zone_id: zonaSeleccionada?.id,
             },
           },
         });
@@ -208,7 +203,7 @@ export default function Register() {
             await supabase.from('users').upsert({
               id: data.user.id,
               full_name: nombre.trim(),
-              zone_id: zonaSeleccionada.id,
+              zone_id: zonaSeleccionada?.id,
               status: 'active',
             });
             logger.debug('AUTH_REGISTER', `Registro en public.users asegurado para ${data.user.id}`);
@@ -219,7 +214,7 @@ export default function Register() {
           setSession({
             token: data.session.access_token,
             userId: data.user.id,
-            zoneId: zonaSeleccionada.id,
+            zoneId: zonaSeleccionada?.id ?? '',
             userFullName: nombre.trim(),
             userEmail: cleanEmail,
           });
@@ -372,7 +367,7 @@ export default function Register() {
                 disabled={locStatus === 'loading'}
               />
               {locStatus === 'found' ? (
-                <Text style={[styles.privacyNote, { color: p.primary }]}>Detectamos tu zona: {zonaSeleccionada.name}. Tu ubicaciÃ³n exacta no se guarda.</Text>
+                <Text style={[styles.privacyNote, { color: p.primary }]}>Detectamos tu zona: {zonaSeleccionada?.name}. Tu ubicaciÃ³n exacta no se guarda.</Text>
               ) : null}
               {locStatus === 'denied' ? (
                 <Text style={[styles.privacyNote, { color: p.muted }]}>Sin permiso de ubicaciÃ³n. Elige tu zona abajo.</Text>
@@ -385,7 +380,7 @@ export default function Register() {
                   <Chip
                     key={z.id}
                     label={z.name}
-                    selected={zonaSeleccionada.id === z.id}
+                    selected={zonaSeleccionada?.id === z.id}
                     onPress={() => setZonaSeleccionada(z)}
                   />
                 ))}
