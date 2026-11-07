@@ -923,6 +923,11 @@ export default function MapaBarrio() {
                     <Text style={[styles.previewTitle, { color: p.text }]} numberOfLines={2}>
                       {selectedEntry.title}
                     </Text>
+                    {selectedEntry.subtitle ? (
+                      <Text style={[styles.previewSubtitle, { color: p.text }]} numberOfLines={3}>
+                        {selectedEntry.subtitle}
+                      </Text>
+                    ) : null}
                     <Text style={[styles.previewMeta, { color: p.muted }]} numberOfLines={1}>
                       {selectedEntry.authorName}
                       {selectedEntry.createdAt ? ` · ${timeAgo(selectedEntry.createdAt)}` : ''}
@@ -1522,6 +1527,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 12,
   },
+  previewSubtitle: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 19, marginTop: 4 },
   previewTitle: {
     fontFamily: fonts.bold,
     fontSize: 16,
