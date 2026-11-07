@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
-import { getRealPosition, normalizeText, openLocationSettings, placeTexts } from '@/utils/location';
+import { distanceKm, getRealPosition, normalizeText, openLocationSettings, placeTexts } from '@/utils/location';
 import { AppButton } from '@/components/AppButton';
 import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
@@ -24,6 +24,8 @@ import { logger } from '@/utils/logger';
 interface ZoneOption {
   id: string;
   name: string;
+  center_lat?: number | null;
+  center_lng?: number | null;
 }
 
 export default function Register() {
@@ -64,8 +66,14 @@ export default function Register() {
         setLocStatus('notfound');
         return;
       }
+      // Preferimos el centro poblado más cercano a las coordenadas reales del vecino.
+      const conCoords = zonas.filter((z) => z.center_lat != null && z.center_lng != null);
+      const cercana = conCoords.reduce<{ zona: ZoneOption; km: number } | null>((mejor, z) => {
+        const km = distanceKm(pos.lat, pos.lng, z.center_lat as number, z.center_lng as number);
+        return !mejor || km < mejor.km ? { zona: z, km } : mejor;
+      }, null);
       const exacta = zonas.find((z) => texts.some((t) => t.includes(normalizeText(z.name))));
-      const match = exacta ?? zonas.find((z) => normalizeText(z.name) === 'castilla');
+      const match = cercana?.zona ?? exacta ?? zonas.find((z) => normalizeText(z.name) === 'castilla');
       if (match) {
         setZonaSeleccionada(match);
         setLocStatus('found');
