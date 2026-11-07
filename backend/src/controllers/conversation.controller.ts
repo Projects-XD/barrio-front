@@ -109,6 +109,21 @@ export class ConversationController {
     }
   }
 
+  /** DELETE /api/conversations/:id/block */
+  public async unblock(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = requireUserId(req);
+      const data = await conversationService.unblockOtherUser(
+        getSupabaseClient(req),
+        userId,
+        String(req.params.id ?? '')
+      );
+      res.json({ success: true, data, code: 200 });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   /** POST /api/conversations/:id/report */
   public async report(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

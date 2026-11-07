@@ -20,7 +20,7 @@ function fakeSupabase(answer: Answer, count = 0) {
               resolve({ data: answer(table, isWrite), error: null, count });
           }
           return (values: Record<string, unknown>) => {
-            if (prop === 'update' || prop === 'insert') {
+            if (prop === 'update' || prop === 'insert' || prop === 'delete') {
               isWrite = true;
               writes.push({ table, op: prop, values });
             }
@@ -141,6 +141,28 @@ test('bloquear registra el bloqueo al otro vecino y cierra las conversaciones', 
   const block = writes.find((w) => w.table === 'user_blocks');
   assert.deepEqual(block?.values, { blocker_id: AUTHOR, blocked_id: RESPONDER });
   assert.ok(writes.find((w) => w.table === 'conversations' && w.op === 'update')?.values.closed_at);
+});
+
+test('desbloquear borra solo el bloqueo propio y reabre las conversaciones', async () => {
+  const { client, writes } = fakeSupabase(baseAnswer());
+  const result = await service.unblockOtherUser(client, AUTHOR, 'c1');
+  assert.equal(result.unblocked_user_id, RESPONDER);
+  assert.ok(writes.some((w) => w.table === 'user_blocks' && w.op === 'delete'));
+  const reopen = writes.find((w) => w.table === 'conversations' && w.op === 'update');
+  assert.deepEqual(reopen?.values, { closed_at: null });
+});
+
+test('quien no participa no puede desbloquear y no se escribe nada', async () => {
+  const { client, writes } = fakeSupabase(baseAnswer());
+  await assert.rejects(service.unblockOtherUser(client, OUTSIDER, 'c1'), rejectsWith(404));
+  assert.equal(writes.length, 0);
+});
+
+test('getConversation indica si quien consulta bloqueó al otro vecino', async () => {
+  const blocked = fakeSupabase(baseAnswer({ user_blocks: { id: 'b1' } }));
+  assert.equal((await service.getConversation(blocked.client, AUTHOR, 'c1')).blocked_by_me, true);
+  const free = fakeSupabase(baseAnswer({ user_blocks: null }));
+  assert.equal((await service.getConversation(free.client, AUTHOR, 'c1')).blocked_by_me, false);
 });
 
 test('reportar apunta al otro vecino con el contexto de la conversación', async () => {

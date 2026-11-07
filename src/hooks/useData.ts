@@ -27,6 +27,7 @@ import {
   markNotificationRead,
   reportConversationUser,
   sendMessage,
+  unblockConversationUser,
   updateConversation,
   rejectFavor,
   updateFavor,
@@ -664,6 +665,17 @@ export function useBlockConversationUser(conversationId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => blockConversationUser(conversationId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+
+export function useUnblockConversationUser(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => unblockConversationUser(conversationId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['conversation', conversationId] });
       qc.invalidateQueries({ queryKey: ['conversations'] });
