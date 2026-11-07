@@ -9,7 +9,7 @@ import { useAppStore } from '@/store/app-store';
 import { fonts, colors, radius, spacing } from '@/theme';
 import { ZONE_ID } from '@/data/mock';
 
-const zonas = ['Castilla'];
+const zonas = ['Miraflores', 'Cossío del Pomar', 'El Indio', 'Villa Municipal'];
 
 export default function Register() {
   const p = usePalette();
@@ -37,7 +37,7 @@ export default function Register() {
         style={[styles.input, { borderColor: p.border }]}
       />
 
-      <Text style={[styles.label, { color: p.text }]}>Distrito</Text>
+      <Text style={[styles.label, { color: p.text }]}>Asentamiento o urbanización de Castilla</Text>
       <View style={styles.chips}>
         {zonas.map((z) => (
           <Chip key={z} label={z} selected={zona === z} onPress={() => setZona(z)} />
