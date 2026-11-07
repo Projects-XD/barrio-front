@@ -23,7 +23,7 @@ export function ChatFab({ bottomOffset = 88 }: ChatFabProps) {
 const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
-    left: 16,
+    right: 16,
     width: 56,
     height: 56,
     borderRadius: 28,
