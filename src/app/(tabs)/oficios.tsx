@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -11,8 +10,10 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Chip } from '@/components/Chip';
+import { EmergencyButton } from '@/components/EmergencyButton';
 import { ProfessionalCard } from '@/components/ProfessionalCard';
 import { Screen } from '@/components/Screen';
+import { SkeletonOficios } from '@/components/SkeletonOficios';
 import { usePalette } from '@/hooks/usePalette';
 import { useProfiles } from '@/hooks/useData';
 import { oficioLabel } from '@/i18n/labels';
@@ -59,9 +60,12 @@ export default function Oficios() {
 
   return (
     <Screen scroll={false}>
-      {/* Cabecera limpia con salto de línea para Validación Vecinal */}
+      {/* Cabecera con Botón de Emergencia integrado a la derecha */}
       <View style={styles.header}>
-        <Text style={[styles.titulo, { color: p.text }]}>Oficios del Barrio</Text>
+        <View style={styles.headerTop}>
+          <Text style={[styles.titulo, { color: p.text }]}>Oficios del Barrio</Text>
+          <EmergencyButton />
+        </View>
         <View style={styles.badgeRow}>
           <View style={styles.shieldPill}>
             <Ionicons name="shield-checkmark" size={13} color={colors.verdeExito} style={{ marginRight: 4 }} />
@@ -110,11 +114,9 @@ export default function Oficios() {
         />
       </View>
 
-      {/* Lista de oficios */}
+      {/* Lista de oficios con Skeleton pulsante en estado de carga */}
       {isLoading ? (
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color={p.primary} />
-        </View>
+        <SkeletonOficios count={4} />
       ) : (
         <FlatList
           data={itemsPaginados}
@@ -129,7 +131,6 @@ export default function Oficios() {
           )}
           ListEmptyComponent={
             <View style={styles.emptyWrapper}>
-              {/* Sin círculo ni avatar grande de herramientas, solo texto limpio */}
               <Text style={[styles.emptyTitle, { color: p.text }]}>
                 {isError ? 'Error al cargar' : 'Sin resultados'}
               </Text>
@@ -141,7 +142,6 @@ export default function Oficios() {
                     : 'Aún no hay técnicos registrados en tu zona.'}
               </Text>
 
-              {/* Botón para registrarse como oficio o limpiar filtros */}
               <View style={styles.emptyActions}>
                 <Pressable
                   accessibilityRole="button"
@@ -203,7 +203,7 @@ export default function Oficios() {
               </View>
             ) : undefined
           }
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingBottom: 16 }}
         />
       )}
     </Screen>
@@ -215,8 +215,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.xs,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   titulo: {
-    fontSize: 26,
+    fontSize: 24,
     fontFamily: fonts.bold,
   },
   badgeRow: {
@@ -264,12 +269,6 @@ const styles = StyleSheet.create({
   },
   chipsList: {
     paddingVertical: 2,
-  },
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: spacing.xl,
   },
   emptyWrapper: {
     alignItems: 'center',

@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, View } from 
 import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Chip } from '@/components/Chip';
+import { EmergencyButton } from '@/components/EmergencyButton';
 import { EmptyState } from '@/components/EmptyState';
 import { FavorCard } from '@/components/FavorCard';
 import { Screen } from '@/components/Screen';
@@ -28,7 +29,10 @@ export default function Favores() {
 
   return (
     <Screen scroll={false}>
-      <Text style={[styles.titulo, { color: p.text }]}>Favores</Text>
+      <View style={styles.headerTop}>
+        <Text style={[styles.titulo, { color: p.text }]}>Favores</Text>
+        <EmergencyButton />
+      </View>
       <Text style={[styles.sub, { color: p.muted }]}>Ayuda entre vecinos, sin dinero de por medio.</Text>
 
       <AppButton label="Publicar un favor" icon="add-circle-outline" onPress={() => router.push('/favores/nuevo')} />
@@ -71,7 +75,7 @@ export default function Favores() {
               {isError ? <AppButton label="Reintentar" variant="secondary" icon="refresh" onPress={() => refetch()} /> : null}
             </View>
           }
-          contentContainerStyle={{ paddingBottom: spacing.lg, paddingTop: spacing.xs }}
+          contentContainerStyle={{ paddingBottom: spacing.md, paddingTop: spacing.xs }}
           ListFooterComponent={
             pagina > 0 || data?.hasNext ? (
               <View style={styles.paginacion}>
@@ -104,7 +108,13 @@ export default function Favores() {
 }
 
 const styles = StyleSheet.create({
-  titulo: { fontSize: 28, fontFamily: fonts.bold, marginTop: spacing.xs },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.xs,
+  },
+  titulo: { fontSize: 28, fontFamily: fonts.bold },
   sub: { fontSize: 16, fontFamily: fonts.regular, marginTop: 4, marginBottom: spacing.md },
   chips: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.sm },
   paginacion: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
