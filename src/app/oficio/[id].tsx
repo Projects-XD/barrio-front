@@ -113,11 +113,11 @@ export default function OficioDetalle() {
         </Text>
       </View>
 
-      {/* Botones de acción principales */}
+      {/* Botones de acción con jerarquía y colores diferenciados */}
       <View style={styles.actionButtons}>
         <AppButton
           label="Contactar técnico"
-          variant="primary"
+          variant="accent"
           onPress={() => setShowContactModal(true)}
         />
         <AppButton
@@ -128,7 +128,7 @@ export default function OficioDetalle() {
                 ? 'Registrando visto bueno...'
                 : 'Dar visto bueno'
           }
-          variant={profile.hasVouchedByMe ? 'secondary' : 'accent'}
+          variant="secondary"
           onPress={() => vouch.mutate()}
           disabled={profile.hasVouchedByMe || vouch.isPending}
         />
