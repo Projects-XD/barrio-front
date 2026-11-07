@@ -45,6 +45,7 @@ import {
   type BackendService,
   type UpdateFavorPayload,
 } from '@/api/endpoints';
+import { supabase } from '@/lib/supabase';
 import { enqueue, listPending, type OutboxItem } from '@/offline/outbox';
 import { flushOutbox } from '@/offline/sync';
 import { useAppStore } from '@/store/app-store';
@@ -262,6 +263,45 @@ export function useMyProfile() {
       const mine = data.find((bp) => bp.user_id === userId);
       return mine ? mapBackendProfileToFrontend(mine) : null;
     },
+  });
+}
+
+export function useMyAvatarUrl() {
+  const userId = useAppStore((s) => s.userId);
+  return useQuery({
+    queryKey: ['myAvatar', userId],
+    enabled: Boolean(userId),
+    queryFn: async (): Promise<string | null> => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('avatar_url')
+        .eq('id', userId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.avatar_url ?? null;
+    },
+  });
+}
+
+export function useUpdateAvatar() {
+  const qc = useQueryClient();
+  const userId = useAppStore((s) => s.userId);
+  return useMutation({
+    mutationFn: async (localUri: string): Promise<string> => {
+      if (!userId) throw new Error('Tu sesión no está activa.');
+      const body = await (await fetch(localUri)).arrayBuffer();
+      const path = `${userId}/avatar.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, body, { contentType: 'image/jpeg', upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+      const url = `${pub.publicUrl}?v=${Date.now()}`;
+      const { error: dbError } = await supabase.from('users').update({ avatar_url: url }).eq('id', userId);
+      if (dbError) throw dbError;
+      return url;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['myAvatar', userId] }),
   });
 }
 
