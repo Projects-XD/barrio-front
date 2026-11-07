@@ -116,12 +116,23 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     var selectedId = null;
     var hasAutoFitted = false;
 
+    var eventCb = null;
+    window.setEventCallback = function (cb) {
+      eventCb = cb;
+    };
+
     function send(msg) {
-      var s = JSON.stringify(Object.assign({ source: 'barrio-map' }, msg));
+      var payloadObj = Object.assign({ source: 'barrio-map' }, msg);
+      var s = JSON.stringify(payloadObj);
+      if (typeof eventCb === 'function') {
+        try {
+          eventCb(payloadObj);
+        } catch (e) {}
+      }
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(s);
       } else if (window.parent && window.parent !== window) {
-        window.parent.postMessage(msg, '*');
+        window.parent.postMessage(s, '*');
       }
     }
 
@@ -233,6 +244,25 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
       send({ type: 'point', id: found.id, same: isSame });
     };
 
+    function findPinByLatLng(latlng) {
+      if (!latlng || !currentPoints.length) return null;
+      var clickPt = map.latLngToContainerPoint(latlng);
+      var best = null;
+      var bestDist = 26; // radio generoso de 26px alrededor del centro del marcador
+      for (var i = 0; i < currentPoints.length; i++) {
+        var p = currentPoints[i];
+        var mPt = map.latLngToContainerPoint([p.lat, p.lng]);
+        var dx = clickPt.x - mPt.x;
+        var dy = clickPt.y - mPt.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= bestDist) {
+          bestDist = dist;
+          best = p;
+        }
+      }
+      return best;
+    }
+
     function renderMarkers() {
       layer.clearLayers();
       markersById = {};
@@ -253,16 +283,37 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
         m.on('click', function () {
           window.handlePinClick(p.id);
         });
+        m.on('mousedown', function () {
+          window.handlePinClick(p.id);
+        });
       });
     }
 
+    // Respaldo 1: DOM pointerdown sobre cualquier marcador
+    document.addEventListener('pointerdown', function (ev) {
+      var tgt = ev.target;
+      var wrap = tgt && tgt.closest ? tgt.closest('[data-pin-id]') : null;
+      if (wrap) {
+        var pid = wrap.getAttribute('data-pin-id');
+        if (pid) {
+          window.handlePinClick(pid);
+        }
+      }
+    }, true);
+
+    // Respaldo 2: Detección geométrica en píxeles sobre el mapa (infalible aunque algún overlay intercepte el icono)
     map.on('click', function (e) {
+      var hit = findPinByLatLng(e.latlng);
+      if (hit) {
+        window.handlePinClick(hit.id);
+        return;
+      }
       var orig = e && e.originalEvent ? e.originalEvent : null;
       var tgt = orig && orig.target ? orig.target : null;
       if (tgt && tgt.closest && (tgt.closest('.leaflet-marker-icon') || tgt.closest('[data-pin-id]'))) {
         return;
       }
-      if (Date.now() - lastClickTs < 350) return;
+      if (Date.now() - lastClickTs < 400) return;
       if (selectedId !== null) {
         selectedId = null;
         updateSelectionVisuals();
@@ -330,5 +381,3 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
 </body>
 </html>`;
 }
-
-
