@@ -30,6 +30,7 @@ export function createApp(): Application {
 
   // 3. Rutas de la API
   app.use('/api/v1', apiRouter);
+  app.use('/api', apiRouter);
 
   // Ruta raíz de verificación básica
   app.get('/', (_req: Request, res: Response) => {

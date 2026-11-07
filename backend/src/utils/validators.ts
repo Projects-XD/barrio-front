@@ -139,6 +139,39 @@ export const createProfessionalProfileSchema = z.object({
 });
 export type CreateProfessionalProfileDTO = z.infer<typeof createProfessionalProfileSchema>;
 
+export const upsertProfessionalProfileSchema = z.object({
+  id: z.string().uuid('id debe ser un UUID válido').optional(),
+  oficio_id: z.string().uuid('oficio_id debe ser un UUID válido'),
+  zone_id: z.string().uuid('zone_id debe ser un UUID válido').nullable().optional(),
+  description: z
+    .string()
+    .max(500, 'La descripción no puede exceder 500 caracteres')
+    .nullable()
+    .optional(),
+  years_experience: z
+    .number()
+    .int('Los años de experiencia deben ser enteros')
+    .min(0, 'Los años de experiencia no pueden ser negativos')
+    .nullable()
+    .optional(),
+  location_lat: latitudeSchema.nullable().optional(),
+  location_lng: longitudeSchema.nullable().optional(),
+  is_visible: z.boolean().default(true).optional(),
+});
+export type UpsertProfessionalProfileDTO = z.infer<typeof upsertProfessionalProfileSchema>;
+
+export const listProfilesQuerySchema = z.object({
+  zone_id: z.string().uuid('zone_id debe ser un UUID válido').optional(),
+  zoneId: z.string().uuid('zoneId debe ser un UUID válido').optional(),
+  oficio_id: z.string().uuid('oficio_id debe ser un UUID válido').optional(),
+  oficioId: z.string().uuid('oficioId debe ser un UUID válido').optional(),
+  category: oficioCategorySchema.optional(),
+}).refine((data) => data.zone_id || data.zoneId, {
+  message: 'El parámetro zone_id o zoneId es requerido',
+  path: ['zone_id'],
+});
+export type ListProfilesQueryDTO = z.infer<typeof listProfilesQuerySchema>;
+
 export const updateProfessionalProfileSchema = createProfessionalProfileSchema
   .omit({ oficio_id: true })
   .partial();
@@ -158,18 +191,29 @@ export type CreateVouchDTO = z.infer<typeof createVouchSchema>;
 // ============================================================================
 
 export const createFavorSchema = z.object({
-  client_id: z.string().uuid('client_id debe ser un UUID válido para idempotencia'),
+  client_id: z.string().uuid('client_id debe ser un UUID válido para evitar duplicidad'),
   zone_id: z.string().uuid('zone_id debe ser un UUID válido').nullable().optional(),
   type: favorTypeSchema,
   title: z
     .string()
-    .min(3, 'El título debe tener al menos 3 caracteres')
+    .min(1, 'El título es obligatorio')
     .max(120, 'El título no puede exceder 120 caracteres'),
   description: z.string().nullable().optional(),
   location_lat: latitudeSchema.nullable().optional(),
   location_lng: longitudeSchema.nullable().optional(),
 });
 export type CreateFavorDTO = z.infer<typeof createFavorSchema>;
+
+export const listFavorsQuerySchema = z.object({
+  zone_id: z.string().uuid('zone_id debe ser un UUID válido').optional(),
+  zoneId: z.string().uuid('zoneId debe ser un UUID válido').optional(),
+  type: favorTypeSchema.optional(),
+  status: favorStatusSchema.optional(),
+}).refine((data) => data.zone_id || data.zoneId, {
+  message: 'El parámetro zone_id o zoneId es requerido',
+  path: ['zone_id'],
+});
+export type ListFavorsQueryDTO = z.infer<typeof listFavorsQuerySchema>;
 
 export const updateFavorSchema = z.object({
   title: z.string().min(3).max(120).optional(),
