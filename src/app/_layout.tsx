@@ -107,7 +107,6 @@ export default function RootLayout() {
           <Stack.Screen name="ubicacion" options={{ headerShown: true, title: 'Mi ubicación' }} />
           <Stack.Screen name="avisos" options={{ headerShown: true, title: 'Avisos', headerBackTitle: 'Atras' }} />
           <Stack.Screen name="chats" options={{ headerShown: true, title: 'Mis chats', headerBackTitle: 'Atras' }} />
-          <Stack.Screen name="admin/index" options={{ headerShown: true, title: 'Panel de Administración' }} />
         </Stack>
       </SafeAreaProvider>
     </QueryClientProvider>

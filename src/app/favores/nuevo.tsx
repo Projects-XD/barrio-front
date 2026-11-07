@@ -196,7 +196,7 @@ export default function NuevoFavor() {
             ))}
           </View>
           <Text style={[styles.urgenciaNota, { color: p.muted }]}>
-            Tu favor será revisado por un administrador antes de publicarse.
+            Tu favor se publica al instante en el barrio.
           </Text>
 
           <View style={{ marginTop: spacing.md }}>
@@ -267,7 +267,7 @@ export default function NuevoFavor() {
               {tipo ? favorTypeLabel[tipo] : ''}: {texto.trim()}
             </Text>
             <Text style={[styles.textoModal, { color: p.muted }]}>
-              Un administrador lo revisará antes de que lo vean los vecinos de tu zona.
+              Lo ven los vecinos de tu zona al publicarlo.
             </Text>
             <AppButton
               label="Sí, publicar"
@@ -290,12 +290,12 @@ export default function NuevoFavor() {
               <Ionicons name={resultado?.queued ? 'cloud-upload-outline' : 'checkmark'} size={28} color={p.text} />
             </View>
             <Text style={[styles.tituloModal, { color: p.text }]}>
-              {resultado?.queued ? 'Guardado sin conexión' : '¡Favor enviado a revisión!'}
+              {resultado?.queued ? 'Guardado sin conexión' : '¡Favor publicado!'}
             </Text>
             <Text style={[styles.textoModal, { color: p.body }]}>
               {resultado?.queued
-                ? 'Tu favor se guardó en el teléfono y se enviará a revisión cuando vuelva la conexión.'
-                : 'Tu favor será revisado por un administrador antes de publicarse. Mientras tanto, solo tú puedes verlo en el muro.'}
+                ? 'Tu favor se guardó en el teléfono y se publicará cuando vuelva la conexión.'
+                : 'Tu favor ya está publicado en el barrio.'}
             </Text>
             <AppButton label="Ver favores" onPress={irAFavores} />
           </View>

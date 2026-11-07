@@ -311,33 +311,6 @@ export const reportConversationUser = (conversationId: string, reason: ReportRea
   api.post<unknown>(`/conversations/${conversationId}/report`, { reason, details: details ?? null });
 
 // ============================================================================
-// ADMINISTRACIÓN
-// =====================================================================
-// ============================================================================
-
-// limit y offset explícitos: el handler hace Number(req.query.limit).
-export const listPendingFavors = (limit: number, offset = 0) =>
-  api.get<BackendFavor[]>(`/admin/favors/pending?limit=${limit}&offset=${offset}`);
-
-export interface BackendUserReport {
-  id: string;
-  reason: ReportReason;
-  details: string | null;
-  created_at: string;
-  reporter: { id: string; full_name: string };
-  target: { id: string; full_name: string } | null;
-}
-
-export const listUserReports = (limit: number, offset = 0) =>
-  api.get<BackendUserReport[]>(`/admin/reports?limit=${limit}&offset=${offset}`);
-
-export const approveFavor = (id: string) => api.patch<BackendFavor>(`/admin/favors/${id}/approve`);
-
-export const rejectFavor = (id: string, reason: string) =>
-  api.patch<BackendFavor>(`/admin/favors/${id}/reject`, { reason });
-
-// =====================================================================
-// ============================================================================
 // EMERGENCIA
 // =====================================================================
 // ============================================================================

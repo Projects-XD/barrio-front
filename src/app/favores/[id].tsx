@@ -216,7 +216,7 @@ export default function FavorDetalle() {
               />
 
               <Text style={[styles.aviso, { color: p.muted }]}>
-                Al guardar, tu favor volverá a revisión y los vecinos no lo verán hasta que un administrador lo apruebe.
+                Al guardar, tu favor se actualiza al instante para los vecinos de tu zona.
               </Text>
 
               {actualizar.error ? (

@@ -26,7 +26,6 @@ import { useAppStore } from '@/store/app-store';
 import * as ImagePicker from 'expo-image-picker';
 import {
   useFavors,
-  useIsAdmin,
   useMyAvatarUrl,
   useMyProfile,
   useMyProfiles,
@@ -82,7 +81,6 @@ export default function Perfil() {
       Alert.alert('No se pudo guardar la foto', (err as Error).message);
     }
   };
-  const { data: isAdmin } = useIsAdmin();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCat, setSelectedCat] = useState<OficioCategory>(
@@ -262,13 +260,6 @@ export default function Perfil() {
       ) : null}
 
       <View style={{ marginTop: spacing.md }}>
-        {isAdmin ? (
-          <AppButton
-            label="Panel de Administración"
-            icon="shield-checkmark-outline"
-            onPress={() => router.replace('/admin')}
-          />
-        ) : null}
         <AppButton
           label="Marcar mi ubicación"
           variant="secondary"

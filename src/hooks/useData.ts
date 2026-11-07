@@ -1,7 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { api, ApiError } from '@/api/client';
+import { ApiError } from '@/api/client';
 import {
-  approveFavor,
   blockConversationUser,
   createFavor,
   createReport,
@@ -18,8 +17,6 @@ import {
   listMessages,
   listNotifications,
   listOficios,
-  listPendingFavors,
-  listUserReports,
   listProfiles,
   listReports,
   listResources,
@@ -30,7 +27,6 @@ import {
   sendMessage,
   unblockConversationUser,
   updateConversation,
-  rejectFavor,
   updateFavor,
   upsertProfile,
   vouchProfile,
@@ -494,7 +490,6 @@ export function useCreateFavor() {
 function invalidateFavor(qc: QueryClient, id: string) {
   qc.invalidateQueries({ queryKey: ['favor', id] });
   qc.invalidateQueries({ queryKey: ['favors'] });
-  qc.invalidateQueries({ queryKey: ['adminPending'] });
 }
 
 export function useUpdateFavor(id: string) {
@@ -510,55 +505,6 @@ export function useDeleteFavor(id: string) {
   return useMutation({
     mutationFn: () => deleteFavor(id),
     onSuccess: () => invalidateFavor(qc, id),
-  });
-}
-
-// =====================================================================// ADMINISTRACIÓN
-// =====================================================================
-// public.users tiene RLS sin políticas, así que el cliente no puede leer is_admin, y la metadata
-// del JWT la edita el propio usuario. Por eso lo responde el backend.
-export function useIsAdmin() {
-  const userId = useAppStore((s) => s.userId);
-  return useQuery({
-    queryKey: ['isAdmin', userId],
-    enabled: Boolean(userId),
-    staleTime: 5 * 60_000,
-    queryFn: async () => (await api.get<{ is_admin: boolean }>('/admin/me')).is_admin,
-  });
-}
-
-// Al resolver un favor, la recarga trae los siguientes de la cola: no hace falta paginar.
-export function usePendingFavors(enabled: boolean) {
-  const userId = useAppStore((s) => s.userId);
-  return useQuery({
-    queryKey: ['adminPending'],
-    enabled,
-    queryFn: async () => (await listPendingFavors(20)).map((bf) => mapBackendFavorToFrontend(bf, userId)),
-  });
-}
-
-export function useUserReports(enabled: boolean) {
-  return useQuery({
-    queryKey: ['adminReports'],
-    enabled,
-    queryFn: () => listUserReports(50),
-  });
-}
-
-// onSettled y no onSuccess: con un 409 (otro admin ya lo resolvió) la cola también debe refrescarse.
-export function useApproveFavor(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => approveFavor(id),
-    onSettled: () => invalidateFavor(qc, id),
-  });
-}
-
-export function useRejectFavor(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (reason: string) => rejectFavor(id, reason),
-    onSettled: () => invalidateFavor(qc, id),
   });
 }
 
