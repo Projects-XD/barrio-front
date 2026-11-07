@@ -110,9 +110,8 @@ export class EmergencyController {
         throw new AppError('Usuario no autenticado', 401);
       }
 
-      const zoneId = (req.query.zoneId || req.query.zone_id) as string | undefined;
       const supabase = getSupabaseClient(req);
-      const reports = await emergencyService.listReports(supabase, req.user.id, zoneId);
+      const reports = await emergencyService.listReports(supabase, req.user.id);
 
       res.json({
         success: true,

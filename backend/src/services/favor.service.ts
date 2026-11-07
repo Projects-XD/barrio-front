@@ -53,9 +53,9 @@ export class FavorService {
   public async listActiveFavors(
     supabase: SupabaseClient<Database>,
     userId: string,
-    params: { zoneId?: string; type?: FavorType; limit?: number; offset?: number }
+    params: { type?: FavorType; limit?: number; offset?: number }
   ): Promise<Tables<'favors'>[]> {
-    const zoneId = await resolveUserZone(supabase, userId, params.zoneId);
+    const zoneId = await resolveUserZone(supabase, userId);
 
     let query = supabase
       .from('favors')

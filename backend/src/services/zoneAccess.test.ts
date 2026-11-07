@@ -38,12 +38,6 @@ test('cada usuario tiene su propia zona en memoria', async () => {
   assert.equal(calls(), 2);
 });
 
-test('pedir otra zona da 403 aunque la zona real venga de memoria', async () => {
-  const { client } = fakeSupabase('z1');
-  await resolveUserZone(client, 'u1');
-  await assert.rejects(resolveUserZone(client, 'u1', 'otra'), statusOf(403));
-});
-
 test('un usuario sin zona da 403 y no se guarda en memoria', async () => {
   const { client, calls } = fakeSupabase(null);
   await assert.rejects(resolveUserZone(client, 'u1'), statusOf(403));

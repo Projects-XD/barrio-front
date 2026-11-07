@@ -20,6 +20,7 @@ import { Screen } from '@/components/Screen';
 import { useZones } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
 import { CASTILLA_BOUNDS, CASTILLA_CENTER, isWithinCastilla, type Coords } from '@/utils/geo';
@@ -249,14 +250,35 @@ export default function Register() {
 
         // Si Supabase devuelve sesión inmediata (auto-confirm activo)
         if (data.session) {
-          // public.users lo crea el trigger SQL handle_new_user (0002); con RLS el cliente no puede escribirlo.
+          // public.users lo crea el trigger SQL handle_new_user (0002/0025); con RLS el cliente no
+          // puede escribirlo. El trigger ignora el sector elegido aquí y asigna siempre la zona
+          // Castilla: se relee la fila real en vez de reusar `zonaSeleccionada`, para no mandar al
+          // backend un zone_id de sector que ya no coincide con el guardado y dispare un 403.
+          let zoneId = zonaSeleccionada?.id ?? '';
+          try {
+            const { data: dbUser } = await supabase
+              .from('users')
+              .select('zone_id')
+              .eq('id', data.user.id)
+              .maybeSingle();
+            if (dbUser?.zone_id) zoneId = dbUser.zone_id;
+          } catch (dbErr: unknown) {
+            logger.warn('AUTH_REGISTER', 'No se pudo leer la zona asignada desde public.users, usando el sector elegido', dbErr);
+          }
+
           setSession({
             token: data.session.access_token,
             userId: data.user.id,
-            zoneId: zonaSeleccionada?.id ?? '',
+            zoneId,
             userFullName: nombre.trim(),
             userEmail: cleanEmail,
           });
+
+          // Por si algo (ej. el interceptor de api/client.ts) ya disparó una petición con la
+          // zona vieja mientras se resolvía la real: se descarta todo lo cacheado y se obliga a
+          // reconsultar con la zona ya correcta antes de navegar al inicio.
+          queryClient.clear();
+          await queryClient.invalidateQueries();
 
           logger.info('AUTH_REGISTER', `Registro completado y sesión establecida para ${cleanEmail}`);
           router.replace('/(tabs)/inicio');

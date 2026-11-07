@@ -246,7 +246,7 @@ export class SyncService {
     payload: any
   ): Promise<Record<string, unknown>> {
     // La idempotencia de reportes ya se resolvió con sync_operations en processSyncBatch.
-    const zoneId = await resolveUserZone(supabase, userId, payload.zone_id);
+    const zoneId = await resolveUserZone(supabase, userId);
 
     const rawLat = payload.lat ?? payload.approx_lat;
     const rawLng = payload.lng ?? payload.approx_lng;
