@@ -1,85 +1,68 @@
+import winston from 'winston';
 import { env } from '../config/env';
 
-export type LogLevel = 'error' | 'warn' | 'info' | 'http' | 'debug';
+const isProduction = env.NODE_ENV === 'production';
 
-const LOG_PRIORITY: Record<LogLevel, number> = {
-  error: 0,
-  warn: 1,
-  info: 2,
-  http: 3,
-  debug: 4,
-};
+/**
+ * Formato legible para desarrollo: timestamp, nivel coloreado, mensaje y metadata (stack incluido).
+ */
+const devFormat = winston.format.combine(
+  winston.format.timestamp(),
+  winston.format.errors({ stack: true }),
+  winston.format.colorize({ level: true }),
+  winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
+    const metaKeys = Object.keys(meta);
+    const metaString = metaKeys.length > 0 ? ` ${JSON.stringify(meta, null, 2)}` : '';
+    const stackString = stack ? `\n${String(stack)}` : '';
+    return `[${String(timestamp)}] ${level} ${String(message)}${metaString}${stackString}`;
+  })
+);
 
-const LOG_COLORS: Record<LogLevel, string> = {
-  error: '\x1b[31m', // Rojo
-  warn: '\x1b[33m',  // Amarillo
-  info: '\x1b[32m',  // Verde
-  http: '\x1b[35m',  // Magenta
-  debug: '\x1b[36m', // Cyan
-};
+/**
+ * Formato JSON estructurado para producción (apto para agregadores de logs).
+ */
+const prodFormat = winston.format.combine(
+  winston.format.timestamp(),
+  winston.format.errors({ stack: false }),
+  winston.format.json()
+);
 
-const RESET_COLOR = '\x1b[0m';
+const baseLogger = winston.createLogger({
+  level: isProduction ? 'info' : 'debug',
+  format: isProduction ? prodFormat : devFormat,
+  transports: [new winston.transports.Console()],
+});
 
-class BackendLogger {
-  private currentLevel: LogLevel = env.NODE_ENV === 'production' ? 'info' : 'debug';
-
-  private canLog(level: LogLevel): boolean {
-    return LOG_PRIORITY[level] <= LOG_PRIORITY[this.currentLevel];
+/**
+ * Normaliza el segundo argumento: acepta Error, objetos o valores primitivos.
+ */
+function normalizeMeta(meta?: unknown): Record<string, unknown> {
+  if (meta === undefined) return {};
+  if (meta instanceof Error) {
+    return { stack: isProduction ? undefined : meta.stack, errorMessage: meta.message };
   }
-
-  private formatMessage(level: LogLevel, message: string, meta?: unknown): string {
-    const timestamp = new Date().toISOString();
-    const color = LOG_COLORS[level] || '';
-    const levelTag = `${color}[${level.toUpperCase()}]${RESET_COLOR}`;
-    let output = `[${timestamp}] ${levelTag} ${message}`;
-
-    if (meta !== undefined) {
-      if (meta instanceof Error) {
-        output += `\n${meta.stack || meta.message}`;
-      } else if (typeof meta === 'object' && meta !== null) {
-        try {
-          output += ` ${JSON.stringify(meta, null, env.NODE_ENV === 'development' ? 2 : 0)}`;
-        } catch {
-          output += ` [Objeto no serializable]`;
-        }
-      } else {
-        output += ` ${String(meta)}`;
-      }
-    }
-
-    return output;
+  if (typeof meta === 'object' && meta !== null) {
+    return meta as Record<string, unknown>;
   }
-
-  public error(message: string, meta?: unknown): void {
-    if (this.canLog('error')) {
-      console.error(this.formatMessage('error', message, meta));
-    }
-  }
-
-  public warn(message: string, meta?: unknown): void {
-    if (this.canLog('warn')) {
-      console.warn(this.formatMessage('warn', message, meta));
-    }
-  }
-
-  public info(message: string, meta?: unknown): void {
-    if (this.canLog('info')) {
-      console.info(this.formatMessage('info', message, meta));
-    }
-  }
-
-  public http(message: string, meta?: unknown): void {
-    if (this.canLog('http')) {
-      console.log(this.formatMessage('http', message, meta));
-    }
-  }
-
-  public debug(message: string, meta?: unknown): void {
-    if (this.canLog('debug')) {
-      console.debug(this.formatMessage('debug', message, meta));
-    }
-  }
+  return { detail: meta };
 }
 
-export const logger = new BackendLogger();
+export const logger = {
+  error: (message: string, meta?: unknown): void => {
+    baseLogger.error(message, normalizeMeta(meta));
+  },
+  warn: (message: string, meta?: unknown): void => {
+    baseLogger.warn(message, normalizeMeta(meta));
+  },
+  info: (message: string, meta?: unknown): void => {
+    baseLogger.info(message, normalizeMeta(meta));
+  },
+  http: (message: string, meta?: unknown): void => {
+    baseLogger.http(message, normalizeMeta(meta));
+  },
+  debug: (message: string, meta?: unknown): void => {
+    baseLogger.debug(message, normalizeMeta(meta));
+  },
+};
+
 export default logger;
