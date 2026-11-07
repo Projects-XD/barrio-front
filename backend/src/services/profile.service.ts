@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables, OficioCategory } from '../types/database.types';
-import { AppError } from '../middlewares/errorHandler';
+import { AppError, dbError } from '../middlewares/errorHandler';
 import type { UpsertProfessionalProfileDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
 
@@ -35,20 +35,22 @@ export class ProfileService {
       }
     }
 
-    // 2. Si existe, actualizamos
+    // 2. Si existe, actualizamos (preservando location_lat/lng si no se envían en el DTO)
     if (existingId) {
+      const updatePayload: Database['public']['Tables']['professional_profiles']['Update'] = {
+        oficio_id: dto.oficio_id,
+        zone_id: zoneId,
+        description: dto.description ?? null,
+        years_experience: dto.years_experience ?? 0,
+        is_visible: dto.is_visible ?? true,
+        updated_at: new Date().toISOString(),
+      };
+      if (dto.location_lat !== undefined) updatePayload.location_lat = dto.location_lat;
+      if (dto.location_lng !== undefined) updatePayload.location_lng = dto.location_lng;
+
       const { data, error } = await supabase
         .from('professional_profiles')
-        .update({
-          oficio_id: dto.oficio_id,
-          zone_id: zoneId,
-          description: dto.description ?? null,
-          years_experience: dto.years_experience ?? 0,
-          location_lat: dto.location_lat ?? null,
-          location_lng: dto.location_lng ?? null,
-          is_visible: dto.is_visible ?? true,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', existingId)
         .eq('user_id', userId)
         .select('*, oficio:oficios(*)')
@@ -64,7 +66,24 @@ export class ProfileService {
       return data as unknown as Tables<'professional_profiles'>;
     }
 
-    // 3. Si no existe, creamos el nuevo perfil
+    // 3. Si no existe, heredar ubicación de otro oficio del mismo usuario si no se envió
+    let inheritedLat = dto.location_lat ?? null;
+    let inheritedLng = dto.location_lng ?? null;
+    if (inheritedLat === null || inheritedLng === null) {
+      const { data: prevWithLoc } = await supabase
+        .from('professional_profiles')
+        .select('location_lat, location_lng')
+        .eq('user_id', userId)
+        .not('location_lat', 'is', null)
+        .not('location_lng', 'is', null)
+        .limit(1)
+        .maybeSingle();
+      if (prevWithLoc) {
+        inheritedLat = prevWithLoc.location_lat;
+        inheritedLng = prevWithLoc.location_lng;
+      }
+    }
+
     const { data, error } = await supabase
       .from('professional_profiles')
       .insert({
@@ -73,8 +92,8 @@ export class ProfileService {
         zone_id: zoneId,
         description: dto.description ?? null,
         years_experience: dto.years_experience ?? 0,
-        location_lat: dto.location_lat ?? null,
-        location_lng: dto.location_lng ?? null,
+        location_lat: inheritedLat,
+        location_lng: inheritedLng,
         is_visible: dto.is_visible ?? true,
       })
       .select('*, oficio:oficios(*)')
@@ -84,7 +103,7 @@ export class ProfileService {
       if (error.code === '23505') {
         throw new AppError('Ya tienes un perfil registrado para este oficio', 409);
       }
-      throw new AppError(`Error al crear perfil profesional: ${error.message}`, 400);
+      throw dbError('Error al crear perfil profesional', error);
     }
 
     return data as unknown as Tables<'professional_profiles'>;
@@ -102,7 +121,8 @@ export class ProfileService {
     const zoneId = await resolveUserZone(supabase, userId, params.zoneId);
 
     // Con !inner el filtro por oficios.category descarta perfiles; sin él solo deja oficio en null.
-    const oficioEmbed = params.category ? 'oficio:oficios!inner(*)' : 'oficio:oficios(*)';
+    const oficioColumns = 'id, category, name, is_active';
+    const oficioEmbed = params.category ? `oficio:oficios!inner(${oficioColumns})` : `oficio:oficios(${oficioColumns})`;
 
     let query = supabase
       .from('professional_profiles')
@@ -122,7 +142,7 @@ export class ProfileService {
 
     const { data, error } = await query;
     if (error) {
-      throw new AppError(`Error al consultar perfiles: ${error.message}`, 400);
+      throw dbError('Error al consultar perfiles', error);
     }
 
     return (data as unknown as Tables<'professional_profiles'>[]) || [];
@@ -222,7 +242,7 @@ export class ProfileService {
       if (insertError.code === '23505') {
         throw new AppError('Ya has otorgado un visto bueno a este perfil profesional', 409);
       }
-      throw new AppError(`Error al registrar visto bueno: ${insertError.message}`, 400);
+      throw dbError('Error al registrar visto bueno', insertError);
     }
 
     // 6. Consultar el perfil con los valores recalculados por el trigger de base de datos
@@ -257,7 +277,7 @@ export class ProfileService {
       .eq('voucher_user_id', voucherUserId);
 
     if (deleteError) {
-      throw new AppError(`Error al remover visto bueno: ${deleteError.message}`, 400);
+      throw dbError('Error al remover visto bueno', deleteError);
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -305,10 +325,45 @@ export class ProfileService {
       .order('name');
 
     if (error) {
-      throw new AppError(`Error al obtener oficios: ${error.message}`, 400);
+      throw dbError('Error al obtener oficios', error);
     }
 
     return data || [];
+  }
+
+  /**
+   * Elimina un perfil profesional propio del usuario autenticado.
+   */
+  public async deleteProfile(
+    supabase: SupabaseClient<Database>,
+    userId: string,
+    profileId: string
+  ): Promise<{ id: string }> {
+    const { data: existing, error: findErr } = await supabase
+      .from('professional_profiles')
+      .select('id, user_id')
+      .eq('id', profileId)
+      .single();
+
+    if (findErr || !existing) {
+      throw new AppError('Oficio no encontrado', 404);
+    }
+
+    if (existing.user_id !== userId) {
+      throw new AppError('No tienes permiso para eliminar este oficio', 403);
+    }
+
+    const { error: deleteErr } = await supabase
+      .from('professional_profiles')
+      .delete()
+      .eq('id', profileId)
+      .eq('user_id', userId);
+
+    if (deleteErr) {
+      throw dbError('No se pudo eliminar el oficio', deleteErr);
+    }
+
+    return { id: profileId };
   }
 }
 

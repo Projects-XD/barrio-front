@@ -5,6 +5,7 @@ import {
   validate,
   listProfilesQuerySchema,
   upsertProfessionalProfileSchema,
+  suggestDescriptionSchema,
 } from '../utils/validators';
 
 const router = Router();
@@ -117,6 +118,8 @@ router.post(
  */
 router.get('/:id', requireAuth, (req, res, next) => profileController.getById(req, res, next));
 
+router.delete('/:id', requireAuth, (req, res, next) => profileController.remove(req, res, next));
+
 /**
  * @openapi
  * /profiles/{id}/vouch:
@@ -193,6 +196,48 @@ router.get(
   '/:id/vouch/status',
   requireAuth,
   (req, res, next) => profileController.checkVouchStatus(req, res, next)
+);
+
+/**
+ * @openapi
+ * /profiles/suggest-description:
+ *   post:
+ *     summary: Sugerir una descripción para un oficio con IA (Gemini)
+ *     description: Máximo 5 sugerencias por hora por usuario. El texto es un borrador que el vecino edita antes de guardar.
+ *     tags:
+ *       - Oficios y Perfiles
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [category]
+ *             properties:
+ *               category:
+ *                 type: string
+ *               oficio_name:
+ *                 type: string
+ *               years_experience:
+ *                 type: integer
+ *               notes:
+ *                 type: string
+ *                 maxLength: 300
+ *     responses:
+ *       200:
+ *         description: Borrador de descripción
+ *       429:
+ *         description: Límite de sugerencias por hora
+ *       503:
+ *         description: IA no configurada en el servidor
+ */
+router.post(
+  '/suggest-description',
+  requireAuth,
+  validate(suggestDescriptionSchema),
+  (req, res, next) => profileController.suggestDescription(req, res, next)
 );
 
 export default router;

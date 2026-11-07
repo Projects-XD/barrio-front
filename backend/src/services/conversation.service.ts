@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables } from '../types/database.types';
-import { AppError } from '../middlewares/errorHandler';
+import { AppError, dbError } from '../middlewares/errorHandler';
 import { logger } from '../utils/logger';
 import type {
   ReportConversationUserDTO,
@@ -43,7 +43,7 @@ export class ConversationService {
       .maybeSingle();
 
     if (error) {
-      throw new AppError(`Error al consultar la conversación: ${error.message}`, 400);
+      throw dbError('Error al consultar la conversación', error);
     }
     if (!data || (data.author_id !== userId && data.responder_id !== userId)) {
       throw new AppError('Conversación no encontrada', 404);
@@ -77,7 +77,7 @@ export class ConversationService {
 
     const { data, error } = await query;
     if (error) {
-      throw new AppError(`Error al consultar conversaciones: ${error.message}`, 400);
+      throw dbError('Error al consultar conversaciones', error);
     }
     return (data ?? []) as unknown as ConversationView[];
   }
@@ -87,15 +87,16 @@ export class ConversationService {
     userId: string,
     conversationId: string
   ): Promise<ConversationView> {
-    await this.getAsParticipant(supabase, userId, conversationId);
-
     const { data, error } = await supabase
       .from('conversations')
       .select(CONVERSATION_SELECT)
       .eq('id', conversationId)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
+      throw dbError('Error al consultar la conversación', error);
+    }
+    if (!data || (data.author_id !== userId && data.responder_id !== userId)) {
       throw new AppError('Conversación no encontrada', 404);
     }
 
@@ -107,7 +108,7 @@ export class ConversationService {
       .maybeSingle();
 
     if (blockError) {
-      throw new AppError(`Error al validar bloqueos: ${blockError.message}`, 400);
+      throw dbError('Error al validar bloqueos', blockError);
     }
 
     return { ...(data as unknown as ConversationView), blocked_by_me: Boolean(block) };
@@ -134,7 +135,7 @@ export class ConversationService {
       .limit(limit);
 
     if (error) {
-      throw new AppError(`Error al consultar mensajes: ${error.message}`, 400);
+      throw dbError('Error al consultar mensajes', error);
     }
 
     const messages = (data ?? []).reverse();
@@ -181,7 +182,7 @@ export class ConversationService {
       );
 
     if (blockError) {
-      throw new AppError(`Error al validar bloqueos: ${blockError.message}`, 400);
+      throw dbError('Error al validar bloqueos', blockError);
     }
     if (blocks?.some((b) => b.blocker_id === userId)) {
       throw new AppError('Bloqueaste a este vecino', 403);
@@ -198,7 +199,7 @@ export class ConversationService {
       .gte('created_at', since);
 
     if (countError) {
-      throw new AppError(`Error al validar el ritmo de mensajes: ${countError.message}`, 400);
+      throw dbError('Error al validar el ritmo de mensajes', countError);
     }
     if ((recent ?? 0) >= MESSAGES_PER_MINUTE) {
       throw new AppError('Estás enviando mensajes muy rápido. Espera un momento.', 429);
@@ -295,7 +296,7 @@ export class ConversationService {
     if (Object.keys(changes).length > 0) {
       const { error } = await supabase.from('conversations').update(changes).eq('id', conversationId);
       if (error) {
-        throw new AppError(`Error al actualizar la conversación: ${error.message}`, 400);
+        throw dbError('Error al actualizar la conversación', error);
       }
     }
 
@@ -316,7 +317,7 @@ export class ConversationService {
 
     const { error } = await supabase.from('user_blocks').insert({ blocker_id: userId, blocked_id: otherId });
     if (error && error.code !== '23505') {
-      throw new AppError(`Error al bloquear al vecino: ${error.message}`, 400);
+      throw dbError('Error al bloquear al vecino', error);
     }
 
     const { error: closeError } = await supabase
@@ -328,7 +329,7 @@ export class ConversationService {
       );
 
     if (closeError) {
-      throw new AppError(`Error al cerrar las conversaciones: ${closeError.message}`, 400);
+      throw dbError('Error al cerrar las conversaciones', closeError);
     }
 
     return { blocked_user_id: otherId };
@@ -353,7 +354,7 @@ export class ConversationService {
       .eq('blocked_id', otherId);
 
     if (error) {
-      throw new AppError(`Error al desbloquear al vecino: ${error.message}`, 400);
+      throw dbError('Error al desbloquear al vecino', error);
     }
 
     // Si el otro vecino también te había bloqueado, las conversaciones siguen impedidas por su bloqueo
@@ -367,7 +368,7 @@ export class ConversationService {
       );
 
     if (reopenError) {
-      throw new AppError(`Error al reabrir las conversaciones: ${reopenError.message}`, 400);
+      throw dbError('Error al reabrir las conversaciones', reopenError);
     }
 
     return { unblocked_user_id: otherId };

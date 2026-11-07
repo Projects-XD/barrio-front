@@ -18,6 +18,9 @@ const envSchema = z.object({
     .string()
     .min(1, { message: 'SUPABASE_SERVICE_ROLE_KEY es requerida' }),
   CORS_ORIGIN: z.string().default('*'),
+  // Opcional: sin clave, la sugerencia de descripción con IA responde 503.
+  GEMINI_API_KEY: z.string().min(1).optional(),
+  GEMINI_MODEL: z.string().default('gemini-3.1-flash-lite'),
 });
 
 const parsed = envSchema.safeParse(process.env);

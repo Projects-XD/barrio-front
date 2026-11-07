@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -15,12 +15,14 @@ import { router } from 'expo-router';
 import { distanceKm, getRealPosition, normalizeText, openLocationSettings, placeTexts } from '@/utils/location';
 import { AppButton } from '@/components/AppButton';
 import { Chip } from '@/components/Chip';
+import { MapPicker, type MapPickerHandle } from '@/components/MapPicker';
 import { Screen } from '@/components/Screen';
 import { useZones } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
+import { CASTILLA_BOUNDS, CASTILLA_CENTER, isWithinCastilla, type Coords } from '@/utils/geo';
 import { logger } from '@/utils/logger';
 
 interface ZoneOption {
@@ -33,6 +35,7 @@ interface ZoneOption {
 export default function Register() {
   const p = usePalette();
   const setSession = useAppStore((s) => s.setSession);
+  const mapRef = useRef<MapPickerHandle>(null);
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   // Desliza el formulario desde la derecha al ir a registro, y desde la izquierda al ir a login.
@@ -49,11 +52,52 @@ export default function Register() {
   const [nombre, setNombre] = useState('');
   // Las zonas vienen del backend (/zones): con RLS activo, la clave anon no puede leer la tabla.
   const zonesQuery = useZones();
-  const zonas: ZoneOption[] = zonesQuery.data ?? [];
+  const zonas: ZoneOption[] = useMemo(() => zonesQuery.data ?? [], [zonesQuery.data]);
   const [zonaSeleccionada, setZonaSeleccionada] = useState<ZoneOption | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [locStatus, setLocStatus] = useState<'idle' | 'loading' | 'found' | 'notfound' | 'denied'>('idle');
+  const [locStatus, setLocStatus] = useState<'idle' | 'loading' | 'found' | 'outside' | 'notfound' | 'denied'>('idle');
+  const [ubicacionRegistro, setUbicacionRegistro] = useState<Coords | null>(null);
+
+  const mapZones = useMemo(
+    () =>
+      zonas
+        .filter((z) => z.center_lat != null && z.center_lng != null)
+        .map((z) => ({
+          id: z.id,
+          name: z.name,
+          lat: z.center_lat as number,
+          lng: z.center_lng as number,
+        })),
+    [zonas],
+  );
+
+  const handleMapChange = (c: Coords, zoneId?: string) => {
+    setUbicacionRegistro(c);
+    if (zoneId) {
+      const direct = zonas.find((z) => z.id === zoneId);
+      if (direct) {
+        setZonaSeleccionada(direct);
+        return;
+      }
+    }
+    const conCoords = zonas.filter((z) => z.center_lat != null && z.center_lng != null);
+    if (conCoords.length === 0) return;
+    const closest = conCoords.reduce<{ zona: ZoneOption; km: number } | null>((mejor, z) => {
+      const km = distanceKm(c.lat, c.lng, z.center_lat as number, z.center_lng as number);
+      return !mejor || km < mejor.km ? { zona: z, km } : mejor;
+    }, null);
+    if (closest) {
+      setZonaSeleccionada(closest.zona);
+    }
+  };
+
+  const handleChipSelect = (z: ZoneOption) => {
+    setZonaSeleccionada(z);
+    if (z.center_lat != null && z.center_lng != null) {
+      mapRef.current?.setPoint({ lat: z.center_lat, lng: z.center_lng });
+    }
+  };
 
   const detectZone = async () => {
     setLocStatus('loading');
@@ -63,10 +107,13 @@ export default function Register() {
         setLocStatus('denied');
         return;
       }
+      const coords: Coords = { lat: pos.lat, lng: pos.lng };
+      setUbicacionRegistro(coords);
       const texts = await placeTexts(pos.lat, pos.lng);
-      // Solo aceptamos ubicaciones dentro de Castilla; el resto se elige a mano.
-      if (!texts.some((t) => t.includes('castilla'))) {
-        setLocStatus('notfound');
+      // Solo aceptamos ubicaciones dentro de Castilla
+      const enCastilla = isWithinCastilla(coords) || texts.some((t) => t.includes('castilla'));
+      if (!enCastilla) {
+        setLocStatus('outside');
         return;
       }
       // Preferimos el centro poblado más cercano a las coordenadas reales del vecino.
@@ -80,10 +127,11 @@ export default function Register() {
       if (match) {
         setZonaSeleccionada(match);
         setLocStatus('found');
+        mapRef.current?.setPoint(coords);
       } else {
-        setLocStatus('notfound');
+        setLocStatus('outside');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.warn('AUTH_REGISTER', 'No se pudo obtener la ubicación', err);
       setLocStatus('notfound');
     }
@@ -129,15 +177,17 @@ export default function Register() {
         let userFullName = (data.user.user_metadata?.full_name as string) || cleanEmail.split('@')[0];
 
         try {
-          const { data: dbUser } = await supabase
+          const { data: dbUser, error: dbReadError } = await supabase
             .from('users')
             .select('full_name, zone_id')
             .eq('id', data.user.id)
             .maybeSingle();
 
+          // supabase-js devuelve el fallo en `error` sin lanzarlo: hay que propagarlo para que el aviso salga.
+          if (dbReadError) throw dbReadError;
           if (dbUser?.zone_id) userZoneId = dbUser.zone_id;
           if (dbUser?.full_name) userFullName = dbUser.full_name;
-        } catch (dbErr: any) {
+        } catch (dbErr: unknown) {
           logger.warn('AUTH_LOGIN', 'No se pudo leer perfil desde public.users, usando metadata', dbErr);
         }
 
@@ -167,6 +217,7 @@ export default function Register() {
           options: {
             data: {
               full_name: nombre.trim(),
+              ...(ubicacionRegistro ? { location_lat: ubicacionRegistro.lat, location_lng: ubicacionRegistro.lng } : {}),
               zone_id: zonaSeleccionada?.id,
             },
           },
@@ -219,8 +270,8 @@ export default function Register() {
           );
         }
       }
-    } catch (err: any) {
-      const msg = err.message || 'Ocurrió un error inesperado al autenticar.';
+    } catch (err: unknown) {
+      const msg = (err instanceof Error && err.message) || 'Ocurrió un error inesperado al autenticar.';
       logger.error('AUTH_ERROR', `Fallo capturado en autenticación (${mode}) para ${cleanEmail}`, {
         error: err,
         message: msg,
@@ -362,32 +413,79 @@ export default function Register() {
 
           {mode === 'register' ? (
             <>
-              <Text style={[styles.label, { color: p.text }]}>Tu zona o barrio</Text>
+              <Text style={[styles.label, { color: p.text }]}>Tu zona o barrio de Castilla</Text>
+              <Text style={[styles.helpText, { color: p.muted }]}>
+                Elige tu lugar en el mapa delimitado a Castilla o toca uno de los badges abajo.
+              </Text>
+
               <AppButton
-                label={locStatus === 'loading' ? 'Buscando tu ubicación...' : 'Usar mi ubicación'}
+                label={locStatus === 'loading' ? 'Buscando tu ubicación...' : 'Usar mi ubicación actual'}
                 variant="secondary"
+                icon="location-outline"
                 onPress={detectZone}
                 disabled={locStatus === 'loading'}
               />
+
               {locStatus === 'found' ? (
-                <Text style={[styles.privacyNote, { color: p.primary }]}>Detectamos tu zona: {zonaSeleccionada?.name}. Tu ubicación exacta no se guarda.</Text>
+                <Text style={[styles.privacyNote, { color: p.primary }]}>
+                  Detectamos tu zona: {zonaSeleccionada?.name}. Tu ubicación exacta no se guarda.
+                </Text>
               ) : null}
               {locStatus === 'denied' ? (
                 <>
-                <Text style={[styles.privacyNote, { color: p.muted }]}>Sin permiso de ubicación. Elige tu zona abajo.</Text>
-                <AppButton label="Abrir ajustes de ubicación" variant="link" onPress={openLocationSettings} />
-              </>
+                  <Text style={[styles.privacyNote, { color: p.muted }]}>
+                    Sin permiso de ubicación. Puedes usar el mapa delimitado a Castilla o elegir tu zona abajo.
+                  </Text>
+                  <AppButton label="Abrir ajustes de ubicación" variant="link" onPress={openLocationSettings} />
+                </>
+              ) : null}
+              {locStatus === 'outside' ? (
+                <View style={styles.outsideNotice}>
+                  <Ionicons name="location-outline" size={18} color={colors.naranja} />
+                  <Text style={[styles.outsideNoticeText, { color: colors.azul }]}>
+                    Tu ubicación actual no se encuentra en Castilla. Si no te encuentras en Castilla, puedes usar el mapa para buscar en Castilla.
+                  </Text>
+                </View>
               ) : null}
               {locStatus === 'notfound' ? (
-                <Text style={[styles.privacyNote, { color: p.muted }]}>No pudimos detectar tu zona. Elige tu zona abajo.</Text>
+                <View style={styles.outsideNotice}>
+                  <Ionicons name="map-outline" size={18} color={colors.naranja} />
+                  <Text style={[styles.outsideNoticeText, { color: colors.azul }]}>
+                    Si no te encuentras en Castilla o no pudimos detectar tu ubicación, puedes usar el mapa para buscar en Castilla.
+                  </Text>
+                </View>
               ) : null}
+
+              {/* Mapa interactivo delimitado al distrito de Castilla */}
+              <View style={styles.mapWrap}>
+                <MapPicker
+                  ref={mapRef}
+                  initial={
+                    zonaSeleccionada?.center_lat != null && zonaSeleccionada?.center_lng != null
+                      ? { lat: zonaSeleccionada.center_lat, lng: zonaSeleccionada.center_lng }
+                      : CASTILLA_CENTER
+                  }
+                  height={220}
+                  maxBounds={CASTILLA_BOUNDS}
+                  minZoom={11}
+                  maxZoom={18}
+                  initialZoom={12}
+                  zones={mapZones}
+                  onChange={handleMapChange}
+                />
+                <View style={styles.mapBadge}>
+                  <Ionicons name="shield-checkmark-outline" size={13} color={colors.azul} />
+                  <Text style={styles.mapBadgeText}>Distrito de Castilla</Text>
+                </View>
+              </View>
+
               <View style={styles.chips}>
                 {zonas.map((z) => (
                   <Chip
                     key={z.id}
                     label={z.name}
                     selected={zonaSeleccionada?.id === z.id}
-                    onPress={() => setZonaSeleccionada(z)}
+                    onPress={() => handleChipSelect(z)}
                   />
                 ))}
               </View>
@@ -526,6 +624,53 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     textAlign: 'center',
     marginBottom: spacing.sm,
+  },
+  helpText: {
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    marginBottom: spacing.xs,
+    lineHeight: 18,
+  },
+  outsideNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.naranjaSuave,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  outsideNoticeText: {
+    flex: 1,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  mapWrap: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+    position: 'relative',
+  },
+  mapBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(19, 46, 102, 0.15)',
+  },
+  mapBadgeText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    color: colors.azul,
   },
   loadingContainer: {
     height: 52,

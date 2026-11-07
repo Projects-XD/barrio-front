@@ -177,6 +177,34 @@ export class FavorController {
       next(error);
     }
   }
+
+  /**
+   * POST /api/favors/:id/report
+   * Reportar un favor comunitario.
+   */
+  public async report(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+
+      const id = String(req.params.id ?? '');
+      if (!id) {
+        throw new AppError('ID de favor requerido', 400);
+      }
+
+      const supabase = getSupabaseClient(req);
+      const result = await favorService.reportFavor(supabase, req.user.id, id, req.body.reason);
+
+      res.status(201).json({
+        success: true,
+        data: result,
+        code: 201,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const favorController = new FavorController();

@@ -2,7 +2,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { FavorService } from './favor.service';
-import { ModerationService } from './moderation.service';
 import { SyncService } from './sync.service';
 import { createFavorSchema } from '../utils/validators';
 
@@ -41,7 +40,6 @@ function fakeSupabase(
 }
 
 const service = new FavorService();
-const moderation = new ModerationService();
 const AUTHOR = 'author-id';
 const ADMIN = 'admin-id';
 const baseFavor = {
@@ -52,6 +50,7 @@ const baseFavor = {
   closed_at: null,
   deleted_at: null,
   urgency: 'normal',
+  moderation_status: 'aprobado',
 };
 const rejectsWith = (status: number) => (err: unknown) => (err as { statusCode: number }).statusCode === status;
 
@@ -118,6 +117,29 @@ test('getFavorById oculta el contenido desactivado a otros, pero no a su autor',
   assert.deepEqual(asNeighbor.interests, []);
 });
 
+test('getFavorById oculta el contenido a otros vecinos si el favor fue retirado por reportes', async () => {
+  const row = { ...baseFavor, title: 'Secreto', description: 'Texto', moderation_status: 'rechazado', created_at: hoursAgo(1) };
+  const asNeighbor = await service.getFavorById(fakeSupabase(row).client, 'neighbor-id', 'f1');
+  assert.equal(asNeighbor.is_deactivated, true);
+  assert.equal(asNeighbor.title, '');
+  assert.equal(asNeighbor.description, null);
+  const asAuthor = await service.getFavorById(fakeSupabase(row).client, AUTHOR, 'f1');
+  assert.equal(asAuthor.title, 'Secreto');
+});
+
+test('getFavorById no expone quienes estan interesados, solo el conteo y el interes propio', async () => {
+  const interests = [
+    { id: 'i1', user_id: 'neighbor-id', user: { id: 'neighbor-id', full_name: 'Yo' } },
+    { id: 'i2', user_id: 'otro', user: { id: 'otro', full_name: 'Otro vecino' } },
+  ];
+  const row = { ...baseFavor, interests, created_at: hoursAgo(1) };
+  const asNeighbor = await service.getFavorById(fakeSupabase(row).client, 'neighbor-id', 'f1');
+  assert.equal(asNeighbor.interested_count, 2);
+  assert.deepEqual(asNeighbor.interests.map((i) => i.user_id), ['neighbor-id']);
+  const asAuthor = await service.getFavorById(fakeSupabase(row).client, AUTHOR, 'f1');
+  assert.equal(asAuthor.interests.length, 2);
+});
+
 test('getFavorById indica can_edit según la ventana', async () => {
   const fresh = await service.getFavorById(fakeSupabase({ ...baseFavor, created_at: hoursAgo(1) }).client, AUTHOR, 'f1');
   assert.equal(fresh.can_edit, true);
@@ -135,26 +157,27 @@ const favorInsert = (writes: ReturnType<typeof fakeSupabase>['writes']) =>
 const CLIENT_ID = 'c0a80101-1234-4567-89ab-01a1b442bf73';
 const favorBody = { client_id: CLIENT_ID, type: 'herramienta', title: 'Taladro' };
 
-test('createFavor sin urgency queda normal y pendiente', async () => {
+// Desde af99f25 no hay revisión previa: el favor se publica aprobado y se oculta por reportes de vecinos.
+test('createFavor sin urgency queda normal y aprobado', async () => {
   const { client, writes } = newFavorSupabase();
   await service.createFavor(client, AUTHOR, createFavorSchema.parse(favorBody));
   assert.equal(favorInsert(writes)?.urgency, 'normal');
-  assert.equal(favorInsert(writes)?.moderation_status, 'pendiente');
+  assert.equal(favorInsert(writes)?.moderation_status, 'aprobado');
 });
 
 for (const urgency of ['urgente', 'emergencia']) {
-  test(`createFavor ${urgency} queda pendiente`, async () => {
+  test(`createFavor ${urgency} queda aprobado`, async () => {
     const { client, writes } = newFavorSupabase();
     await service.createFavor(client, AUTHOR, createFavorSchema.parse({ ...favorBody, urgency }));
-    assert.equal(favorInsert(writes)?.moderation_status, 'pendiente');
+    assert.equal(favorInsert(writes)?.moderation_status, 'aprobado');
   });
 }
 
 test('createFavor ignora un moderation_status enviado por el cliente', async () => {
   const { client, writes } = newFavorSupabase();
-  const dto = createFavorSchema.parse({ ...favorBody, urgency: 'emergencia', moderation_status: 'aprobado' });
+  const dto = createFavorSchema.parse({ ...favorBody, urgency: 'emergencia', moderation_status: 'rechazado' });
   await service.createFavor(client, AUTHOR, dto);
-  assert.equal(favorInsert(writes)?.moderation_status, 'pendiente');
+  assert.equal(favorInsert(writes)?.moderation_status, 'aprobado');
 });
 
 test('reintentar con el mismo client_id no vuelve a encolar', async () => {
@@ -174,24 +197,61 @@ test('sync create_favor aplica la misma moderación, y sin urgency queda normal'
     return favorInsert(writes);
   };
   const { client_id: _clientId, ...payload } = favorBody;
-  assert.equal((await run({ ...payload, urgency: 'emergencia' }))?.moderation_status, 'pendiente');
+  assert.equal((await run({ ...payload, urgency: 'emergencia' }))?.moderation_status, 'aprobado');
   const sinUrgencia = await run(payload);
   assert.equal(sinUrgencia?.urgency, 'normal');
-  assert.equal(sinUrgencia?.moderation_status, 'pendiente');
+  assert.equal(sinUrgencia?.moderation_status, 'aprobado');
 });
 
-test('editar el contenido de un urgente aprobado lo devuelve a la cola', async () => {
+test('editar el contenido de un urgente aprobado no toca la moderación', async () => {
   const { client, writes } = fakeSupabase({ ...baseFavor, urgency: 'urgente', moderation_status: 'aprobado', created_at: hoursAgo(1) });
   await service.updateFavor(client, AUTHOR, 'f1', { title: 'Otro texto' });
-  assert.equal(writes[0]?.values.moderation_status, 'pendiente');
-  assert.equal(writes[0]?.values.moderated_by, null);
+  assert.equal('moderation_status' in writes[0]!.values, false);
+  assert.equal('moderated_by' in writes[0]!.values, false);
 });
 
-test('editar el contenido de un normal aprobado también lo devuelve a la cola', async () => {
+test('editar el contenido de un normal aprobado tampoco toca la moderación', async () => {
   const { client, writes } = fakeSupabase({ ...baseFavor, moderation_status: 'aprobado', created_at: hoursAgo(1) });
   await service.updateFavor(client, AUTHOR, 'f1', { title: 'Otro texto' });
-  assert.equal(writes[0]?.values.moderation_status, 'pendiente');
-  assert.equal(writes[0]?.values.moderated_by, null);
+  assert.equal('moderation_status' in writes[0]!.values, false);
+  assert.equal('moderated_by' in writes[0]!.values, false);
+});
+
+// ---------- Reportes de vecinos ----------
+
+// Dos vecinos ya reportaron el favor; `closed` son sus favores cerrados, una fila por favor.
+function reportSupabase(closed: { author_id: string }[]) {
+  let favorReads = 0;
+  let reportReads = 0;
+  const reportable = { ...baseFavor, moderation_status: 'aprobado' };
+  const { client, writes } = fakeSupabase(baseFavor, (table, isWrite) => {
+    if (isWrite) return baseFavor;
+    if (table === 'favors') return ++favorReads === 1 ? reportable : (closed as unknown as Record<string, unknown>);
+    if (table === 'user_reports') {
+      return ++reportReads === 1
+        ? null
+        : ([{ reporter_user_id: 'r1' }, { reporter_user_id: 'r2' }] as unknown as Record<string, unknown>);
+    }
+    return baseFavor; // resolveUserZone: misma zona que el favor
+  });
+  return { client, writes, favorReads: () => favorReads };
+}
+
+test('reportFavor oculta al llegar a 3 puntos y consulta la reputación una sola vez', async () => {
+  const closed = [{ author_id: 'r1' }, { author_id: 'r1' }, { author_id: 'r1' }];
+  const { client, writes, favorReads } = reportSupabase(closed);
+  const result = await service.reportFavor(client, 'r2', 'f1', 'Es spam');
+  assert.equal(result.hidden, true);
+  assert.equal(writes.find((w) => w.table === 'favors' && w.op === 'update')?.values.moderation_status, 'rechazado');
+  assert.equal(favorReads(), 2); // el favor y la reputación de todos los que reportaron
+});
+
+test('reportFavor no oculta si nadie llega a vecino de confianza', async () => {
+  const closed = [{ author_id: 'r1' }, { author_id: 'r1' }, { author_id: 'r2' }];
+  const { client, writes } = reportSupabase(closed);
+  const result = await service.reportFavor(client, 'r2', 'f1', 'Es spam');
+  assert.equal(result.hidden, false);
+  assert.equal(writes.some((w) => w.table === 'favors' && w.op === 'update'), false);
 });
 
 test('cerrar un favor no toca la moderación', async () => {
@@ -207,46 +267,4 @@ test('getFavorById no revela el motivo de rechazo a otros vecinos, pero sí a su
   assert.equal(asNeighbor.moderated_by, null);
   const asAuthor = await service.getFavorById(fakeSupabase(row).client, AUTHOR, 'f1');
   assert.equal(asAuthor.moderation_reason, 'Motivo');
-});
-
-test('aprobar registra al admin y no toca el estado del favor', async () => {
-  const { client, writes } = fakeSupabase(baseFavor);
-  await moderation.approve(client, ADMIN, 'z1', 'f1');
-  const update = writes.find((w) => w.op === 'update')!.values;
-  assert.equal(update.moderation_status, 'aprobado');
-  assert.equal(update.moderated_by, ADMIN);
-  assert.ok(update.moderated_at);
-  assert.equal('status' in update, false);
-  assert.equal(writes.some((w) => w.table === 'favor_events'), false);
-});
-
-test('rechazar usa soft-delete, guarda el motivo y registra el evento', async () => {
-  const { client, writes } = fakeSupabase({ ...baseFavor, status: 'en_curso' });
-  await moderation.reject(client, ADMIN, 'z1', 'f1', 'Datos falsos');
-  const update = writes.find((w) => w.op === 'update')!.values;
-  assert.equal(update.moderation_status, 'rechazado');
-  assert.equal(update.moderation_reason, 'Datos falsos');
-  assert.equal(update.status, 'cancelada');
-  assert.ok(update.deleted_at);
-  const event = writes.find((w) => w.table === 'favor_events')!.values;
-  assert.equal(event.from_status, 'en_curso');
-  assert.equal(event.to_status, 'cancelada');
-});
-
-test('un admin no puede moderar sus propios favores', async () => {
-  const { client, writes } = fakeSupabase({ ...baseFavor, author_id: ADMIN });
-  await assert.rejects(moderation.approve(client, ADMIN, 'z1', 'f1'), rejectsWith(403));
-  assert.equal(writes.length, 0);
-});
-
-test('un admin no puede moderar favores de otra zona', async () => {
-  const { client, writes } = fakeSupabase(baseFavor);
-  await assert.rejects(moderation.reject(client, ADMIN, 'otra-zona', 'f1', 'Motivo'), rejectsWith(403));
-  assert.equal(writes.length, 0);
-});
-
-test('si otro admin ya decidió responde 409 y no registra evento', async () => {
-  const { client, writes } = fakeSupabase(baseFavor, (_table, isWrite) => (isWrite ? null : baseFavor));
-  await assert.rejects(moderation.reject(client, ADMIN, 'z1', 'f1', 'Motivo'), rejectsWith(409));
-  assert.equal(writes.some((w) => w.table === 'favor_events'), false);
 });

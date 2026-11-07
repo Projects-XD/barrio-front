@@ -2,10 +2,10 @@ import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
@@ -18,12 +18,13 @@ import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
 import { UrgencyBadge } from '@/components/UrgencyBadge';
 import type { BarrioPoint } from '@/components/mapHtml';
-import { useFavors, useProfiles, useReports, useZones } from '@/hooks/useData';
+import { useFavors, useMySavedLocation, useProfiles, useReports, useZones } from '@/hooks/useData';
+import { expressInterest, listConversations } from '@/api/endpoints';
 import { usePalette } from '@/hooks/usePalette';
 import { favorTypeIcon, type IconName } from '@/i18n/icons';
 import { favorTypeLabel, favorUrgencyLabel, resourceLabel } from '@/i18n/labels';
 import { selectEmergencyActive, useAppStore } from '@/store/app-store';
-import { colors, fonts, radius, shadow, spacing } from '@/theme';
+import { colors } from '@/theme';
 import type {
   Favor,
   FavorType,
@@ -31,9 +32,10 @@ import type {
   ProfessionalProfile,
   VulnerabilityReport,
 } from '@/types';
-import { CASTILLA_CENTER, roundForReport, type Coords } from '@/utils/geo';
+import { CASTILLA_CENTER, formatDistanceAndWalk, roundForReport, type Coords } from '@/utils/geo';
 import { distanceKm, getRealPosition } from '@/utils/location';
 import { timeAgo } from '@/utils/time';
+import { styles } from '@/features/mapa/styles';
 
 type KindFilter = 'todos' | 'pedir' | 'ofrecer' | 'oficio' | 'emergencia';
 
@@ -58,16 +60,6 @@ type MapEntry = {
 const TIPOS = Object.keys(favorTypeLabel) as FavorType[];
 const URGENCIAS = Object.keys(favorUrgencyLabel) as FavorUrgency[];
 
-// Detecta si el favor es un ofrecimiento ("Ofrezco", "Tengo...", "Presto...", "Dono...", "Puedo...")
-// o un pedido de ayuda ("Necesito", etc.).
-function kindOf(title: string, description?: string | null): 'pedir' | 'ofrecer' {
-  const text = `${title} ${description ?? ''}`.trim();
-  if (/^(ofrezco|ofrece|tengo\s+para\s+prestar|presto|dono|regalo|puedo\s+ayudar|puedo\s+enseñar)/i.test(text)) {
-    return 'ofrecer';
-  }
-  return 'pedir';
-}
-
 // Pequeño desplazamiento determinístico en espiral a partir del ID para que dos puntos
 // en la misma coordenada o en el centro de la zona nunca se tapen entre sí.
 function deterministicOffset(id: string, index: number): { dLat: number; dLng: number } {
@@ -85,9 +77,7 @@ function deterministicOffset(id: string, index: number): { dLat: number; dLng: n
 }
 
 function formatDistance(meters: number | null): string | null {
-  if (meters == null) return null;
-  if (meters < 1000) return `A ~${Math.max(50, Math.round(meters / 10) * 10)} m`;
-  return `A ${(meters / 1000).toFixed(1)} km`;
+  return formatDistanceAndWalk(meters);
 }
 
 export default function MapaBarrio() {
@@ -101,11 +91,37 @@ export default function MapaBarrio() {
   const { data: favores = [], isLoading, isError, refetch } = useFavors();
   const { data: oficios = [] } = useProfiles();
   const { data: reportes = [] } = useReports();
+  const { data: savedLocation } = useMySavedLocation();
 
   const [busqueda, setBusqueda] = useState('');
   const [filtroIntencion, setFiltroIntencion] = useState<KindFilter>('todos');
   const [filtroCategoria, setFiltroCategoria] = useState<FavorType | undefined>(undefined);
   const [filtroUrgencia, setFiltroUrgencia] = useState<FavorUrgency | undefined>(undefined);
+  const userId = useAppStore((s) => s.userId);
+
+  // Mismo flujo que la pantalla del favor: el autor abre su chat, el interesado abre o crea el suyo.
+  const abrirChat = async (entry: MapEntry) => {
+    const favor = entry.favor;
+    if (!favor) return;
+    try {
+      if (favor.authorId === userId || favor.hasInterestedByMe) {
+        const convs = await listConversations(favor.id);
+        if (convs.length > 0) {
+          router.push(`/chat/${convs[0].id}`);
+          return;
+        }
+        if (favor.authorId === userId) {
+          Alert.alert('Sin chats', 'Aún nadie ha respondido a este favor.');
+          return;
+        }
+      }
+      const { conversation_id } = await expressInterest(favor.id);
+      router.push(`/chat/${conversation_id}`);
+    } catch (err) {
+      Alert.alert('No se pudo abrir el chat', (err as Error).message);
+    }
+  };
+
   const [mostrarCapaOficios, setMostrarCapaOficios] = useState<boolean>(false);
   const [mostrarCapaAlertas, setMostrarCapaAlertas] = useState<boolean>(emergencyActive);
   const [soloCercanos, setSoloCercanos] = useState<boolean>(false);
@@ -119,6 +135,11 @@ export default function MapaBarrio() {
   const [userLocation, setUserLocation] = useState<Coords | null>(null);
   const [userFocusTrigger, setUserFocusTrigger] = useState(0);
   const [locating, setLocating] = useState(false);
+
+  const activeUserLocation: Coords | null = useMemo(
+    () => userLocation ?? (savedLocation ? { lat: savedLocation.lat, lng: savedLocation.lng } : null),
+    [userLocation, savedLocation],
+  );
 
   const zona = zonas.find((z) => z.id === zoneId);
   const center: Coords =
@@ -177,14 +198,16 @@ export default function MapaBarrio() {
     };
 
     const calcDist = (lat: number, lng: number) =>
-      userLocation ? Math.round(distanceKm(userLocation.lat, userLocation.lng, lat, lng) * 1000) : null;
+      activeUserLocation
+        ? Math.round(distanceKm(activeUserLocation.lat, activeUserLocation.lng, lat, lng) * 1000)
+        : null;
 
     const entries: MapEntry[] = [];
 
     // 1. Favores activos (Pedir y Ofrecer)
     const activeFavors = favores.filter((f) => f.status === 'abierta' || f.status === 'en_curso');
     activeFavors.forEach((f, idx) => {
-      const kind = kindOf(f.title, f.description);
+      const kind = f.intent;
       const { lat, lng } = normalizeCoord(f.id, f.location?.lat, f.location?.lng, idx);
       entries.push({
         id: f.id,
@@ -290,7 +313,7 @@ export default function MapaBarrio() {
     filtroIntencion,
     center.lat,
     center.lng,
-    userLocation,
+    activeUserLocation,
   ]);
 
   const totalPedidos = useMemo(
@@ -320,11 +343,11 @@ export default function MapaBarrio() {
       return true;
     });
 
-    if (userLocation) {
+    if (activeUserLocation) {
       return [...list].sort((a, b) => (a.distanceMeters ?? 999999) - (b.distanceMeters ?? 999999));
     }
     return list;
-  }, [allMapped, busqueda, filtroIntencion, filtroCategoria, filtroUrgencia, soloCercanos, userLocation]);
+  }, [allMapped, busqueda, filtroIntencion, filtroCategoria, filtroUrgencia, soloCercanos, activeUserLocation]);
 
   const points = useMemo(() => filteredItems.map((x) => x.point), [filteredItems]);
 
@@ -404,7 +427,7 @@ export default function MapaBarrio() {
           <Text style={[styles.sub, { color: p.muted }]} numberOfLines={1}>
             {zona?.name ? `Zona ${zona.name} · ` : ''}
             {filteredItems.length} punto{filteredItems.length === 1 ? '' : 's'} en el mapa
-            {userLocation ? ' · Ordenados por cercanía' : ''}
+            {activeUserLocation ? ' · Ordenados por cercanía' : ''}
           </Text>
         </View>
 
@@ -464,7 +487,7 @@ export default function MapaBarrio() {
                     style={[styles.searchInput, { color: p.text }]}
                   />
                   {busqueda.length > 0 ? (
-                    <Pressable onPress={() => setBusqueda('')} hitSlop={8}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Borrar búsqueda" onPress={() => setBusqueda('')} hitSlop={8}>
                       <Ionicons name="close-circle" size={18} color={colors.gris} />
                     </Pressable>
                   ) : null}
@@ -498,6 +521,7 @@ export default function MapaBarrio() {
               {/* Selector de capas comunitarias en el panel lateral */}
               <View style={styles.sideCapasRow}>
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => setMostrarCapaOficios((v) => !v)}
                   style={[
                     styles.capaChip,
@@ -520,6 +544,7 @@ export default function MapaBarrio() {
                 </Pressable>
 
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => setMostrarCapaAlertas((v: boolean) => !v)}
                   style={[
                     styles.capaChip,
@@ -565,6 +590,7 @@ export default function MapaBarrio() {
                     const distTxt = formatDistance(entry.distanceMeters);
                     return (
                       <Pressable
+                        accessibilityRole="button"
                         key={entry.id}
                         onPress={() => setSelectedId(entry.id)}
                         style={[
@@ -605,10 +631,17 @@ export default function MapaBarrio() {
               center={center}
               points={points}
               selectedId={selectedId}
-              userLocation={userLocation}
+              userLocation={activeUserLocation}
               userFocusTrigger={userFocusTrigger}
               fitTrigger={fitTrigger}
-              onPointPress={(id) => setSelectedId(id)}
+              onPointPress={(id, same) => {
+                if (same) {
+                  const found = filteredItems.find((x) => x.id === id);
+                  if (found) abrirDetalleEntry(found);
+                } else {
+                  setSelectedId(id);
+                }
+              }}
               onMapClear={() => setSelectedId(null)}
             />
 
@@ -674,6 +707,7 @@ export default function MapaBarrio() {
                 contentContainerStyle={styles.floatingPills}
               >
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => {
                     setFiltroIntencion('todos');
                     setSelectedId(null);
@@ -700,6 +734,7 @@ export default function MapaBarrio() {
                 </Pressable>
 
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => {
                     setFiltroIntencion(filtroIntencion === 'pedir' ? 'todos' : 'pedir');
                     setSelectedId(null);
@@ -727,6 +762,7 @@ export default function MapaBarrio() {
                 </Pressable>
 
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => {
                     setFiltroIntencion(filtroIntencion === 'ofrecer' ? 'todos' : 'ofrecer');
                     setSelectedId(null);
@@ -752,6 +788,7 @@ export default function MapaBarrio() {
                 </Pressable>
 
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => {
                     setMostrarCapaOficios((v) => !v);
                     setFitTrigger((n) => n + 1);
@@ -778,6 +815,7 @@ export default function MapaBarrio() {
 
                 {filtroCategoria ? (
                   <Pressable
+                    accessibilityRole="button"
                     onPress={() => setFiltroCategoria(undefined)}
                     style={[styles.pillBtn, styles.pillBtnActiveTag]}
                   >
@@ -790,6 +828,7 @@ export default function MapaBarrio() {
 
                 {filtroUrgencia ? (
                   <Pressable
+                    accessibilityRole="button"
                     onPress={() => setFiltroUrgencia(undefined)}
                     style={[styles.pillBtn, styles.pillBtnActiveTag]}
                   >
@@ -813,14 +852,14 @@ export default function MapaBarrio() {
                 onPress={ubicarmeEnMapa}
                 style={[
                   styles.sideBtn,
-                  userLocation ? { backgroundColor: colors.azulSuave, borderColor: colors.azul } : null,
+                  activeUserLocation ? { backgroundColor: colors.azulSuave, borderColor: colors.azul } : null,
                 ]}
               >
                 {locating ? (
                   <ActivityIndicator size="small" color={colors.azul} />
                 ) : (
                   <Ionicons
-                    name={userLocation ? 'locate' : 'locate-outline'}
+                    name={activeUserLocation ? 'locate' : 'locate-outline'}
                     size={20}
                     color={colors.azul}
                   />
@@ -923,6 +962,11 @@ export default function MapaBarrio() {
                     <Text style={[styles.previewTitle, { color: p.text }]} numberOfLines={2}>
                       {selectedEntry.title}
                     </Text>
+                    {selectedEntry.subtitle ? (
+                      <Text style={[styles.previewSubtitle, { color: p.text }]} numberOfLines={3}>
+                        {selectedEntry.subtitle}
+                      </Text>
+                    ) : null}
                     <Text style={[styles.previewMeta, { color: p.muted }]} numberOfLines={1}>
                       {selectedEntry.authorName}
                       {selectedEntry.createdAt ? ` · ${timeAgo(selectedEntry.createdAt)}` : ''}
@@ -930,11 +974,21 @@ export default function MapaBarrio() {
                   </View>
                 </View>
 
-                <View style={styles.previewActions}>
+                <View style={[styles.previewActions, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+                  {selectedEntry.favor ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Abrir chat con este vecino"
+                      onPress={() => abrirChat(selectedEntry)}
+                      style={({ pressed }) => [styles.chatBubble, pressed && { opacity: 0.85 }]}
+                    >
+                      <Ionicons name="chatbubble-ellipses" size={22} color={colors.blanco} />
+                    </Pressable>
+                  ) : null}
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => abrirDetalleEntry(selectedEntry)}
-                    style={[styles.previewPrimaryBtn, { backgroundColor: p.cta }]}
+                    style={[styles.previewPrimaryBtn, { backgroundColor: p.cta, flex: 1 }]}
                   >
                     <Text style={[styles.previewPrimaryText, { color: p.ctaText }]}>
                       {selectedEntry.kind === 'oficio'
@@ -959,11 +1013,11 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalFiltros(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalFiltros(false)}>
+        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalFiltros(false)}>
           <Pressable onPress={() => {}} style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>Filtros y capas del mapa</Text>
-              <Pressable onPress={() => setModalFiltros(false)} hitSlop={8}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalFiltros(false)} hitSlop={8}>
                 <Ionicons name="close-circle" size={26} color={colors.gris} />
               </Pressable>
             </View>
@@ -1004,7 +1058,7 @@ export default function MapaBarrio() {
                   selected={mostrarCapaAlertas}
                   onPress={() => setMostrarCapaAlertas((v: boolean) => !v)}
                 />
-                {userLocation ? (
+                {activeUserLocation ? (
                   <Chip
                     label="A menos de 700 m de mí"
                     selected={soloCercanos}
@@ -1081,13 +1135,13 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalLista(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalLista(false)}>
+        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalLista(false)}>
           <Pressable onPress={() => {}} style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>
                 Puntos en el mapa ({filteredItems.length})
               </Text>
-              <Pressable onPress={() => setModalLista(false)} hitSlop={8}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalLista(false)} hitSlop={8}>
                 <Ionicons name="close-circle" size={26} color={colors.gris} />
               </Pressable>
             </View>
@@ -1103,6 +1157,7 @@ export default function MapaBarrio() {
                   const distTxt = formatDistance(entry.distanceMeters);
                   return (
                     <Pressable
+                      accessibilityRole="button"
                       key={entry.id}
                       onPress={() => {
                         setSelectedId(entry.id);
@@ -1141,11 +1196,11 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalPublicar(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalPublicar(false)}>
+        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalPublicar(false)}>
           <Pressable onPress={() => {}} style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>¿Qué deseas publicar en el mapa?</Text>
-              <Pressable onPress={() => setModalPublicar(false)} hitSlop={8}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalPublicar(false)} hitSlop={8}>
                 <Ionicons name="close-circle" size={26} color={colors.gris} />
               </Pressable>
             </View>
@@ -1154,6 +1209,7 @@ export default function MapaBarrio() {
             </Text>
 
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 setModalPublicar(false);
                 router.push('/favores/nuevo?modo=pedir');
@@ -1173,6 +1229,7 @@ export default function MapaBarrio() {
             </Pressable>
 
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 setModalPublicar(false);
                 router.push('/favores/nuevo?modo=ofrecer');
@@ -1196,468 +1253,3 @@ export default function MapaBarrio() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: spacing.xs,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  titulo: { fontFamily: fonts.bold, fontSize: 24 },
-  sub: { fontFamily: fonts.regular, fontSize: 13, marginTop: 1 },
-  topActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    ...shadow,
-  },
-  topActionText: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.azul },
-
-  loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  loaderText: { fontFamily: fonts.medium, fontSize: 14 },
-
-  mainLayout: {
-    flex: 1,
-    marginBottom: spacing.sm,
-  },
-  mainLayoutWide: {
-    flexDirection: 'row',
-    gap: 14,
-  },
-  sidePanel: {
-    width: 340,
-    backgroundColor: colors.blanco,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 12,
-    ...shadow,
-  },
-  sidePanelSearchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
-  },
-  sideCapasRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 10,
-  },
-  capaChip: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-  },
-  capaChipIdle: {
-    backgroundColor: colors.fondo,
-    borderColor: '#EAE3D8',
-  },
-  capaChipActiveGreen: {
-    backgroundColor: colors.verdeExito,
-    borderColor: colors.verdeExito,
-  },
-  capaChipActiveRed: {
-    backgroundColor: colors.rojo,
-    borderColor: colors.rojo,
-  },
-  capaChipText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-  },
-  sideListScroll: {
-    flex: 1,
-  },
-  emptySideBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xl,
-    gap: 8,
-  },
-  sideCard: {
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    padding: 11,
-    marginBottom: 8,
-  },
-  sideCardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  distBadgeText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 11,
-  },
-
-  mapContainer: {
-    flex: 1,
-    position: 'relative',
-    borderRadius: 18,
-    overflow: 'hidden',
-  },
-
-  floatingTop: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
-    zIndex: 20,
-    gap: 8,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  searchBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.96)',
-    borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    height: 44,
-    borderWidth: 1,
-    ...shadow,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    paddingVertical: 0,
-  },
-  filterFloatingBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    ...shadow,
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: -3,
-    right: -3,
-    backgroundColor: colors.naranja,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterBadgeText: {
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    color: colors.azul,
-  },
-
-  floatingPills: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingRight: 8,
-  },
-  pillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: radius.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderWidth: 1,
-    ...shadow,
-  },
-  pillBtnIdle: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderColor: '#EAE3D8',
-  },
-  pillBtnActiveAll: {
-    backgroundColor: colors.azul,
-    borderColor: colors.azul,
-  },
-  pillBtnActivePedir: {
-    backgroundColor: colors.azul,
-    borderColor: colors.azul,
-  },
-  pillBtnActiveOfrecer: {
-    backgroundColor: colors.naranja,
-    borderColor: colors.naranja,
-  },
-  pillBtnActiveOficio: {
-    backgroundColor: colors.verdeExito,
-    borderColor: colors.verdeExito,
-  },
-  pillBtnActiveTag: {
-    backgroundColor: colors.naranjaSuave,
-    borderColor: colors.naranja,
-  },
-  pillText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 13,
-  },
-  dot: { width: 9, height: 9, borderRadius: 5 },
-
-  floatingSide: {
-    position: 'absolute',
-    right: 10,
-    top: 106,
-    zIndex: 20,
-    gap: 8,
-  },
-  sideBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#EAE3D8',
-    ...shadow,
-  },
-
-  previewCard: {
-    position: 'absolute',
-    left: 10,
-    right: 10,
-    bottom: 10,
-    zIndex: 30,
-    backgroundColor: colors.blanco,
-    borderRadius: radius.lg,
-    padding: 13,
-    borderWidth: 1,
-    borderColor: '#EAE3D8',
-    ...shadow,
-  },
-  previewCardWide: {
-    maxWidth: 460,
-    left: 14,
-    right: 'auto',
-  },
-  previewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 8,
-  },
-  previewKindBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-  },
-  previewKindText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-  },
-  distancePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: colors.fondo,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-  },
-  distancePillText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 11,
-    color: colors.azul,
-  },
-  previewNavGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    marginLeft: 'auto',
-  },
-  navIconBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.fondo,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navCounter: {
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-    paddingHorizontal: 4,
-  },
-  previewBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  previewIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previewCategory: {
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-  },
-  previewTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-    lineHeight: 21,
-    marginTop: 1,
-  },
-  previewMeta: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  previewActions: {
-    marginTop: 10,
-  },
-  previewPrimaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    borderRadius: radius.md,
-  },
-  previewPrimaryText: {
-    fontFamily: fonts.bold,
-    fontSize: 14,
-  },
-
-  aviso: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: spacing.md },
-  avisoTexto: { fontFamily: fonts.semiBold, fontSize: 15, textDecorationLine: 'underline' },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(19, 46, 102, 0.48)',
-    justifyContent: 'center',
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  floatingSheet: {
-    width: '100%',
-    maxWidth: 520,
-    backgroundColor: colors.blanco,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    maxHeight: '85%',
-    ...shadow,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  sheetTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 20,
-    flex: 1,
-  },
-  filterSectionTitle: {
-    fontFamily: fonts.semiBold,
-    fontSize: 15,
-    marginTop: spacing.sm,
-    marginBottom: 8,
-  },
-  chipWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  sheetFooter: {
-    marginTop: spacing.md,
-  },
-
-  emptyListText: {
-    fontFamily: fonts.regular,
-    fontSize: 15,
-    textAlign: 'center',
-    paddingVertical: spacing.md,
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  listDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  listKind: {
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-  },
-  listTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    marginTop: 2,
-  },
-  listAuthor: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    marginTop: 2,
-  },
-
-  publishSub: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: spacing.md,
-  },
-  publishOptionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1.5,
-    borderRadius: radius.lg,
-    padding: 14,
-    marginBottom: 10,
-  },
-  publishIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  publishOptionTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-  },
-  publishOptionDesc: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 2,
-  },
-});
-
-

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -15,10 +15,11 @@ import { ProfessionalCard } from '@/components/ProfessionalCard';
 import { Screen } from '@/components/Screen';
 import { SkeletonOficios } from '@/components/SkeletonOficios';
 import { usePalette } from '@/hooks/usePalette';
-import { useProfiles } from '@/hooks/useData';
+import { useMySavedLocation, useProfiles } from '@/hooks/useData';
 import { oficioLabel } from '@/i18n/labels';
 import type { OficioCategory } from '@/types';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
+import { distanceMetersBetween } from '@/utils/geo';
 
 const categorias = Object.keys(oficioLabel) as OficioCategory[];
 const ITEMS_PER_PAGE = 6;
@@ -27,20 +28,35 @@ export default function Oficios() {
   const p = usePalette();
   const [filtro, setFiltro] = useState<OficioCategory | undefined>(undefined);
   const [busqueda, setBusqueda] = useState('');
+  const [ordenCercania, setOrdenCercania] = useState(false);
   const [pagina, setPagina] = useState(1);
 
+  const { data: savedLocation } = useMySavedLocation();
   const { data, isLoading, isError, error, refetch, isRefetching } = useProfiles(
     filtro,
     busqueda
   );
 
-  const listaCompleta = data ?? [];
-  const totalItems = listaCompleta.length;
+  const listaConDistancia = useMemo(() => {
+    const base = (data ?? []).map((prof) => {
+      const distanceMeters =
+        savedLocation && prof.location
+          ? distanceMetersBetween({ lat: savedLocation.lat, lng: savedLocation.lng }, prof.location)
+          : null;
+      return { prof, distanceMeters };
+    });
+    if (ordenCercania && savedLocation) {
+      return [...base].sort((a, b) => (a.distanceMeters ?? 999999) - (b.distanceMeters ?? 999999));
+    }
+    return base;
+  }, [data, savedLocation, ordenCercania]);
+
+  const totalItems = listaConDistancia.length;
   const totalPaginas = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
   const paginaActual = Math.min(pagina, totalPaginas);
 
   const inicioIdx = (paginaActual - 1) * ITEMS_PER_PAGE;
-  const itemsPaginados = listaCompleta.slice(inicioIdx, inicioIdx + ITEMS_PER_PAGE);
+  const itemsPaginados = listaConDistancia.slice(inicioIdx, inicioIdx + ITEMS_PER_PAGE);
 
   const handleCambioFiltro = (nuevoFiltro: OficioCategory | undefined) => {
     setFiltro(nuevoFiltro);
@@ -74,24 +90,52 @@ export default function Oficios() {
         </View>
       </View>
 
-      {/* Barra de búsqueda */}
-      <View style={[styles.searchBox, { borderColor: p.border }]}>
-        <Ionicons name="search-outline" size={18} color={colors.gris} style={styles.searchIcon} />
-        <TextInput
-          value={busqueda}
-          onChangeText={handleCambioBusqueda}
-          placeholder="Buscar oficio o técnico..."
-          placeholderTextColor={colors.gris}
-          style={[styles.searchInput, { color: p.text }]}
-        />
-        {busqueda.length > 0 ? (
+      {/* Barra de búsqueda + botón de ordenar por cercanía */}
+      <View style={styles.searchRow}>
+        <View style={[styles.searchBox, { borderColor: p.border, flex: 1 }]}>
+          <Ionicons name="search-outline" size={18} color={colors.gris} style={styles.searchIcon} />
+          <TextInput
+            value={busqueda}
+            onChangeText={handleCambioBusqueda}
+            placeholder="Buscar oficio o técnico..."
+            placeholderTextColor={colors.gris}
+            style={[styles.searchInput, { color: p.text }]}
+          />
+          {busqueda.length > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Limpiar búsqueda"
+              onPress={() => handleCambioBusqueda('')}
+              style={styles.clearBtn}
+            >
+              <Ionicons name="close-circle" size={18} color={colors.gris} />
+            </Pressable>
+          ) : null}
+        </View>
+        {savedLocation ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Limpiar búsqueda"
-            onPress={() => handleCambioBusqueda('')}
-            style={styles.clearBtn}
+            accessibilityLabel="Ordenar por más cercanos"
+            onPress={() => {
+              setOrdenCercania((v) => !v);
+              setPagina(1);
+            }}
+            style={[
+              styles.nearBtn,
+              {
+                backgroundColor: ordenCercania ? colors.azul : colors.blanco,
+                borderColor: ordenCercania ? colors.azul : p.border,
+              },
+            ]}
           >
-            <Ionicons name="close-circle" size={18} color={colors.gris} />
+            <Ionicons
+              name="navigate-outline"
+              size={15}
+              color={ordenCercania ? colors.blanco : colors.azul}
+            />
+            <Text style={[styles.nearBtnText, { color: ordenCercania ? colors.blanco : colors.azul }]}>
+              Cercanos
+            </Text>
           </Pressable>
         ) : null}
       </View>
@@ -120,13 +164,14 @@ export default function Oficios() {
       ) : (
         <FlatList
           data={itemsPaginados}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.prof.id}
           refreshing={isRefetching}
           onRefresh={refetch}
           renderItem={({ item }) => (
             <ProfessionalCard
-              profile={item}
-              onPress={() => router.push(`/oficio/${item.id}`)}
+              profile={item.prof}
+              distanceMeters={item.distanceMeters}
+              onPress={() => router.push(`/oficio/${item.prof.id}`)}
             />
           )}
           ListEmptyComponent={
@@ -170,6 +215,7 @@ export default function Oficios() {
             totalPaginas > 1 ? (
               <View style={styles.paginationRow}>
                 <Pressable
+                  accessibilityRole="button"
                   disabled={paginaActual === 1}
                   onPress={() => setPagina((p) => Math.max(1, p - 1))}
                   style={[
@@ -188,6 +234,7 @@ export default function Oficios() {
                 </Text>
 
                 <Pressable
+                  accessibilityRole="button"
                   disabled={paginaActual === totalPaginas}
                   onPress={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
                   style={[
@@ -242,6 +289,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     color: colors.verdeExito,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: spacing.xs,
+  },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -250,7 +303,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: 12,
     height: 46,
-    marginVertical: spacing.xs,
+  },
+  nearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 46,
+    paddingHorizontal: 12,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+  },
+  nearBtnText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 13,
   },
   searchIcon: {
     marginRight: 8,

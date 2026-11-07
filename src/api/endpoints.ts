@@ -1,6 +1,7 @@
 import { api } from './client';
 import type {
   FavorType,
+  FavorIntent,
   FavorUrgency,
   ModerationStatus,
   OficioCategory,
@@ -61,14 +62,15 @@ export interface BackendFavor {
   description: string | null;
   status: 'abierta' | 'en_curso' | 'cerrada' | 'cancelada';
   client_id: string;
-  sync_status: 'pendiente' | 'enviado' | 'error';
   created_at: string;
   urgency: FavorUrgency;
+  intent?: FavorIntent;
   moderation_status: ModerationStatus;
   moderation_reason?: string | null;
   // Solo vienen en GET /favors/:id.
   can_edit?: boolean;
   is_deactivated?: boolean;
+  assigned_to_user_id?: string | null;
   location_lat?: number | null;
   location_lng?: number | null;
   author?: {
@@ -77,6 +79,8 @@ export interface BackendFavor {
     avatar_url: string | null;
   } | null;
   interests?: { id: string; user_id: string }[];
+  // Solo en GET /favors/:id: el backend ya no manda los datos de los demas interesados.
+  interested_count?: number;
 }
 
 export interface BackendEmergencyState {
@@ -164,6 +168,20 @@ export interface UpsertProfilePayload {
 export const upsertProfile = (payload: UpsertProfilePayload) =>
   api.post<BackendProfile>('/profiles', payload);
 
+export interface SuggestDescriptionPayload {
+  category: OficioCategory;
+  oficio_name?: string;
+  years_experience?: number;
+  notes?: string;
+}
+
+// Borrador de descripción generado con IA en el backend; el vecino lo edita antes de guardar.
+export const suggestProfileDescription = (payload: SuggestDescriptionPayload) =>
+  api.post<{ description: string }>('/profiles/suggest-description', payload);
+
+export const deleteProfile = (id: string) =>
+  api.delete<{ id: string }>(`/profiles/${id}`);
+
 // =====================================================================
 // ============================================================================
 // FAVORES
@@ -195,6 +213,7 @@ export interface CreateFavorPayload {
   title: string;
   description?: string | null;
   urgency: FavorUrgency;
+  intent?: FavorIntent;
 }
 
 export const createFavor = (payload: CreateFavorPayload) =>
@@ -202,9 +221,11 @@ export const createFavor = (payload: CreateFavorPayload) =>
 
 // El backend no admite cambiar urgency en PATCH: solo contenido.
 export interface UpdateFavorPayload {
-  type: FavorType;
-  title: string;
-  description: string | null;
+  type?: FavorType;
+  title?: string;
+  description?: string | null;
+  status?: 'abierta' | 'en_curso' | 'cerrada' | 'cancelada';
+  assigned_to_user_id?: string | null;
 }
 
 export const updateFavor = (id: string, payload: UpdateFavorPayload) =>
@@ -215,6 +236,9 @@ export const deleteFavor = (id: string) => api.delete<BackendFavor>(`/favors/${i
 // El backend abre la conversación con el autor al responder y devuelve su id.
 export const expressInterest = (favorId: string, message?: string) =>
   api.post<{ conversation_id: string }>(`/favors/${favorId}/interest`, { message: message ?? null });
+
+export const reportFavor = (favorId: string, reason: string) =>
+  api.post<{ hidden: boolean }>(`/favors/${favorId}/report`, { reason });
 
 // =====================================================================
 // ============================================================================
@@ -310,33 +334,6 @@ export const unblockConversationUser = (conversationId: string) =>
 export const reportConversationUser = (conversationId: string, reason: ReportReason, details?: string) =>
   api.post<unknown>(`/conversations/${conversationId}/report`, { reason, details: details ?? null });
 
-// ============================================================================
-// ADMINISTRACIÓN
-// =====================================================================
-// ============================================================================
-
-// limit y offset explícitos: el handler hace Number(req.query.limit).
-export const listPendingFavors = (limit: number, offset = 0) =>
-  api.get<BackendFavor[]>(`/admin/favors/pending?limit=${limit}&offset=${offset}`);
-
-export interface BackendUserReport {
-  id: string;
-  reason: ReportReason;
-  details: string | null;
-  created_at: string;
-  reporter: { id: string; full_name: string };
-  target: { id: string; full_name: string } | null;
-}
-
-export const listUserReports = (limit: number, offset = 0) =>
-  api.get<BackendUserReport[]>(`/admin/reports?limit=${limit}&offset=${offset}`);
-
-export const approveFavor = (id: string) => api.patch<BackendFavor>(`/admin/favors/${id}/approve`);
-
-export const rejectFavor = (id: string, reason: string) =>
-  api.patch<BackendFavor>(`/admin/favors/${id}/reject`, { reason });
-
-// =====================================================================
 // ============================================================================
 // EMERGENCIA
 // =====================================================================

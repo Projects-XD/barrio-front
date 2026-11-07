@@ -5,7 +5,6 @@ declare global {
     interface Request {
       user?: User;
       token?: string;
-      adminZoneId?: string;
     }
   }
 }

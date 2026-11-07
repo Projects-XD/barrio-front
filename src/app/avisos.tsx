@@ -1,7 +1,6 @@
-import { useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
@@ -52,13 +51,6 @@ export default function Avisos() {
   const p = usePalette();
   const { data, isLoading, isError, refetch } = useNotifications();
   const markRead = useMarkNotificationRead();
-
-  // Al volver a la pestaña se actualiza la lista; no hay tiempo real.
-  useFocusEffect(
-    useCallback(() => {
-      void refetch();
-    }, [refetch]),
-  );
 
   const abrir = (n: BackendNotification) => {
     if (!n.read_at) markRead.mutate(n.id);

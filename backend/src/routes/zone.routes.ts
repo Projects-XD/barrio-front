@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { supabaseAdmin } from '../config/supabase';
-import { AppError } from '../middlewares/errorHandler';
+import { dbError } from '../middlewares/errorHandler';
 
 const router = Router();
 
@@ -24,7 +24,7 @@ router.get('/', async (_req, res, next) => {
       .order('name');
 
     if (error) {
-      throw new AppError(`Error al consultar zonas: ${error.message}`, 400);
+      throw dbError('Error al consultar zonas', error);
     }
 
     res.json({ success: true, data: data ?? [], code: 200 });

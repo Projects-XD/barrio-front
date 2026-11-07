@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { AppButton } from '@/components/AppButton';
 import { Chip } from '@/components/Chip';
@@ -19,20 +20,34 @@ import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
-import { useMyProfiles, useProfile, useUpsertMyProfile, useVouch } from '@/hooks/useData';
+import {
+  useDeleteProfile,
+  useMyProfiles,
+  useMySavedLocation,
+  useProfile,
+  useUpsertMyProfile,
+  useVouch,
+} from '@/hooks/useData';
 import type { OficioCategory } from '@/types';
 import { useAppStore } from '@/store/app-store';
 import { oficioLabel } from '@/i18n/labels';
 import { colors, fonts, radius, spacing } from '@/theme';
+import { distanceMetersBetween } from '@/utils/geo';
+import { shareOficioWhatsApp } from '@/utils/share';
 
 export default function OficioDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
   const { data: profile, isLoading, refetch } = useProfile(id);
   const { data: misOficios = [] } = useMyProfiles();
+  const { data: savedLocation } = useMySavedLocation();
   const upsert = useUpsertMyProfile();
+  const deleteProfile = useDeleteProfile();
   const [editando, setEditando] = useState(false);
   const [modoNuevo, setModoNuevo] = useState(false);
+  const [menuOpciones, setMenuOpciones] = useState(false);
+  const [confirmandoBaja, setConfirmandoBaja] = useState(false);
+  const [modalExito, setModalExito] = useState(false);
   const [categoria, setCategoria] = useState<OficioCategory>('otro');
   const [otroOficio, setOtroOficio] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -51,9 +66,9 @@ export default function OficioDetalle() {
         '¡Visto Bueno Registrado!',
         `Has respaldado exitosamente el trabajo de ${profile.user.fullName}. Tu confianza ayuda a mantener seguro el barrio.`
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMsg =
-        err?.message ||
+        (err instanceof Error && err.message) ||
         'No se pudo registrar el visto bueno. Recuerda que solo vecinos de la misma zona pueden validar un perfil.';
       Alert.alert('No se pudo otorgar el visto bueno', errorMsg);
     }
@@ -100,14 +115,21 @@ export default function OficioDetalle() {
       {
         onSuccess: () => {
           setEditando(false);
-          if (modoNuevo) {
-            router.replace('/(tabs)/perfil');
-          } else {
-            refetch();
-          }
+          refetch();
+          setModalExito(true);
         },
       }
     );
+  };
+
+  const confirmarEliminacion = () => {
+    if (!profile || deleteProfile.isPending) return;
+    deleteProfile.mutate(profile.id, {
+      onSuccess: () => {
+        setConfirmandoBaja(false);
+        router.navigate('/(tabs)/perfil');
+      },
+    });
   };
 
   if (isLoading) {
@@ -138,14 +160,26 @@ export default function OficioDetalle() {
     });
   };
 
+  const distMeters =
+    savedLocation && profile.location
+      ? distanceMetersBetween({ lat: savedLocation.lat, lng: savedLocation.lng }, profile.location)
+      : null;
+
   const stats = [
     {
       value: `${profile.validatedCount}`,
       label: profile.validatedCount === 1 ? 'Aval vecinal' : 'Avales vecinales',
     },
-    ...(profile.distanceKm !== undefined
-      ? [{ value: `${profile.distanceKm} km`, label: 'En tu zona' }]
-      : []),
+    ...(distMeters != null
+      ? [
+          {
+            value: distMeters < 1000 ? `${Math.max(40, Math.round(distMeters / 10) * 10)} m` : `${(distMeters / 1000).toFixed(1)} km`,
+            label: 'De tu ubicación',
+          },
+        ]
+      : profile.distanceKm !== undefined
+        ? [{ value: `${profile.distanceKm} km`, label: 'En tu zona' }]
+        : []),
     ...(profile.yearsExperience
       ? [{ value: `${profile.yearsExperience} años`, label: 'Experiencia' }]
       : []),
@@ -153,11 +187,25 @@ export default function OficioDetalle() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: 'Detalle de oficio', headerBackTitle: 'Volver' }} />
+      <Stack.Screen
+        options={{
+          title: 'Detalle de oficio',
+          headerBackTitle: 'Volver',
+        }}
+      />
 
       {/* Tarjeta principal con jerarquía limpia */}
       <Card>
         <View style={styles.headerInfo}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Opciones del oficio"
+            hitSlop={10}
+            onPress={() => setMenuOpciones(true)}
+            style={styles.cardMenuTrigger}
+          >
+            <Ionicons name="ellipsis-vertical" size={18} color={colors.azul} />
+          </Pressable>
           <Text style={[styles.nombre, { color: p.text }]}>{profile.user.fullName}</Text>
           <Text style={styles.oficio}>{oficioLabel[profile.oficio.category]}</Text>
         </View>
@@ -193,10 +241,12 @@ export default function OficioDetalle() {
       {/* Botones de acción con lógica para el propio técnico */}
       <View style={styles.actionButtons}>
         {esMio ? (
-          <>
-            <AppButton label="Editar mi oficio" variant="accent" onPress={() => abrirEdicion(false)} />
-            <AppButton label="Agregar otro oficio" variant="secondary" onPress={() => abrirEdicion(true)} />
-          </>
+          <AppButton
+            label="Ir a mi perfil"
+            variant="secondary"
+            icon="person-outline"
+            onPress={() => router.navigate('/(tabs)/perfil')}
+          />
         ) : (
           <>
             <AppButton
@@ -222,13 +272,23 @@ export default function OficioDetalle() {
 
       {/* Formulario para editar mi oficio sin salir de esta pantalla */}
       <Modal visible={editando} transparent animationType="fade" onRequestClose={() => setEditando(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setEditando(false)}>
-          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco, maxHeight: '85%' }]}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={[styles.modalTitle, { color: colors.azul }]}>
+        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setEditando(false)}>
+          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco, maxHeight: '88%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={[styles.modalTitle, { color: colors.azul, flex: 1, textAlign: 'left', marginBottom: 0 }]}>
                 {modoNuevo ? 'Agregar otro oficio' : 'Editar mi oficio'}
               </Text>
-
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancelar y cerrar"
+                onPress={() => setEditando(false)}
+                hitSlop={10}
+                style={styles.modalCloseBtn}
+              >
+                <Ionicons name="close" size={20} color={colors.gris} />
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={styles.campoLabel}>Tipo de oficio</Text>
               <View style={styles.chipsWrap}>
                 {(Object.keys(oficioLabel) as OficioCategory[]).map((c) => (
@@ -276,7 +336,12 @@ export default function OficioDetalle() {
                   onPress={guardarEdicion}
                   disabled={upsert.isPending}
                 />
-                <AppButton label="Cancelar" variant="link" onPress={() => setEditando(false)} />
+                <AppButton
+                  label="Cancelar"
+                  variant="secondary"
+                  disabled={upsert.isPending}
+                  onPress={() => setEditando(false)}
+                />
               </View>
             </ScrollView>
           </Pressable>
@@ -290,7 +355,7 @@ export default function OficioDetalle() {
         animationType="fade"
         onRequestClose={() => setShowContactModal(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowContactModal(false)}>
+        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setShowContactModal(false)}>
           <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>Contactar a {profile.user.fullName}</Text>
             <Text style={[styles.modalSubtitle, { color: p.muted }]}>
@@ -310,6 +375,143 @@ export default function OficioDetalle() {
                 onPress={() => setShowContactModal(false)}
               />
             </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Menú contextual (⋮) de opciones del oficio */}
+      <Modal
+        visible={menuOpciones}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpciones(false)}
+      >
+        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setMenuOpciones(false)}>
+          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+            <Text style={[styles.modalTitle, { color: p.text }]}>{oficioLabel[profile.oficio.category]}</Text>
+            <Text style={[styles.modalSubtitle, { color: p.muted }]}>
+              {esMio ? 'Opciones de tu oficio' : 'Opciones del oficio'}
+            </Text>
+
+            {esMio ? (
+              <>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setMenuOpciones(false);
+                abrirEdicion(false);
+              }}
+              style={styles.contextActionRow}
+            >
+              <Ionicons name="create-outline" size={20} color={colors.azul} />
+              <Text style={[styles.contextActionText, { color: p.text }]}>Editar este oficio</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setMenuOpciones(false);
+                deleteProfile.reset();
+                setConfirmandoBaja(true);
+              }}
+              style={styles.contextActionRow}
+            >
+              <Ionicons name="trash-outline" size={20} color={colors.rojo} />
+              <Text style={[styles.contextActionText, { color: colors.rojo }]}>Eliminar este oficio</Text>
+            </Pressable>
+              </>
+            ) : null}
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setMenuOpciones(false);
+                shareOficioWhatsApp(profile);
+              }}
+              style={styles.contextActionRow}
+            >
+              <Ionicons name="logo-whatsapp" size={20} color={colors.azul} />
+              <Text style={[styles.contextActionText, { color: p.text }]}>
+                {esMio ? 'Compartir mi oficio en WhatsApp' : 'Recomendar en WhatsApp del barrio'}
+              </Text>
+            </Pressable>
+
+            <View style={{ marginTop: spacing.xs }}>
+              <AppButton label="Cancelar" variant="secondary" onPress={() => setMenuOpciones(false)} />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal para confirmar eliminación de oficio */}
+      <Modal
+        visible={confirmandoBaja}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmandoBaja(false)}
+      >
+        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setConfirmandoBaja(false)}>
+          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+            <Text style={[styles.modalTitle, { color: p.text }]}>¿Eliminar este oficio?</Text>
+            <Text style={[styles.modalSubtitle, { color: p.muted }]}>
+              Se quitará {oficioLabel[profile.oficio.category]} de tu perfil y del directorio del barrio.
+            </Text>
+            {deleteProfile.error ? (
+              <Text style={styles.errorTexto}>
+                No se pudo eliminar: {(deleteProfile.error as Error).message}
+              </Text>
+            ) : null}
+            <View style={styles.modalButtonsStack}>
+              <AppButton
+                label={deleteProfile.isPending ? 'Eliminando...' : 'Sí, eliminar oficio'}
+                variant="danger"
+                icon="trash-outline"
+                disabled={deleteProfile.isPending}
+                onPress={confirmarEliminacion}
+              />
+              <AppButton
+                label="Cancelar"
+                variant="secondary"
+                disabled={deleteProfile.isPending}
+                onPress={() => setConfirmandoBaja(false)}
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal de éxito tras guardar oficio */}
+      <Modal
+        visible={modalExito}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setModalExito(false);
+          router.navigate('/(tabs)/perfil');
+        }}
+      >
+        <Pressable
+          accessibilityRole="button"
+          style={styles.modalOverlay}
+          onPress={() => {
+            setModalExito(false);
+            router.navigate('/(tabs)/perfil');
+          }}
+        >
+          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+            <Text style={[styles.modalTitle, { color: p.text }]}>¡Oficio guardado!</Text>
+            <Text style={[styles.modalSubtitle, { color: p.muted }]}>
+              Los datos de tu oficio se actualizaron correctamente en el barrio.
+            </Text>
+            <AppButton
+              label="Ir a mi perfil"
+              variant="accent"
+              icon="person-outline"
+              onPress={() => {
+                setModalExito(false);
+                router.navigate('/(tabs)/perfil');
+              }}
+            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -338,6 +540,30 @@ const styles = StyleSheet.create({
   headerInfo: {
     alignItems: 'center',
     marginBottom: spacing.md,
+    position: 'relative',
+  },
+  cardMenuTrigger: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.fondo,
+  },
+  contextActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: radius.md,
+  },
+  contextActionText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
   },
   nombre: {
     fontSize: 22,
@@ -430,6 +656,20 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.lg,
     maxWidth: 400,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.fondo,
   },
   modalTitle: {
     fontSize: 18,

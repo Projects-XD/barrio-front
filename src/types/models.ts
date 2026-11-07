@@ -55,11 +55,13 @@ export interface Favor {
   syncStatus: E.SyncStatus;
   location?: { lat: number; lng: number } | null;
   urgency: E.FavorUrgency;
+  intent: E.FavorIntent;
   moderationStatus: E.ModerationStatus;
   moderationReason: string | null;
   // Solo GET /favors/:id los calcula; en los listados quedan en false.
   canEdit: boolean;
   isDeactivated: boolean;
+  assignedToUserId?: string | null;
 }
 
 export interface SupportService {

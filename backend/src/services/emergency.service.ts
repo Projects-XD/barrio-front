@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables } from '../types/database.types';
-import { AppError } from '../middlewares/errorHandler';
+import { AppError, dbError } from '../middlewares/errorHandler';
 import type {
   ActivateEmergencyDTO,
   DeactivateEmergencyDTO,
@@ -66,7 +66,7 @@ export class EmergencyService {
       .single();
 
     if (error) {
-      throw new AppError(`Error al activar estado de emergencia: ${error.message}`, 400);
+      throw dbError('Error al activar estado de emergencia', error);
     }
 
     return data;
@@ -114,7 +114,7 @@ export class EmergencyService {
       .single();
 
     if (error) {
-      throw new AppError(`Error al desactivar estado de emergencia: ${error.message}`, 400);
+      throw dbError('Error al desactivar estado de emergencia', error);
     }
 
     return data;
@@ -163,7 +163,7 @@ export class EmergencyService {
       .single();
 
     if (error) {
-      throw new AppError(`Error al crear reporte de vulnerabilidad: ${error.message}`, 400);
+      throw dbError('Error al crear reporte de vulnerabilidad', error);
     }
 
     // REGLA DE PRIVACIDAD: Si el reporte es anónimo, nunca devolver reporter_user_id
@@ -197,7 +197,7 @@ export class EmergencyService {
       .order('created_at', { ascending: false });
 
     if (error) {
-      throw new AppError(`Error al consultar reportes de emergencia: ${error.message}`, 400);
+      throw dbError('Error al consultar reportes de emergencia', error);
     }
 
     // REGLA DE PRIVACIDAD: Sanitización estricta para reportes anónimos
@@ -220,17 +220,17 @@ export class EmergencyService {
   public async getEmergencyState(
     supabase: SupabaseClient<Database>,
     zoneId: string
-  ): Promise<Tables<'emergency_states'> | null> {
+  ): Promise<Pick<Tables<'emergency_states'>, 'id' | 'zone_id' | 'status' | 'reason' | 'activated_at' | 'deactivated_at'> | null> {
     const { data, error } = await supabase
       .from('emergency_states')
-      .select('*')
+      .select('id, zone_id, status, reason, activated_at, deactivated_at')
       .eq('zone_id', zoneId)
       .order('activated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (error) {
-      throw new AppError(`Error al consultar estado de emergencia: ${error.message}`, 400);
+      throw dbError('Error al consultar estado de emergencia', error);
     }
 
     return data;
@@ -277,7 +277,7 @@ export class EmergencyService {
       .order('name');
 
     if (error) {
-      throw new AppError(`Error al obtener servicios de soporte: ${error.message}`, 400);
+      throw dbError('Error al obtener servicios de soporte', error);
     }
 
     return data || [];

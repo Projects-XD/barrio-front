@@ -1,7 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
+import 'dotenv/config';
 
-const url = 'https://dsmecsgrvyhjiavjswxn.supabase.co';
-const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzbWVjc2dydnloamlhdmpzd3huIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NDAzNjkxMCwiZXhwIjoyMTA5NjEyOTEwfQ._55vT8HRZDPVL5L_yWxZjCD1GozMbNqumXLuM-QruFk';
+// Las credenciales salen de backend/.env, nunca del codigo.
+const url = process.env.SUPABASE_URL;
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!url || !key) {
+  throw new Error('Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en backend/.env');
+}
 
 const supabase = createClient(url, key, {
   auth: { persistSession: false, autoRefreshToken: false },
