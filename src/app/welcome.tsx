@@ -71,9 +71,14 @@ export default function Welcome() {
   const imageHeight = Math.min(Math.max(height * 0.38, 220), 320);
 
   // Animación del carrusel completo
-  const animX = useRef(new Animated.Value(0)).current;
+  // Los valores animados y los refs no se leen durante el render: se crean una vez y se actualizan en efectos.
+  const [animX] = useState(() => new Animated.Value(0));
   const currentIndexRef = useRef(currentIndex);
-  currentIndexRef.current = currentIndex;
+  const goRef = useRef<(index: number) => void>(() => {});
+
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
 
   const goToSlide = (newIndex: number) => {
     if (newIndex < 0 || newIndex >= SLIDES.length) return;
@@ -87,26 +92,35 @@ export default function Welcome() {
   };
 
   useEffect(() => {
-    animX.setValue(-currentIndex * slideWidth);
-  }, [slideWidth]);
+    animX.setValue(-currentIndexRef.current * slideWidth);
+  }, [animX, slideWidth]);
+
+  useEffect(() => {
+    goRef.current = goToSlide;
+  });
 
   // Gestor de deslizamiento con Mouse (PC) y Touch (Celular)
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 12,
-      onPanResponderRelease: (_, gesture) => {
-        const threshold = 45;
-        if (gesture.dx < -threshold && currentIndexRef.current < SLIDES.length - 1) {
-          goToSlide(currentIndexRef.current + 1);
-        } else if (gesture.dx > threshold && currentIndexRef.current > 0) {
-          goToSlide(currentIndexRef.current - 1);
-        } else {
-          goToSlide(currentIndexRef.current);
-        }
-      },
-    })
-  ).current;
+  // El gestor se crea en un efecto (no durante el render) y solo lee refs dentro de sus callbacks.
+  const [panResponder, setPanResponder] = useState<ReturnType<typeof PanResponder.create> | null>(null);
+
+  useEffect(() => {
+    setPanResponder(
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 12,
+        onPanResponderRelease: (_, gesture) => {
+          const threshold = 45;
+          if (gesture.dx < -threshold && currentIndexRef.current < SLIDES.length - 1) {
+            goRef.current(currentIndexRef.current + 1);
+          } else if (gesture.dx > threshold && currentIndexRef.current > 0) {
+            goRef.current(currentIndexRef.current - 1);
+          } else {
+            goRef.current(currentIndexRef.current);
+          }
+        },
+      })
+    );
+  }, []);
 
   const handleNext = () => {
     if (isLast) {
@@ -135,7 +149,7 @@ export default function Welcome() {
         </SafeAreaView>
 
         {/* Viewport del Carrusel */}
-        <View style={styles.sliderViewport} {...panResponder.panHandlers}>
+        <View style={styles.sliderViewport} {...(panResponder?.panHandlers ?? {})}>
           <Animated.View
             style={[
               styles.sliderTrack,
