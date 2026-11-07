@@ -5,7 +5,7 @@ import type {
   FavorType,
   ReportReason,
 } from '../types/database.types';
-import { AppError } from '../middlewares/errorHandler';
+import { AppError, dbError } from '../middlewares/errorHandler';
 import type { CreateFavorDTO, UpdateFavorDTO, CreateFavorInterestDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
 
@@ -15,6 +15,9 @@ const DAILY_LIMIT_ENABLED = false;
 const DAILY_FAVOR_LIMIT_BASE = 5;
 const DAILY_FAVOR_LIMIT_TRUSTED = 15;
 const TRUSTED_REPUTATION_THRESHOLD = 3;
+// Lo que usa la app en las listas; el detalle (GET /favors/:id) sigue trayendo la fila completa.
+const FAVOR_LIST_COLUMNS =
+  'id, author_id, zone_id, type, title, description, status, client_id, created_at, urgency, intent, moderation_status, moderation_reason, assigned_to_user_id, location_lat, location_lng';
 
 const isWithinEditWindow = (createdAt: string) =>
   Date.now() - new Date(createdAt).getTime() <= EDIT_WINDOW_MS;
@@ -55,7 +58,7 @@ export class FavorService {
 
     let query = supabase
       .from('favors')
-      .select('*, author:users!favors_author_id_fkey(id, full_name, avatar_url)')
+      .select(`${FAVOR_LIST_COLUMNS}, author:users!favors_author_id_fkey(id, full_name, avatar_url)`)
       .eq('zone_id', zoneId)
       .in('status', ['abierta', 'en_curso'])
       .is('deleted_at', null)
@@ -75,7 +78,7 @@ export class FavorService {
 
     const { data, error } = await query;
     if (error) {
-      throw new AppError(`Error al consultar favores: ${error.message}`, 400);
+      throw dbError('Error al consultar favores', error);
     }
 
     return (data as unknown as Tables<'favors'>[]) || [];
@@ -104,7 +107,7 @@ export class FavorService {
       .single();
 
     // Solo "0 filas" (PGRST116) e "ID no es UUID" (22P02) significan que no existe.
-    if (error && error.code !== 'PGRST116' && error.code !== '22P02') throw new AppError(`Error al consultar el favor: ${error.message}`, 500);
+    if (error && error.code !== 'PGRST116' && error.code !== '22P02') throw dbError('Error al consultar el favor', error, 500);
     if (!data) throw new AppError('Favor no encontrado', 404);
 
     if (data.author_id !== userId && data.zone_id !== (await resolveUserZone(supabase, userId))) {
@@ -212,6 +215,7 @@ export class FavorService {
         status: 'abierta',
         sync_status: 'enviado',
         urgency: dto.urgency,
+        intent: dto.intent,
         moderation_status: 'aprobado',
       })
       .select()
@@ -227,7 +231,7 @@ export class FavorService {
           .single();
         if (duplicate) return duplicate;
       }
-      throw new AppError(`Error al crear el favor: ${error.message}`, 400);
+      throw dbError('Error al crear el favor', error);
     }
 
     // 4. Registrar evento inicial en favor_events
@@ -298,7 +302,7 @@ export class FavorService {
       if (error.code === '23505') {
         throw new AppError('Ya has manifestado interés previamente en este favor', 409);
       }
-      throw new AppError(`Error al registrar interés en el favor: ${error.message}`, 400);
+      throw dbError('Error al registrar interés en el favor', error);
     }
 
     const created = result?.[0];
@@ -522,7 +526,7 @@ export class FavorService {
       if (insertErr.code === '23505') {
         throw new AppError('Ya reportaste este favor.', 409);
       }
-      throw new AppError(`No se pudo registrar el reporte: ${insertErr.message}`, 400);
+      throw dbError('No se pudo registrar el reporte', insertErr);
     }
 
     // Calcular puntos acumulados de reporte para este favor
@@ -536,14 +540,20 @@ export class FavorService {
       new Set((allReports ?? []).map((r) => r.reporter_user_id))
     );
 
+    const { data: closedFavors } = await supabase
+      .from('favors')
+      .select('author_id')
+      .in('author_id', uniqueReporters)
+      .eq('status', 'cerrada');
+
+    const closedByReporter = new Map<string, number>();
+    for (const { author_id } of closedFavors ?? []) {
+      closedByReporter.set(author_id, (closedByReporter.get(author_id) ?? 0) + 1);
+    }
+
     let totalPoints = 0;
     for (const reporterId of uniqueReporters) {
-      const { count } = await supabase
-        .from('favors')
-        .select('id', { count: 'exact', head: true })
-        .eq('author_id', reporterId)
-        .eq('status', 'cerrada');
-      totalPoints += (count ?? 0) >= TRUSTED_REPUTATION_THRESHOLD ? 2 : 1;
+      totalPoints += (closedByReporter.get(reporterId) ?? 0) >= TRUSTED_REPUTATION_THRESHOLD ? 2 : 1;
     }
 
     let hidden = favor.moderation_status === 'rechazado';

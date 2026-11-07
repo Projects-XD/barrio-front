@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables } from '../types/database.types';
-import { AppError } from '../middlewares/errorHandler';
+import { dbError } from '../middlewares/errorHandler';
 import type { CreateCriticalResourceDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
 
@@ -28,7 +28,7 @@ export class ResourceService {
 
     const { data, error } = await query;
     if (error) {
-      throw new AppError(`Error al consultar recursos: ${error.message}`, 400);
+      throw dbError('Error al consultar recursos', error);
     }
 
     return (data as unknown as Tables<'critical_resources'>[]) || [];
@@ -59,7 +59,7 @@ export class ResourceService {
       .single();
 
     if (error) {
-      throw new AppError(`Error al registrar recurso crítico: ${error.message}`, 400);
+      throw dbError('Error al registrar recurso crítico', error);
     }
 
     return data;

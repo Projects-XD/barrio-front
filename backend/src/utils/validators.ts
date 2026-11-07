@@ -55,6 +55,7 @@ export const favorStatusSchema = z.enum([
 ]);
 
 export const favorUrgencySchema = z.enum(['normal', 'urgente', 'emergencia']);
+export const favorIntentSchema = z.enum(['pedir', 'ofrecer']);
 
 export const syncStatusSchema = z.enum(['pendiente', 'enviado', 'error']);
 
@@ -214,6 +215,8 @@ export const createFavorSchema = z.object({
   location_lng: longitudeSchema.nullable().optional(),
   // Con default, las operaciones offline encoladas antes de este campo siguen siendo válidas.
   urgency: favorUrgencySchema.default('normal'),
+  // Con default, los favores encolados sin este campo se tratan como pedidos.
+  intent: favorIntentSchema.default('pedir'),
 });
 export type CreateFavorDTO = z.infer<typeof createFavorSchema>;
 

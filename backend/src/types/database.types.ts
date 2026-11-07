@@ -30,6 +30,7 @@ export type FavorType =
   | 'otros';
 export type FavorStatus = 'abierta' | 'en_curso' | 'cerrada' | 'cancelada';
 export type FavorUrgency = 'normal' | 'urgente' | 'emergencia';
+export type FavorIntent = 'pedir' | 'ofrecer';
 export type ModerationStatus = 'pendiente' | 'aprobado' | 'rechazado';
 export type SyncStatus = 'pendiente' | 'enviado' | 'error';
 export type EmergencyStatus = 'inactiva' | 'activa';
@@ -338,6 +339,7 @@ export interface Database {
           deleted_at: string | null;
           edited_at: string | null;
           urgency: FavorUrgency;
+          intent: FavorIntent;
           moderation_status: ModerationStatus;
           moderated_by: string | null;
           moderated_at: string | null;
@@ -362,6 +364,7 @@ export interface Database {
           deleted_at?: string | null;
           edited_at?: string | null;
           urgency?: FavorUrgency;
+          intent?: FavorIntent;
           moderation_status?: ModerationStatus;
           moderated_by?: string | null;
           moderated_at?: string | null;
@@ -386,6 +389,7 @@ export interface Database {
           deleted_at?: string | null;
           edited_at?: string | null;
           urgency?: FavorUrgency;
+          intent?: FavorIntent;
           moderation_status?: ModerationStatus;
           moderated_by?: string | null;
           moderated_at?: string | null;

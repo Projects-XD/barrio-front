@@ -1,13 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { logger } from '@/utils/logger';
 
-const DEFAULT_SUPABASE_URL = 'https://qillykstuofvqtkuppig.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpbGx5a3N0dW9mdnF0a3VwcGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5NDAxNDgsImV4cCI6MjEwOTUxNjE0OH0.UgKru6RnJluT7sssjbaxAdasVdwC7cZ5CDDGR6bS59U';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Faltan EXPO_PUBLIC_SUPABASE_URL o EXPO_PUBLIC_SUPABASE_ANON_KEY en el .env. Copia .env.example, completa los valores y reinicia Expo con --clear.');
+}
 
 /**
  * Adaptador de almacenamiento seguro compatible con Expo Native (SecureStore)
@@ -34,12 +36,12 @@ const ExpoSecureStoreAdapter = {
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem(key, value);
         }
-      } catch {}
+      } catch (err) { logger.warn('AUTH_STORAGE', 'No se pudo guardar la sesión en el almacenamiento', err); }
       return;
     }
     try {
       await SecureStore.setItemAsync(key, value);
-    } catch {}
+    } catch (err) { logger.warn('AUTH_STORAGE', 'No se pudo guardar la sesión en el almacenamiento', err); }
   },
   removeItem: async (key: string): Promise<void> => {
     if (Platform.OS === 'web') {
@@ -47,12 +49,12 @@ const ExpoSecureStoreAdapter = {
         if (typeof localStorage !== 'undefined') {
           localStorage.removeItem(key);
         }
-      } catch {}
+      } catch (err) { logger.warn('AUTH_STORAGE', 'No se pudo borrar la sesión del almacenamiento', err); }
       return;
     }
     try {
       await SecureStore.deleteItemAsync(key);
-    } catch {}
+    } catch (err) { logger.warn('AUTH_STORAGE', 'No se pudo borrar la sesión del almacenamiento', err); }
   },
 };
 

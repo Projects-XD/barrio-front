@@ -55,6 +55,7 @@ export interface Favor {
   syncStatus: E.SyncStatus;
   location?: { lat: number; lng: number } | null;
   urgency: E.FavorUrgency;
+  intent: E.FavorIntent;
   moderationStatus: E.ModerationStatus;
   moderationReason: string | null;
   // Solo GET /favors/:id los calcula; en los listados quedan en false.

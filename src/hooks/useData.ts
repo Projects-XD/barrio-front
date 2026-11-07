@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useIsFocused } from 'expo-router';
 import { ApiError } from '@/api/client';
 import {
   blockConversationUser,
@@ -52,6 +53,7 @@ import type {
   CriticalResource,
   Favor,
   FavorType,
+  FavorIntent,
   FavorUrgency,
   OficioCategory,
   ProfessionalProfile,
@@ -62,6 +64,15 @@ import type {
 import { generateUUID } from '@/utils/uuid';
 
 const RESOURCE_TYPES: ResourceType[] = ['agua', 'medicinas', 'generador', 'transporte', 'alimentos', 'otro'];
+
+// Cuánto se confía en la caché antes de volver a pedir. El valor por defecto (30 s) está en queryClient.ts.
+const FRESH_LIVE_MS = 15_000; // favores, chat, avisos y emergencia: otro vecino los cambia sin avisar
+const FRESH_PROFILES_MS = 2 * 60_000;
+const FRESH_SLOW_MS = 5 * 60_000; // solo cambian por acciones del propio vecino, o casi nunca
+const KEEP_LONG_MS = 30 * 60_000; // gcTime de lo que conviene conservar al salir de la pantalla
+const CATALOG = { staleTime: KEEP_LONG_MS, gcTime: 60 * 60_000 }; // zonas y oficios, datos sembrados
+// ponytail: tope de favores activos por zona en mapa e inicio; paginar el mapa si una zona lo supera.
+const FAVORS_LIST_LIMIT = 100; // máximo que acepta GET /favors (validators.ts)
 
 function isNetworkError(error: unknown) {
   return error instanceof ApiError && error.status === 0;
@@ -117,6 +128,7 @@ export function mapBackendFavorToFrontend(bf: BackendFavor, currentUserId?: stri
     location: bf.location_lat != null && bf.location_lng != null ? { lat: bf.location_lat, lng: bf.location_lng } : null,
     syncStatus: 'enviado',
     urgency: bf.urgency,
+    intent: bf.intent ?? 'pedir',
     moderationStatus: bf.moderation_status,
     moderationReason: bf.moderation_reason ?? null,
     canEdit: bf.can_edit ?? false,
@@ -143,6 +155,7 @@ function mapPendingFavor(item: OutboxItem, userId: string | null, userName: stri
     syncStatus: item.attempts > 0 ? 'error' : 'pendiente',
     // Las operaciones encoladas antes de existir este campo no lo traen.
     urgency: (p.urgency as FavorUrgency | undefined) ?? 'normal',
+    intent: (p.intent as FavorIntent | undefined) ?? 'pedir',
     moderationStatus: 'aprobado',
     moderationReason: null,
     canEdit: false,
@@ -192,31 +205,39 @@ function mapResource(r: BackendResource): CriticalResource {
 // =====================================================================// ZONAS
 // =====================================================================
 export function useZones() {
-  return useQuery({ queryKey: ['zones'], queryFn: listZones, staleTime: 5 * 60_000 });
+  return useQuery({ queryKey: ['zones'], queryFn: listZones, ...CATALOG });
 }
 
 // =====================================================================// OFICIOS
 // =====================================================================
+// Todas las pantallas comparten una sola lista por zona; categoría y búsqueda filtran en memoria,
+// así cambiar de filtro o escribir no gasta red.
+const profilesQuery = (zoneId: string | null) => ({
+  queryKey: ['profiles', zoneId],
+  staleTime: FRESH_PROFILES_MS,
+  gcTime: KEEP_LONG_MS,
+  queryFn: async (): Promise<ProfessionalProfile[]> =>
+    (await listProfiles({ zoneId: zoneId! })).map((bp) => mapBackendProfileToFrontend(bp)),
+});
+
 export function useProfiles(category?: OficioCategory, search?: string) {
   const zoneId = useAppStore((s) => s.zoneId);
+  const q = search?.toLowerCase().trim();
 
   return useQuery({
-    queryKey: ['profiles', zoneId, category ?? 'todos', search ?? ''],
+    ...profilesQuery(zoneId),
     enabled: Boolean(zoneId),
-    queryFn: async (): Promise<ProfessionalProfile[]> => {
-      const data = await listProfiles({ zoneId: zoneId!, category });
-      let profiles = data.map((bp) => mapBackendProfileToFrontend(bp));
-      const q = search?.toLowerCase().trim();
-      if (q) {
-        profiles = profiles.filter(
-          (p) =>
-            p.user.fullName.toLowerCase().includes(q) ||
-            p.description.toLowerCase().includes(q) ||
-            p.oficio.name.toLowerCase().includes(q),
-        );
-      }
-      return profiles;
-    },
+    select: (profiles) =>
+      !category && !q
+        ? profiles
+        : profiles.filter(
+            (p) =>
+              (!category || p.oficio.category === category) &&
+              (!q ||
+                p.user.fullName.toLowerCase().includes(q) ||
+                p.description.toLowerCase().includes(q) ||
+                p.oficio.name.toLowerCase().includes(q)),
+          ),
   });
 }
 
@@ -227,13 +248,14 @@ export function useProfile(id: string) {
     queryKey: ['profile', id, userId],
     enabled: Boolean(id),
     queryFn: async (): Promise<ProfessionalProfile | null> => {
-      const bp = await getProfileById(id);
-      let hasVouched = false;
-      if (userId) {
-        hasVouched = await getVouchStatus(id)
-          .then((r) => r.hasVouched)
-          .catch(() => false);
-      }
+      const [bp, hasVouched] = await Promise.all([
+        getProfileById(id),
+        userId
+          ? getVouchStatus(id)
+              .then((r) => r.hasVouched)
+              .catch(() => false)
+          : false,
+      ]);
       return mapBackendProfileToFrontend(bp, hasVouched);
     },
   });
@@ -256,13 +278,9 @@ export function useMyProfile() {
   const userId = useAppStore((s) => s.userId);
 
   return useQuery({
-    queryKey: ['myProfile', zoneId, userId],
+    ...profilesQuery(zoneId),
     enabled: Boolean(zoneId && userId),
-    queryFn: async (): Promise<ProfessionalProfile | null> => {
-      const data = await listProfiles({ zoneId: zoneId! });
-      const mine = data.find((bp) => bp.user_id === userId);
-      return mine ? mapBackendProfileToFrontend(mine) : null;
-    },
+    select: (profiles) => profiles.find((p) => p.userId === userId) ?? null,
   });
 }
 
@@ -310,12 +328,9 @@ export function useMyProfiles() {
   const userId = useAppStore((s) => s.userId);
 
   return useQuery({
-    queryKey: ['myProfile', zoneId, userId, 'all'],
+    ...profilesQuery(zoneId),
     enabled: Boolean(zoneId && userId),
-    queryFn: async (): Promise<ProfessionalProfile[]> => {
-      const data = await listProfiles({ zoneId: zoneId! });
-      return data.filter((bp) => bp.user_id === userId).map((bp) => mapBackendProfileToFrontend(bp));
-    },
+    select: (profiles) => profiles.filter((p) => p.userId === userId),
   });
 }
 
@@ -337,7 +352,7 @@ export function useUpsertMyProfile() {
       const zoneId = useAppStore.getState().zoneId;
       if (!zoneId) throw new Error('Tu cuenta no tiene zona asignada.');
 
-      const oficios = await qc.fetchQuery({ queryKey: ['oficios'], queryFn: listOficios });
+      const oficios = await qc.fetchQuery({ queryKey: ['oficios'], queryFn: listOficios, ...CATALOG });
       const oficio = oficios.find((o) => o.category === input.category);
       if (!oficio) throw new Error('Ese oficio no está disponible en el catálogo.');
 
@@ -351,7 +366,6 @@ export function useUpsertMyProfile() {
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['myProfile'] });
       qc.invalidateQueries({ queryKey: ['profiles'] });
     },
   });
@@ -362,7 +376,6 @@ export function useDeleteProfile() {
   return useMutation({
     mutationFn: (id: string) => deleteProfile(id),
     onSuccess: (_data, id) => {
-      qc.invalidateQueries({ queryKey: ['myProfile'] });
       qc.invalidateQueries({ queryKey: ['profiles'] });
       qc.invalidateQueries({ queryKey: ['profile', id] });
     },
@@ -421,12 +434,15 @@ export async function reverseGeocodeCoords(c: { lat: number; lng: number }): Pro
 }
 
 export function useMySavedLocation() {
+  const qc = useQueryClient();
   const userId = useAppStore((s) => s.userId);
   const zoneId = useAppStore((s) => s.zoneId);
 
   return useQuery({
     queryKey: ['mySavedLocation', userId, zoneId],
     enabled: Boolean(userId),
+    // Solo cambia con useSaveMyLocation, que invalida; incluye un viaje a Auth y a Nominatim.
+    staleTime: FRESH_SLOW_MS,
     queryFn: async (): Promise<SavedUserLocation | null> => {
       // 1. Leer de Supabase Auth user_metadata (persistido en BD para cualquier usuario)
       const { data: authData } = await supabase.auth.getUser();
@@ -441,13 +457,11 @@ export function useMySavedLocation() {
       // 2. Respaldo desde professional_profiles si aún no estaba en metadata
       if ((lat === null || lng === null) && zoneId) {
         try {
-          const profiles = await listProfiles({ zoneId });
-          const mineWithLoc = profiles.find(
-            (p) => p.user_id === userId && p.location_lat != null && p.location_lng != null
-          );
-          if (mineWithLoc && mineWithLoc.location_lat != null && mineWithLoc.location_lng != null) {
-            lat = mineWithLoc.location_lat;
-            lng = mineWithLoc.location_lng;
+          const profiles = await qc.fetchQuery(profilesQuery(zoneId));
+          const mineWithLoc = profiles.find((p) => p.userId === userId && p.location);
+          if (mineWithLoc?.location) {
+            lat = mineWithLoc.location.lat;
+            lng = mineWithLoc.location.lng;
           }
         } catch {
           // Ignorar error de red
@@ -486,19 +500,24 @@ export function useSaveMyLocation() {
       if (authErr) throw new Error(authErr.message);
 
       // 2. Si tiene oficios registrados en su zona, actualizar también sus coordenadas en professional_profiles
+      // La ubicación ya quedó guardada en Auth; los oficios son un extra que no debe bloquear el guardado.
       if (zoneId) {
-        const profiles = await listProfiles({ zoneId });
-        const mine = profiles.filter((p) => p.user_id === userId);
-        for (const prof of mine) {
-          await upsertProfile({
-            id: prof.id,
-            oficio_id: prof.oficio_id,
-            zone_id: zoneId,
-            description: prof.description,
-            years_experience: prof.years_experience,
-            location_lat: input.lat,
-            location_lng: input.lng,
-          });
+        try {
+          const profiles = await listProfiles({ zoneId });
+          const mine = profiles.filter((p) => p.user_id === userId);
+          for (const prof of mine) {
+            await upsertProfile({
+              id: prof.id,
+              oficio_id: prof.oficio_id,
+              zone_id: zoneId,
+              description: prof.description,
+              years_experience: prof.years_experience,
+              location_lat: input.lat,
+              location_lng: input.lng,
+            });
+          }
+        } catch {
+          // Sin oficios visibles (o zona no válida): se conserva la ubicación en Auth.
         }
       }
 
@@ -507,7 +526,6 @@ export function useSaveMyLocation() {
     onSuccess: (saved) => {
       qc.setQueryData(['mySavedLocation', userId, zoneId], saved);
       qc.invalidateQueries({ queryKey: ['mySavedLocation'] });
-      qc.invalidateQueries({ queryKey: ['myProfile'] });
       qc.invalidateQueries({ queryKey: ['profiles'] });
     },
   });
@@ -519,11 +537,16 @@ export function useFavors(type?: FavorType) {
   const zoneId = useAppStore((s) => s.zoneId);
   const userId = useAppStore((s) => s.userId);
   const userName = useAppStore((s) => s.userFullName);
+  // Las pestañas siguen montadas al salir de ellas: sin esto el polling no se detiene nunca.
+  const isFocused = useIsFocused();
 
   return useQuery({
     queryKey: ['favors', zoneId, type ?? 'todos'],
-    // Actualiza el mapa del barrio cada 10 s sin que el vecino recargue.
-    refetchInterval: 10_000,
+    // Respaldo del Realtime (useFavorRealtime): si el canal se cae, la lista se refresca cada 30 s.
+    refetchInterval: 30_000,
+    staleTime: FRESH_LIVE_MS,
+    gcTime: KEEP_LONG_MS,
+    subscribed: isFocused,
     enabled: Boolean(zoneId),
     queryFn: async (): Promise<Favor[]> => {
       const pending = (await listPending('create_favor'))
@@ -532,7 +555,7 @@ export function useFavors(type?: FavorType) {
 
       let remote: BackendFavor[] = [];
       try {
-        remote = await listFavors({ zoneId: zoneId!, type });
+        remote = await listFavors({ zoneId: zoneId!, type, limit: FAVORS_LIST_LIMIT });
       } catch (error) {
         // Sin red se muestran al menos los favores pendientes del vecino.
         if (!isNetworkError(error) || pending.length === 0) throw error;
@@ -553,9 +576,12 @@ export function useFavorsPage(type: FavorType | undefined, page: number) {
   const zoneId = useAppStore((s) => s.zoneId);
   const userId = useAppStore((s) => s.userId);
   const userName = useAppStore((s) => s.userFullName);
+  const isFocused = useIsFocused();
 
   return useQuery({
     queryKey: ['favors', zoneId, type ?? 'todos', 'page', page],
+    staleTime: FRESH_LIVE_MS,
+    subscribed: isFocused,
     enabled: Boolean(zoneId),
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<{ items: Favor[]; hasNext: boolean }> => {
@@ -594,6 +620,7 @@ export function useFavor(id: string) {
   const userId = useAppStore((s) => s.userId);
   return useQuery({
     queryKey: ['favor', id],
+    staleTime: FRESH_LIVE_MS,
     enabled: Boolean(id),
     queryFn: async () => mapBackendFavorToFrontend(await getFavorById(id), userId),
   });
@@ -630,7 +657,7 @@ export function useCreateFavor() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { type: FavorType; title: string; description: string | null; urgency: FavorUrgency; location?: { lat: number; lng: number } | null }) => {
+    mutationFn: async (input: { type: FavorType; title: string; description: string | null; urgency: FavorUrgency; intent: FavorIntent; location?: { lat: number; lng: number } | null }) => {
       const { zoneId, isOnline } = useAppStore.getState();
       if (!zoneId) throw new Error('Tu cuenta no tiene zona asignada.');
 
@@ -642,6 +669,7 @@ export function useCreateFavor() {
         title: input.title,
         description: input.description,
         urgency: input.urgency,
+        intent: input.intent,
         location_lat: input.location?.lat ?? null,
         location_lng: input.location?.lng ?? null,
       };
@@ -671,6 +699,7 @@ export function useOutboxPending() {
   const isOnline = useAppStore((s) => s.isOnline);
   return useQuery({
     queryKey: ['outboxPending', userId, isOnline],
+    staleTime: 0, // lectura local de SQLite: barata y siempre debe reflejar la cola
     enabled: Boolean(userId),
     queryFn: () => listPending(),
   });
@@ -707,6 +736,7 @@ export function useEmergencyState() {
     enabled: Boolean(zoneId && token),
     queryFn: () => getEmergencyState(zoneId!),
     refetchInterval: 30_000,
+    staleTime: FRESH_LIVE_MS,
   });
 }
 
@@ -714,6 +744,8 @@ export function useServices() {
   const zoneId = useAppStore((s) => s.zoneId);
   return useQuery({
     queryKey: ['services', zoneId],
+    staleTime: FRESH_SLOW_MS,
+    gcTime: KEEP_LONG_MS,
     enabled: Boolean(zoneId),
     queryFn: async () => (await listServices(zoneId!)).map(mapService),
   });
@@ -781,13 +813,17 @@ export function useCreateReport() {
 
 // =====================================================================// NOTIFICACIONES
 // =====================================================================
-// Sin tiempo real: el contador se consulta cada 30 s mientras la app está abierta y con red.
+// Sin tiempo real: el contador se consulta cada 30 s mientras su pantalla está visible y con red.
 const UNREAD_POLL_MS = 30_000;
 
 export function useNotifications() {
   const userId = useAppStore((s) => s.userId);
+  // Al volver a la pantalla se actualiza solo si los datos ya no están frescos.
+  const isFocused = useIsFocused();
   return useQuery<BackendNotification[]>({
     queryKey: ['notifications', userId, 'list'],
+    staleTime: FRESH_LIVE_MS,
+    subscribed: isFocused,
     enabled: Boolean(userId),
     queryFn: () => listNotifications(),
   });
@@ -796,8 +832,11 @@ export function useNotifications() {
 export function useUnreadNotificationCount() {
   const userId = useAppStore((s) => s.userId);
   const isOnline = useAppStore((s) => s.isOnline);
+  const isFocused = useIsFocused();
   return useQuery({
     queryKey: ['notifications', userId, 'unread'],
+    staleTime: FRESH_LIVE_MS,
+    subscribed: isFocused,
     enabled: Boolean(userId) && isOnline,
     refetchInterval: UNREAD_POLL_MS,
     queryFn: async () => (await getUnreadNotificationCount()).count,
@@ -823,6 +862,7 @@ export function useConversations(favorId?: string) {
   const userId = useAppStore((s) => s.userId);
   return useQuery<BackendConversation[]>({
     queryKey: ['conversations', userId, favorId ?? 'all'],
+    staleTime: FRESH_LIVE_MS,
     enabled: Boolean(userId),
     queryFn: () => listConversations(favorId),
   });
@@ -831,6 +871,7 @@ export function useConversations(favorId?: string) {
 export function useConversation(id: string) {
   return useQuery<BackendConversation>({
     queryKey: ['conversation', id],
+    staleTime: FRESH_LIVE_MS,
     enabled: Boolean(id),
     queryFn: () => getConversation(id),
   });
@@ -840,6 +881,8 @@ export function useMessages(conversationId: string) {
   const isOnline = useAppStore((s) => s.isOnline);
   return useQuery<BackendMessage[]>({
     queryKey: ['messages', conversationId],
+    staleTime: 0, // abrir un chat siempre trae lo último y marca como leído
+    gcTime: 2 * 60_000,
     enabled: Boolean(conversationId) && isOnline,
     refetchInterval: CHAT_POLL_MS,
     queryFn: () => listMessages(conversationId),

@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables } from '../types/database.types';
-import { AppError } from '../middlewares/errorHandler';
+import { AppError, dbError } from '../middlewares/errorHandler';
 import type { ListNotificationsQueryDTO } from '../utils/validators';
 
 export class NotificationService {
@@ -26,7 +26,7 @@ export class NotificationService {
 
     const { data, error } = await query;
     if (error) {
-      throw new AppError(`Error al consultar notificaciones: ${error.message}`, 400);
+      throw dbError('Error al consultar notificaciones', error);
     }
 
     return data ?? [];
@@ -43,7 +43,7 @@ export class NotificationService {
       .is('read_at', null);
 
     if (error) {
-      throw new AppError(`Error al contar notificaciones: ${error.message}`, 400);
+      throw dbError('Error al contar notificaciones', error);
     }
 
     return count ?? 0;
@@ -65,7 +65,7 @@ export class NotificationService {
       .maybeSingle();
 
     if (findError) {
-      throw new AppError(`Error al consultar la notificación: ${findError.message}`, 400);
+      throw dbError('Error al consultar la notificación', findError);
     }
     if (!current) {
       throw new AppError('Notificación no encontrada', 404);

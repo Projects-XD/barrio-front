@@ -16,6 +16,7 @@ export type FavorType =
   | 'otros';
 export type FavorStatus = 'abierta' | 'en_curso' | 'cerrada' | 'cancelada';
 export type FavorUrgency = 'normal' | 'urgente' | 'emergencia';
+export type FavorIntent = 'pedir' | 'ofrecer';
 export type ModerationStatus = 'pendiente' | 'aprobado' | 'rechazado';
 export type SyncStatus = 'pendiente' | 'enviado' | 'error';
 export type EmergencyStatus = 'inactiva' | 'activa';

@@ -20,6 +20,18 @@ export class AppError extends Error {
 }
 
 /**
+ * Convierte un error de Supabase/Postgres en un AppError seguro para el cliente.
+ * Los RAISE EXCEPTION propios de la base (SQLSTATE P0001, p. ej. validar_favor) ya traen un mensaje
+ * pensado para el vecino y se dejan pasar. Cualquier otro error se registra en el servidor y el
+ * cliente solo recibe el texto genérico, sin nombres de tablas ni columnas.
+ */
+export function dbError(prefix: string, error: { message: string; code?: string }, statusCode: number = 400): AppError {
+  if (error.code === 'P0001') return new AppError(error.message, statusCode);
+  logger.error(`${prefix}: ${error.message}`);
+  return new AppError(prefix, statusCode);
+}
+
+/**
  * Middleware global de manejo de excepciones con observabilidad estructurada.
  * Imprime el error completo, la ruta fallida y el req.body en la terminal.
  * Garantiza respuestas JSON homogéneas:

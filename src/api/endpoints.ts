@@ -1,6 +1,7 @@
 import { api } from './client';
 import type {
   FavorType,
+  FavorIntent,
   FavorUrgency,
   ModerationStatus,
   OficioCategory,
@@ -61,9 +62,9 @@ export interface BackendFavor {
   description: string | null;
   status: 'abierta' | 'en_curso' | 'cerrada' | 'cancelada';
   client_id: string;
-  sync_status: 'pendiente' | 'enviado' | 'error';
   created_at: string;
   urgency: FavorUrgency;
+  intent?: FavorIntent;
   moderation_status: ModerationStatus;
   moderation_reason?: string | null;
   // Solo vienen en GET /favors/:id.
@@ -210,6 +211,7 @@ export interface CreateFavorPayload {
   title: string;
   description?: string | null;
   urgency: FavorUrgency;
+  intent?: FavorIntent;
 }
 
 export const createFavor = (payload: CreateFavorPayload) =>
