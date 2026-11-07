@@ -164,6 +164,9 @@ export interface UpsertProfilePayload {
 export const upsertProfile = (payload: UpsertProfilePayload) =>
   api.post<BackendProfile>('/profiles', payload);
 
+export const deleteProfile = (id: string) =>
+  api.delete<{ id: string }>(`/profiles/${id}`);
+
 // =====================================================================
 // ============================================================================
 // FAVORES

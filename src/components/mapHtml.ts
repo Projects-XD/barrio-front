@@ -25,10 +25,18 @@ export function buildMapHtml(initial: Coords) {
       radius: 10, color: '#132E66', fillColor: '#EA982B', fillOpacity: 1, weight: 3
     }).addTo(map);
 
+    var eventCallback = null;
+    window.setEventCallback = function (fn) {
+      eventCallback = fn;
+    };
+
     function send(ll) {
       marker.setLatLng(ll);
       var msg = JSON.stringify({ source: 'barrio-map', lat: ll.lat, lng: ll.lng });
-      if (window.ReactNativeWebView) {
+      if (typeof eventCallback === 'function') {
+        try { eventCallback(msg); } catch (err) {}
+      }
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
         window.ReactNativeWebView.postMessage(msg);
       } else if (window.parent && window.parent !== window) {
         window.parent.postMessage(msg, '*');

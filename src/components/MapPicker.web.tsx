@@ -1,4 +1,4 @@
-import { createElement, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { createElement, forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { Coords } from '@/utils/geo';
 import { buildMapHtml } from './mapHtml';
@@ -11,7 +11,10 @@ type Props = {
   onChange: (c: Coords) => void;
 };
 
-type FrameWindow = Window & { setPoint?: (lat: number, lng: number) => void };
+type FrameWindow = Window & {
+  setPoint?: (lat: number, lng: number) => void;
+  setEventCallback?: (fn: (raw: string) => void) => void;
+};
 
 // En navegador de escritorio el mapa va dentro de un iframe (el WebView es solo para móvil).
 export const MapPicker = forwardRef<MapPickerHandle, Props>(function MapPicker(
@@ -21,23 +24,47 @@ export const MapPicker = forwardRef<MapPickerHandle, Props>(function MapPicker(
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [srcDoc] = useState(() => buildMapHtml(initial));
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  const handleRawMessage = useCallback((raw: unknown) => {
+    const parsed = (() => {
+      if (typeof raw === 'string') {
+        try {
+          return JSON.parse(raw) as { source?: string; lat?: number; lng?: number };
+        } catch {
+          return null;
+        }
+      }
+      if (raw && typeof raw === 'object') {
+        return raw as { source?: string; lat?: number; lng?: number };
+      }
+      return null;
+    })();
+    if (parsed && parsed.source === 'barrio-map' && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
+      onChangeRef.current({ lat: parsed.lat, lng: parsed.lng });
+    }
+  }, []);
+
+  const initialRef = useRef(initial);
+  useEffect(() => {
+    initialRef.current = initial;
+  }, [initial]);
+
+  const bindCallback = useCallback(() => {
+    const win = frameRef.current?.contentWindow as FrameWindow | null | undefined;
+    win?.setEventCallback?.(handleRawMessage);
+    win?.setPoint?.(initialRef.current.lat, initialRef.current.lng);
+  }, [handleRawMessage]);
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
-      const data = event.data;
-      if (typeof data === 'string') {
-        try {
-          const parsed = JSON.parse(data) as { source?: string; lat: number; lng: number };
-          if (parsed.source === 'barrio-map') onChangeRef.current({ lat: parsed.lat, lng: parsed.lng });
-        } catch {
-          // Mensajes ajenos al mapa se ignoran.
-        }
-      }
+      handleRawMessage(event.data);
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, []);
+  }, [handleRawMessage]);
 
   useImperativeHandle(ref, () => ({
     setPoint: (c: Coords) => {
@@ -49,10 +76,9 @@ export const MapPicker = forwardRef<MapPickerHandle, Props>(function MapPicker(
   return (
     <View style={[styles.wrap, { height }]}>
       {createElement('iframe', {
-        ref: (el: HTMLIFrameElement | null) => {
-          frameRef.current = el;
-        },
+        ref: frameRef,
         srcDoc,
+        onLoad: bindCallback,
         title: 'Mapa de ubicación',
         style: { width: '100%', height: '100%', border: 0 },
       })}

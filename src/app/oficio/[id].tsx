@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { AppButton } from '@/components/AppButton';
 import { Chip } from '@/components/Chip';
@@ -19,7 +20,7 @@ import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
-import { useMyProfiles, useProfile, useUpsertMyProfile, useVouch } from '@/hooks/useData';
+import { useDeleteProfile, useMyProfiles, useProfile, useUpsertMyProfile, useVouch } from '@/hooks/useData';
 import type { OficioCategory } from '@/types';
 import { useAppStore } from '@/store/app-store';
 import { oficioLabel } from '@/i18n/labels';
@@ -31,8 +32,12 @@ export default function OficioDetalle() {
   const { data: profile, isLoading, refetch } = useProfile(id);
   const { data: misOficios = [] } = useMyProfiles();
   const upsert = useUpsertMyProfile();
+  const deleteProfile = useDeleteProfile();
   const [editando, setEditando] = useState(false);
   const [modoNuevo, setModoNuevo] = useState(false);
+  const [menuOpciones, setMenuOpciones] = useState(false);
+  const [confirmandoBaja, setConfirmandoBaja] = useState(false);
+  const [modalExito, setModalExito] = useState(false);
   const [categoria, setCategoria] = useState<OficioCategory>('otro');
   const [otroOficio, setOtroOficio] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -100,14 +105,21 @@ export default function OficioDetalle() {
       {
         onSuccess: () => {
           setEditando(false);
-          if (modoNuevo) {
-            router.replace('/(tabs)/perfil');
-          } else {
-            refetch();
-          }
+          refetch();
+          setModalExito(true);
         },
       }
     );
+  };
+
+  const confirmarEliminacion = () => {
+    if (!profile || deleteProfile.isPending) return;
+    deleteProfile.mutate(profile.id, {
+      onSuccess: () => {
+        setConfirmandoBaja(false);
+        router.navigate('/(tabs)/perfil');
+      },
+    });
   };
 
   if (isLoading) {
@@ -153,11 +165,39 @@ export default function OficioDetalle() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: 'Detalle de oficio', headerBackTitle: 'Volver' }} />
+      <Stack.Screen
+        options={{
+          title: 'Detalle de oficio',
+          headerBackTitle: 'Volver',
+          headerRight: esMio
+            ? () => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Opciones de mi oficio"
+                  hitSlop={12}
+                  onPress={() => setMenuOpciones(true)}
+                >
+                  <Ionicons name="ellipsis-vertical" size={22} color={colors.azul} />
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
 
       {/* Tarjeta principal con jerarquía limpia */}
       <Card>
         <View style={styles.headerInfo}>
+          {esMio ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Opciones del oficio"
+              hitSlop={10}
+              onPress={() => setMenuOpciones(true)}
+              style={styles.cardMenuTrigger}
+            >
+              <Ionicons name="ellipsis-vertical" size={18} color={colors.azul} />
+            </Pressable>
+          ) : null}
           <Text style={[styles.nombre, { color: p.text }]}>{profile.user.fullName}</Text>
           <Text style={styles.oficio}>{oficioLabel[profile.oficio.category]}</Text>
         </View>
@@ -193,10 +233,12 @@ export default function OficioDetalle() {
       {/* Botones de acción con lógica para el propio técnico */}
       <View style={styles.actionButtons}>
         {esMio ? (
-          <>
-            <AppButton label="Editar mi oficio" variant="accent" onPress={() => abrirEdicion(false)} />
-            <AppButton label="Agregar otro oficio" variant="secondary" onPress={() => abrirEdicion(true)} />
-          </>
+          <AppButton
+            label="Ir a mi perfil"
+            variant="secondary"
+            icon="person-outline"
+            onPress={() => router.navigate('/(tabs)/perfil')}
+          />
         ) : (
           <>
             <AppButton
@@ -313,6 +355,134 @@ export default function OficioDetalle() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Menú contextual (⋮) de opciones del oficio */}
+      <Modal
+        visible={menuOpciones}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpciones(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setMenuOpciones(false)}>
+          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+            <Text style={[styles.modalTitle, { color: p.text }]}>{oficioLabel[profile.oficio.category]}</Text>
+            <Text style={[styles.modalSubtitle, { color: p.muted }]}>Opciones de tu oficio</Text>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setMenuOpciones(false);
+                abrirEdicion(false);
+              }}
+              style={styles.contextActionRow}
+            >
+              <Ionicons name="create-outline" size={20} color={colors.azul} />
+              <Text style={[styles.contextActionText, { color: p.text }]}>Editar este oficio</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setMenuOpciones(false);
+                abrirEdicion(true);
+              }}
+              style={styles.contextActionRow}
+            >
+              <Ionicons name="add-circle-outline" size={20} color={colors.azul} />
+              <Text style={[styles.contextActionText, { color: p.text }]}>Agregar otro oficio</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setMenuOpciones(false);
+                deleteProfile.reset();
+                setConfirmandoBaja(true);
+              }}
+              style={styles.contextActionRow}
+            >
+              <Ionicons name="trash-outline" size={20} color={colors.rojo} />
+              <Text style={[styles.contextActionText, { color: colors.rojo }]}>Eliminar este oficio</Text>
+            </Pressable>
+
+            <View style={{ marginTop: spacing.xs }}>
+              <AppButton label="Cancelar" variant="link" onPress={() => setMenuOpciones(false)} />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal para confirmar eliminación de oficio */}
+      <Modal
+        visible={confirmandoBaja}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmandoBaja(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setConfirmandoBaja(false)}>
+          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+            <Text style={[styles.modalTitle, { color: p.text }]}>¿Eliminar este oficio?</Text>
+            <Text style={[styles.modalSubtitle, { color: p.muted }]}>
+              Se quitará {oficioLabel[profile.oficio.category]} de tu perfil y del directorio del barrio.
+            </Text>
+            {deleteProfile.error ? (
+              <Text style={styles.errorTexto}>
+                No se pudo eliminar: {(deleteProfile.error as Error).message}
+              </Text>
+            ) : null}
+            <View style={styles.modalButtonsStack}>
+              <AppButton
+                label={deleteProfile.isPending ? 'Eliminando...' : 'Sí, eliminar oficio'}
+                variant="danger"
+                icon="trash-outline"
+                disabled={deleteProfile.isPending}
+                onPress={confirmarEliminacion}
+              />
+              <AppButton
+                label="Cancelar"
+                variant="secondary"
+                disabled={deleteProfile.isPending}
+                onPress={() => setConfirmandoBaja(false)}
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal de éxito tras guardar oficio */}
+      <Modal
+        visible={modalExito}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setModalExito(false);
+          router.navigate('/(tabs)/perfil');
+        }}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            setModalExito(false);
+            router.navigate('/(tabs)/perfil');
+          }}
+        >
+          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+            <Text style={[styles.modalTitle, { color: p.text }]}>¡Oficio guardado!</Text>
+            <Text style={[styles.modalSubtitle, { color: p.muted }]}>
+              Los datos de tu oficio se actualizaron correctamente en el barrio.
+            </Text>
+            <AppButton
+              label="Ir a mi perfil"
+              variant="accent"
+              icon="person-outline"
+              onPress={() => {
+                setModalExito(false);
+                router.navigate('/(tabs)/perfil');
+              }}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
@@ -338,6 +508,30 @@ const styles = StyleSheet.create({
   headerInfo: {
     alignItems: 'center',
     marginBottom: spacing.md,
+    position: 'relative',
+  },
+  cardMenuTrigger: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.fondo,
+  },
+  contextActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: radius.md,
+  },
+  contextActionText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
   },
   nombre: {
     fontSize: 22,

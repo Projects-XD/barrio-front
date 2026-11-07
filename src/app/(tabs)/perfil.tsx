@@ -25,13 +25,17 @@ import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
 import * as ImagePicker from 'expo-image-picker';
 import {
+  useDeleteProfile,
   useFavors,
   useMyAvatarUrl,
   useMyProfile,
   useMyProfiles,
+  useMySavedLocation,
   useUpdateAvatar,
   useUpsertMyProfile,
+  useZones,
 } from '@/hooks/useData';
+import { oficioIcon } from '@/i18n/icons';
 import { oficioLabel } from '@/i18n/labels';
 import type { OficioCategory, ProfessionalProfile } from '@/types';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -50,15 +54,26 @@ export default function Perfil() {
   const setOnline = useAppStore((s) => s.setOnline);
   const clearSession = useAppStore((s) => s.clearSession);
   const userId = useAppStore((s) => s.userId);
+  const zoneId = useAppStore((s) => s.zoneId);
   const userFullName = useAppStore((s) => s.userFullName) || 'Vecino';
   const userEmail = useAppStore((s) => s.userEmail);
 
+  const { data: zonas = [] } = useZones();
+  const zonaActual = zonas.find((z) => z.id === zoneId);
+  const nombreZona = zonaActual ? `${zonaActual.name}, ${zonaActual.city}` : 'Castilla, Piura';
+
   const { data: myProfile } = useMyProfile();
   const { data: misOficios = [], isPending: cargandoOficios } = useMyProfiles();
+  const { data: savedLocation } = useMySavedLocation();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [menuOficio, setMenuOficio] = useState<ProfessionalProfile | null>(null);
+  const [confirmDeleteOficio, setConfirmDeleteOficio] = useState<ProfessionalProfile | null>(null);
+  const [exitoOficioMsg, setExitoOficioMsg] = useState<string | null>(null);
   const { data: favors = [] } = useFavors();
   const misFavores = favors.filter((f) => f.authorId === userId).length;
+  const totalVistosBuenos = misOficios.reduce((acc, o) => acc + (o.validatedCount ?? 0), 0);
   const upsertProfile = useUpsertMyProfile();
+  const deleteProfile = useDeleteProfile();
   const { data: avatarUrl } = useMyAvatarUrl();
   const updateAvatar = useUpdateAvatar();
 
@@ -90,6 +105,7 @@ export default function Perfil() {
   const [experiencia, setExperiencia] = useState(
     myProfile?.yearsExperience ? String(myProfile.yearsExperience) : '2'
   );
+  const [otroOficio, setOtroOficio] = useState('');
 
   const initials = userFullName
     .split(' ')
@@ -101,6 +117,7 @@ export default function Perfil() {
 
   const handleOpenModal = (oficio: ProfessionalProfile | null) => {
     upsertProfile.reset();
+    setMenuOficio(null);
     setEditingId(oficio?.id ?? null);
     const usados = misOficios.map((o) => o.oficio.category);
     const libre = categorias.find((c) => !usados.includes(c)) ?? 'otro';
@@ -110,13 +127,12 @@ export default function Perfil() {
     setModalVisible(true);
   };
 
-  const [otroOficio, setOtroOficio] = useState('');
-
   const handleSaveProfile = () => {
     if (selectedCat === 'otro' && otroOficio.trim().length < 3) {
       Alert.alert('Escribe el oficio', 'Cuando eliges "Otro", escribe qué oficio es.');
       return;
     }
+    const eraEdicion = Boolean(editingId);
     upsertProfile.mutate(
       {
         category: selectedCat,
@@ -125,9 +141,29 @@ export default function Perfil() {
           (descripcion.trim() || 'Servicios para vecinos de la zona.'),
         yearsExperience: parseInt(experiencia, 10) || 0,
         existingId: editingId ?? undefined,
+        ...(savedLocation ? { location: { lat: savedLocation.lat, lng: savedLocation.lng } } : {}),
       },
-      { onSuccess: () => setModalVisible(false) }
+      {
+        onSuccess: () => {
+          setModalVisible(false);
+          setExitoOficioMsg(
+            eraEdicion
+              ? 'Los datos de tu oficio se actualizaron correctamente.'
+              : 'Tu oficio ya está publicado y visible para tus vecinos.'
+          );
+        },
+      }
     );
+  };
+
+  const handleConfirmDeleteOficio = () => {
+    if (!confirmDeleteOficio || deleteProfile.isPending) return;
+    deleteProfile.mutate(confirmDeleteOficio.id, {
+      onSuccess: () => {
+        setConfirmDeleteOficio(null);
+        setModalVisible(false);
+      },
+    });
   };
 
   const handleLogout = async () => {
@@ -142,11 +178,9 @@ export default function Perfil() {
     <Screen>
       <View style={styles.header}>
         <Text style={[styles.titulo, { color: p.text }]}>Mi Perfil</Text>
-        <Text style={[styles.subtitulo, { color: p.muted }]}>
-          Gestiona tu identidad vecinal y preferencias de la app.
-        </Text>
       </View>
 
+      {/* Tarjeta principal unificada: Identidad + Ubicación + Resumen */}
       <Card>
         <View style={styles.usuarioRow}>
           <Pressable
@@ -171,112 +205,305 @@ export default function Perfil() {
               )}
             </View>
           </Pressable>
+
           <View style={styles.usuarioInfo}>
-            <Text style={[styles.nombre, { color: p.text }]}>{userFullName}</Text>
-            <Text style={[styles.zona, { color: p.muted }]}>
-              {userEmail ? `${userEmail} · ` : ''}Miembro activo
+            <Text style={[styles.nombre, { color: p.text }]} numberOfLines={1}>
+              {userFullName}
             </Text>
+            {userEmail ? (
+              <Text style={[styles.correo, { color: p.muted }]} numberOfLines={1}>
+                {userEmail}
+              </Text>
+            ) : null}
+            <View style={styles.zonaBadgeRow}>
+              <View style={[styles.zonaPill, { backgroundColor: p.highlight }]}>
+                <Ionicons name="shield-checkmark-outline" size={13} color={colors.azul} />
+                <Text style={styles.zonaPillText}>{nombreZona}</Text>
+              </View>
+            </View>
           </View>
         </View>
-      </Card>
 
-      {/* Sección: Mi Oficio Profesional en el Barrio */}
-      <Text style={[styles.seccionLabel, { color: p.text }]}>Mis oficios en el barrio</Text>
-      {misOficios.map((of) => (
-        <Card key={of.id}>
-          <View style={styles.oficioHeader}>
-            <View>
-              <Text style={[styles.oficioNombre, { color: p.text }]}>{oficioLabel[of.oficio.category]}</Text>
-              <Text style={[styles.oficioExp, { color: p.muted }]}>
-                {of.yearsExperience ? `${of.yearsExperience} ${'a\u00f1os de experiencia'}` : 'Oficio registrado'}
-              </Text>
-            </View>
-            <ValidationBadge validatedCount={of.validatedCount} />
-          </View>
-          <Text style={[styles.oficioDesc, { color: colors.texto }]}>{of.description}</Text>
-          <View style={{ marginTop: spacing.sm }}>
-            <AppButton label="Editar este oficio" variant="secondary" onPress={() => handleOpenModal(of)} />
-          </View>
-        </Card>
-      ))}
-      {cargandoOficios ? (
-        <ActivityIndicator size="large" color={p.primary} style={{ marginVertical: spacing.md }} />
-      ) : misOficios.length === 0 ? (
-        <Card>
-          <View style={styles.sinOficioRow}>
-            <Ionicons name="construct-outline" size={26} color={colors.azul} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.sinOficioTitulo, { color: p.text }]}>{'\u00bfOfreces alg\u00fan oficio o servicio?'}</Text>
-              <Text style={[styles.sinOficioTexto, { color: p.muted }]}>
-                Publica tu especialidad para que tus vecinos te conozcan y te den su visto bueno.
-              </Text>
-            </View>
-          </View>
-        </Card>
-      ) : null}
-      <AppButton label="Agregar otro oficio" variant="accent" onPress={() => handleOpenModal(null)} />
+        <View style={styles.cardDivider} />
 
-      {/* Sección: Reputación vecinal */}
-      <Text style={[styles.seccionLabel, { color: p.text }]}>Mi confianza comunitaria</Text>
-      <Card>
+        {/* Fila de Ubicación y Lugar guardada */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Configurar mi ubicación en el mapa"
+          onPress={() => router.push('/ubicacion')}
+          style={styles.ubicacionRow}
+        >
+          <View style={[styles.ubicacionIconBox, { backgroundColor: colors.azulSuave }]}>
+            <Ionicons name="location-outline" size={18} color={colors.azul} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.ubicacionTitle, { color: p.text }]} numberOfLines={1}>
+              {savedLocation?.address || 'Sin ubicación exacta marcada'}
+            </Text>
+            <Text style={[styles.ubicacionSub, { color: p.muted }]} numberOfLines={1}>
+              {savedLocation
+                ? `Zona ${nombreZona} · (${savedLocation.lat.toFixed(4)}, ${savedLocation.lng.toFixed(4)})`
+                : `Zona ${nombreZona} · Toca para marcar tu punto en el mapa`}
+            </Text>
+          </View>
+          <View style={styles.ubicacionActionPill}>
+            <Text style={styles.ubicacionActionText}>{savedLocation ? 'Cambiar' : 'Ubicar'}</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.azul} />
+          </View>
+        </Pressable>
+
+        <View style={styles.cardDivider} />
+
+        {/* Métricas compactas en una sola franja limpia */}
         <View style={styles.metricasRow}>
           <View style={styles.metrica}>
-            <Text style={[styles.metricaValor, { color: colors.verdeExito }]}>
-              {myProfile?.validatedCount ?? 0}
-            </Text>
+            <Text style={[styles.metricaValor, { color: colors.verdeExito }]}>{totalVistosBuenos}</Text>
             <Text style={styles.metricaLabel}>Vistos buenos</Text>
           </View>
           <View style={styles.metricaDivider} />
           <View style={styles.metrica}>
-            <Text style={[styles.metricaValor, { color: colors.azul }]}>{misFavores}</Text>
+            <Text style={[styles.metricaValor, { color: colors.azul }]}>{misOficios.length}</Text>
+            <Text style={styles.metricaLabel}>{misOficios.length === 1 ? 'Oficio' : 'Oficios'}</Text>
+          </View>
+          <View style={styles.metricaDivider} />
+          <View style={styles.metrica}>
+            <Text style={[styles.metricaValor, { color: colors.naranja }]}>{misFavores}</Text>
             <Text style={styles.metricaLabel}>Favores activos</Text>
           </View>
         </View>
       </Card>
 
+      {/* Sección: Mis oficios con botón compacto y menús contextuales */}
+      <View style={styles.seccionHeaderRow}>
+        <Text style={[styles.seccionLabel, { color: p.text }]}>Mis oficios</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Agregar otro oficio"
+          onPress={() => handleOpenModal(null)}
+          style={[styles.addOficioPill, { backgroundColor: colors.naranja }]}
+        >
+          <Ionicons name="add" size={16} color={colors.azul} />
+          <Text style={styles.addOficioPillText}>Agregar oficio</Text>
+        </Pressable>
+      </View>
+
+      {cargandoOficios ? (
+        <ActivityIndicator size="large" color={p.primary} style={{ marginVertical: spacing.md }} />
+      ) : misOficios.length === 0 ? (
+        <Card onPress={() => handleOpenModal(null)}>
+          <View style={styles.sinOficioRow}>
+            <View style={[styles.oficioCatIcon, { backgroundColor: p.highlight }]}>
+              <Ionicons name="construct-outline" size={22} color={colors.azul} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.sinOficioTitulo, { color: p.text }]}>¿Ofreces algún oficio o servicio?</Text>
+              <Text style={[styles.sinOficioTexto, { color: p.muted }]}>
+                Publica tu especialidad para que tus vecinos te encuentren en el directorio y el mapa.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={p.muted} />
+          </View>
+        </Card>
+      ) : (
+        misOficios.map((of) => (
+          <Card key={of.id}>
+            <View style={styles.oficioCompactRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Ver detalle de ${oficioLabel[of.oficio.category]}`}
+                onPress={() => router.push(`/oficio/${of.id}`)}
+                style={styles.oficioMainArea}
+              >
+                <View style={[styles.oficioCatIcon, { backgroundColor: p.highlight }]}>
+                  <Ionicons name={oficioIcon[of.oficio.category]} size={20} color={colors.azul} />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <View style={styles.oficioTitleLine}>
+                    <Text style={[styles.oficioNombre, { color: p.text }]} numberOfLines={1}>
+                      {oficioLabel[of.oficio.category]}
+                    </Text>
+                    <ValidationBadge validatedCount={of.validatedCount} />
+                  </View>
+                  <Text style={[styles.oficioExp, { color: p.muted }]}>
+                    {of.yearsExperience ? `${of.yearsExperience} años de experiencia` : 'Recién registrado'}
+                  </Text>
+                  {of.description ? (
+                    <Text style={[styles.oficioDesc, { color: colors.texto }]} numberOfLines={2}>
+                      {of.description}
+                    </Text>
+                  ) : null}
+                </View>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Opciones de ${oficioLabel[of.oficio.category]}`}
+                hitSlop={10}
+                onPress={() => setMenuOficio(of)}
+                style={styles.contextMenuBtn}
+              >
+                <Ionicons name="ellipsis-vertical" size={18} color={colors.azul} />
+              </Pressable>
+            </View>
+          </Card>
+        ))
+      )}
+
       {/* Sección: Simulaciones del Reto */}
       {SHOW_DEMO_TOOLS ? (
-      <>
-      <Text style={[styles.seccionLabel, { color: p.text }]}>Simulaciones del Reto (Hackathon)</Text>
-      <Card>
-        <ToggleRow
-          label="Simular modo emergencia"
-          value={simulatedEmergency}
-          onChange={setSimulatedEmergency}
-        />
-        {serverEmergency ? (
-          <Text style={[styles.sinOficioTexto, { color: colors.rojo }]}>
-            Tu zona está en emergencia real según el sistema.
+        <>
+          <Text style={[styles.seccionLabel, { color: p.text, marginTop: spacing.md }]}>
+            Simulaciones del Reto (Hackathon)
           </Text>
-        ) : null}
-        <View style={styles.separador} />
-        <ToggleRow
-          label="Simular modo sin conexión"
-          value={!isOnline}
-          onChange={(v) => setOnline(!v)}
-        />
-      </Card>
-      </>
+          <Card>
+            <ToggleRow
+              label="Simular modo emergencia"
+              value={simulatedEmergency}
+              onChange={setSimulatedEmergency}
+            />
+            {serverEmergency ? (
+              <Text style={[styles.sinOficioTexto, { color: colors.rojo }]}>
+                Tu zona está en emergencia real según el sistema.
+              </Text>
+            ) : null}
+            <View style={styles.separador} />
+            <ToggleRow
+              label="Simular modo sin conexión"
+              value={!isOnline}
+              onChange={(v) => setOnline(!v)}
+            />
+          </Card>
+        </>
       ) : null}
 
-      <View style={{ marginTop: spacing.md }}>
-        <AppButton
-          label="Marcar mi ubicación"
-          variant="secondary"
+      {/* Ajustes rápidos minimalistas */}
+      <Text style={[styles.seccionLabel, { color: p.text, marginTop: spacing.md, marginBottom: 8 }]}>
+        Ajustes y cuenta
+      </Text>
+      <Card>
+        <Pressable
+          accessibilityRole="button"
           onPress={() => router.push('/ubicacion')}
-        />
+          style={styles.menuItemRow}
+        >
+          <Ionicons name="map-outline" size={20} color={colors.azul} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.menuItemTitle, { color: p.text }]}>Marcar o cambiar mi ubicación</Text>
+            <Text style={[styles.menuItemSub, { color: p.muted }]} numberOfLines={1}>
+              {savedLocation?.address || 'Elige dónde vives o trabajas en el mapa'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={p.muted} />
+        </Pressable>
 
-        <AppButton
-          label="Ver tutorial de la app"
-          variant="secondary"
+        <View style={styles.separador} />
+
+        <Pressable
+          accessibilityRole="button"
           onPress={() => router.push('/welcome')}
-        />
-        <AppButton
-          label="Cerrar sesión"
-          variant="link"
+          style={styles.menuItemRow}
+        >
+          <Ionicons name="help-circle-outline" size={20} color={colors.azul} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.menuItemTitle, { color: p.text }]}>Ver guía de uso de Barrio</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={p.muted} />
+        </Pressable>
+
+        <View style={styles.separador} />
+
+        <Pressable
+          accessibilityRole="button"
           onPress={handleLogout}
-        />
-      </View>
+          style={styles.menuItemRow}
+        >
+          <Ionicons name="log-out-outline" size={20} color={colors.rojo} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.menuItemTitle, { color: colors.rojo }]}>Cerrar sesión</Text>
+          </View>
+        </Pressable>
+      </Card>
+
+      {/* Menú contextual (⋮) de opciones de un oficio */}
+      <Modal
+        visible={menuOficio !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOficio(null)}
+      >
+        <Pressable style={styles.centerOverlay} onPress={() => setMenuOficio(null)}>
+          <Pressable onPress={() => {}} style={styles.contextSheet}>
+            <View style={styles.contextSheetHeader}>
+              <View style={[styles.oficioCatIcon, { backgroundColor: p.highlight }]}>
+                <Ionicons
+                  name={menuOficio ? oficioIcon[menuOficio.oficio.category] : 'construct-outline'}
+                  size={20}
+                  color={colors.azul}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.contextSheetTitle, { color: p.text }]}>
+                  {menuOficio ? oficioLabel[menuOficio.oficio.category] : 'Oficio'}
+                </Text>
+                <Text style={[styles.contextSheetSub, { color: p.muted }]}>
+                  Opciones del oficio
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar menú"
+                onPress={() => setMenuOficio(null)}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={22} color={p.muted} />
+              </Pressable>
+            </View>
+
+            <View style={styles.separador} />
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                const target = menuOficio;
+                setMenuOficio(null);
+                if (target) router.push(`/oficio/${target.id}`);
+              }}
+              style={styles.contextActionRow}
+            >
+              <Ionicons name="eye-outline" size={20} color={colors.azul} />
+              <Text style={[styles.contextActionText, { color: p.text }]}>Ver ficha pública</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                if (menuOficio) handleOpenModal(menuOficio);
+              }}
+              style={styles.contextActionRow}
+            >
+              <Ionicons name="create-outline" size={20} color={colors.azul} />
+              <Text style={[styles.contextActionText, { color: p.text }]}>Editar este oficio</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                const target = menuOficio;
+                setMenuOficio(null);
+                if (target) {
+                  deleteProfile.reset();
+                  setConfirmDeleteOficio(target);
+                }
+              }}
+              style={styles.contextActionRow}
+            >
+              <Ionicons name="trash-outline" size={20} color={colors.rojo} />
+              <Text style={[styles.contextActionText, { color: colors.rojo }]}>Eliminar oficio</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Modal para registrar o editar oficio */}
       <Modal
@@ -286,7 +513,6 @@ export default function Perfil() {
         onRequestClose={() => setModalVisible(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
-          {/* Pressable vacío: los toques dentro de la tarjeta no llegan al fondo que cierra el modal. */}
           <Pressable onPress={() => {}} style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.modalTitle, { color: p.text }]}>
@@ -341,7 +567,6 @@ export default function Perfil() {
                 ]}
               />
 
-              {/* En pantalla y no con Alert.alert, que en web (react-native-web) no hace nada. */}
               {upsertProfile.error ? (
                 <Text accessibilityRole="alert" style={styles.modalError}>
                   No se pudo guardar tu oficio: {upsertProfile.error.message}
@@ -365,23 +590,81 @@ export default function Perfil() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Modal de confirmación para eliminar oficio */}
+      <Modal
+        visible={confirmDeleteOficio !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmDeleteOficio(null)}
+      >
+        <Pressable style={styles.centerOverlay} onPress={() => setConfirmDeleteOficio(null)}>
+          <Pressable onPress={() => {}} style={styles.centerDialog}>
+            <View style={[styles.dialogIconWrap, { backgroundColor: colors.rojoSuave }]}>
+              <Ionicons name="trash-outline" size={28} color={colors.rojo} />
+            </View>
+            <Text style={[styles.dialogTitle, { color: p.text }]}>¿Eliminar este oficio?</Text>
+            <Text style={[styles.dialogBody, { color: p.body }]}>
+              {confirmDeleteOficio
+                ? `Se quitará "${oficioLabel[confirmDeleteOficio.oficio.category]}" de tu perfil y del directorio del barrio.`
+                : ''}
+            </Text>
+            {deleteProfile.error ? (
+              <Text accessibilityRole="alert" style={styles.modalError}>
+                No se pudo eliminar: {(deleteProfile.error as Error).message}
+              </Text>
+            ) : null}
+            <AppButton
+              label={deleteProfile.isPending ? 'Eliminando...' : 'Sí, eliminar oficio'}
+              variant="danger"
+              icon="trash-outline"
+              disabled={deleteProfile.isPending}
+              onPress={handleConfirmDeleteOficio}
+            />
+            <AppButton
+              label="Cancelar"
+              variant="secondary"
+              disabled={deleteProfile.isPending}
+              onPress={() => setConfirmDeleteOficio(null)}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal de éxito al guardar/publicar oficio */}
+      <Modal
+        visible={exitoOficioMsg !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setExitoOficioMsg(null)}
+      >
+        <Pressable style={styles.centerOverlay} onPress={() => setExitoOficioMsg(null)}>
+          <Pressable onPress={() => {}} style={styles.centerDialog}>
+            <View style={[styles.dialogIconWrap, { backgroundColor: p.highlight }]}>
+              <Ionicons name="checkmark-circle" size={32} color={colors.verdeExito} />
+            </View>
+            <Text style={[styles.dialogTitle, { color: p.text }]}>¡Oficio guardado!</Text>
+            <Text style={[styles.dialogBody, { color: p.body }]}>{exitoOficioMsg}</Text>
+            <AppButton label="Listo" icon="checkmark" onPress={() => setExitoOficioMsg(null)} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { marginBottom: spacing.md },
-  titulo: { fontSize: 28, fontFamily: fonts.bold, marginBottom: 4 },
-  subtitulo: { fontSize: 15, fontFamily: fonts.regular, lineHeight: 22 },
+  header: { marginBottom: spacing.sm },
+  titulo: { fontSize: 26, fontFamily: fonts.bold },
   usuarioRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: colors.blanco, fontSize: 18, fontFamily: fonts.bold },
+  avatarText: { color: colors.blanco, fontSize: 20, fontFamily: fonts.bold },
   avatarWrap: { position: 'relative' },
   avatarEdit: {
     position: 'absolute',
@@ -397,28 +680,182 @@ const styles = StyleSheet.create({
     borderColor: colors.blanco,
   },
   usuarioInfo: { flex: 1 },
-  nombre: { fontSize: 19, fontFamily: fonts.bold, marginBottom: 2 },
-  zona: { fontSize: 14, fontFamily: fonts.regular },
-  seccionLabel: { fontSize: 16, fontFamily: fonts.semiBold, marginTop: spacing.md, marginBottom: 8 },
-  oficioHeader: {
+  nombre: { fontSize: 19, fontFamily: fonts.bold, marginBottom: 1 },
+  correo: { fontSize: 13, fontFamily: fonts.regular, marginBottom: 6 },
+  zonaBadgeRow: { flexDirection: 'row', alignItems: 'center' },
+  zonaPill: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.xs,
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
   },
-  oficioNombre: { fontSize: 18, fontFamily: fonts.bold },
-  oficioExp: { fontSize: 14, fontFamily: fonts.medium, marginTop: 2 },
-  oficioDesc: { fontSize: 14, fontFamily: fonts.regular, lineHeight: 20, marginVertical: spacing.xs },
+  zonaPillText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    color: colors.azul,
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: colors.grisBorde,
+    marginVertical: 12,
+  },
+  ubicacionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  ubicacionIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ubicacionTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+  },
+  ubicacionSub: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    marginTop: 1,
+  },
+  ubicacionActionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.fondo,
+  },
+  ubicacionActionText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    color: colors.azul,
+  },
+  metricasRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  metrica: { alignItems: 'center', flex: 1 },
+  metricaValor: { fontSize: 20, fontFamily: fonts.bold },
+  metricaLabel: { fontSize: 12, fontFamily: fonts.medium, color: colors.gris, marginTop: 1 },
+  metricaDivider: { width: 1, height: 28, backgroundColor: colors.grisBorde },
+  seccionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    marginBottom: 8,
+  },
+  seccionLabel: { fontSize: 16, fontFamily: fonts.bold },
+  addOficioPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  addOficioPillText: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+    color: colors.azul,
+  },
+  oficioCompactRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  oficioMainArea: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  oficioCatIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  oficioTitleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  oficioNombre: { fontSize: 16, fontFamily: fonts.bold },
+  oficioExp: { fontSize: 13, fontFamily: fonts.medium, marginTop: 2 },
+  oficioDesc: { fontSize: 13, fontFamily: fonts.regular, lineHeight: 18, marginTop: 4 },
+  contextMenuBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.fondo,
+  },
   sinOficioRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  sinOficioIcono: { fontSize: 32 },
-  sinOficioTitulo: { fontSize: 16, fontFamily: fonts.semiBold, marginBottom: 2 },
-  sinOficioTexto: { fontSize: 14, fontFamily: fonts.regular, lineHeight: 20 },
-  metricasRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingVertical: 4 },
-  metrica: { alignItems: 'center' },
-  metricaValor: { fontSize: 26, fontFamily: fonts.bold, marginBottom: 2 },
-  metricaLabel: { fontSize: 14, fontFamily: fonts.regular, color: colors.gris },
-  metricaDivider: { width: 1, height: 36, backgroundColor: colors.grisBorde },
-  separador: { height: 1, backgroundColor: colors.grisBorde, marginVertical: 4 },
+  sinOficioTitulo: { fontSize: 15, fontFamily: fonts.semiBold, marginBottom: 2 },
+  sinOficioTexto: { fontSize: 13, fontFamily: fonts.regular, lineHeight: 18 },
+  menuItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 6,
+  },
+  menuItemTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
+  },
+  menuItemSub: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    marginTop: 1,
+  },
+  separador: { height: 1, backgroundColor: colors.grisBorde, marginVertical: 8 },
+  contextSheet: {
+    backgroundColor: colors.blanco,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    width: '100%',
+    maxWidth: 380,
+    alignSelf: 'center',
+  },
+  contextSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  contextSheetTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 17,
+  },
+  contextSheetSub: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+  },
+  contextActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: radius.md,
+  },
+  contextActionText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(19, 46, 102, 0.45)',
@@ -443,5 +880,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.regular,
     marginBottom: spacing.xs,
+  },
+  centerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(19, 46, 102, 0.5)',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  centerDialog: {
+    backgroundColor: colors.blanco,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    alignItems: 'stretch',
+    width: '100%',
+    maxWidth: 380,
+    alignSelf: 'center',
+  },
+  dialogIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  dialogTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 22,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  dialogBody: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: spacing.md,
   },
 });
