@@ -9,7 +9,11 @@ import { useAppStore } from '@/store/app-store';
 import { fonts, colors, radius, spacing } from '@/theme';
 import { ZONE_ID } from '@/data/mock';
 
-const zonas = ['Castilla', 'Río Seco', 'Chapayra', 'Miraflores'];
+const zonas = [
+  'Castilla', 'La Obrilla', 'San Rafael', 'San Vicente', 'El Papayo', 'Terela', 'Chapayra',
+  'Río Seco', 'Miraflores', 'Las Mercedes', 'Loma El Mirador', 'Cruz de Caña', 'Virgen de Fátima',
+  'Sector Chocán', 'Mi Cautivo', 'Los Pulache',
+];
 
 export default function Register() {
   const p = usePalette();
