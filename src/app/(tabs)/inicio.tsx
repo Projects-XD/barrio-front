@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Alert, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Redirect, router } from 'expo-router';
+import { AppButton } from '@/components/AppButton';
 import { EmptyState } from '@/components/EmptyState';
 import { FavorCard } from '@/components/FavorCard';
 import { Screen } from '@/components/Screen';
@@ -52,7 +53,7 @@ export default function Inicio() {
   const zoneId = useAppStore((s) => s.zoneId);
   const firstName = useAppStore((s) => s.userFullName)?.trim().split(' ')[0];
   const { data: zonas = [] } = useZones();
-  const { data: favors = [], isLoading } = useFavors();
+  const { data: favors = [], isLoading, isError, refetch } = useFavors();
   const zona = zonas.find((z) => z.id === zoneId)?.name;
   const { data: isAdmin } = useIsAdmin();
   const { data: unread } = useUnreadNotificationCount();
@@ -164,7 +165,16 @@ export default function Inicio() {
             onPress={f.syncStatus === 'enviado' ? () => router.push(`/favores/${f.id}`) : undefined}
           />
         ))
-      ) : isLoading ? null : (
+      ) : isLoading ? null : isError ? (
+        <>
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="No pudimos cargar los favores"
+            message="Revisa tu conexión o tu zona e inténtalo de nuevo."
+          />
+          <AppButton label="Reintentar" variant="secondary" onPress={() => refetch()} />
+        </>
+      ) : (
         <EmptyState
           icon="heart-outline"
           title="Aún no hay favores en tu zona"
