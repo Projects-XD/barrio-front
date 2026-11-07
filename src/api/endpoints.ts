@@ -61,7 +61,6 @@ export interface BackendFavor {
   description: string | null;
   status: 'abierta' | 'en_curso' | 'cerrada' | 'cancelada';
   client_id: string;
-  sync_status: 'pendiente' | 'enviado' | 'error';
   created_at: string;
   urgency: FavorUrgency;
   moderation_status: ModerationStatus;

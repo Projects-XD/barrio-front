@@ -70,7 +70,7 @@ const FRESH_SLOW_MS = 5 * 60_000; // solo cambian por acciones del propio vecino
 const KEEP_LONG_MS = 30 * 60_000; // gcTime de lo que conviene conservar al salir de la pantalla
 const CATALOG = { staleTime: KEEP_LONG_MS, gcTime: 60 * 60_000 }; // zonas y oficios, datos sembrados
 // ponytail: tope de favores activos por zona en mapa e inicio; paginar el mapa si una zona lo supera.
-const FAVORS_LIST_LIMIT = 200;
+const FAVORS_LIST_LIMIT = 100; // máximo que acepta GET /favors (validators.ts)
 
 function isNetworkError(error: unknown) {
   return error instanceof ApiError && error.status === 0;
