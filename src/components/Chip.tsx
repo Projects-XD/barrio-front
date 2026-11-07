@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { usePalette } from '@/hooks/usePalette';
-import { colors, radius } from '@/theme';
+import { colors, fonts, radius } from '@/theme';
 
 type Props = { label: string; selected: boolean; onPress: () => void };
 
@@ -13,10 +13,23 @@ export function Chip({ label, selected, onPress }: Props) {
       onPress={onPress}
       style={[
         styles.chip,
-        { borderColor: selected ? p.primary : p.border, backgroundColor: selected ? p.primary : colors.blanco },
+        {
+          borderColor: selected ? p.primary : p.border,
+          backgroundColor: selected ? p.primary : colors.blanco,
+        },
       ]}
     >
-      <Text style={[styles.text, { color: selected ? colors.blanco : p.text }]}>{label}</Text>
+      <Text
+        style={[
+          styles.text,
+          {
+            color: selected ? colors.blanco : p.text,
+            fontFamily: selected ? fonts.semiBold : fonts.medium,
+          },
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -24,13 +37,13 @@ export function Chip({ label, selected, onPress }: Props) {
 const styles = StyleSheet.create({
   chip: {
     minHeight: 40,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: radius.pill,
-    borderWidth: 1,
+    borderWidth: 1.5,
     marginRight: 8,
     marginBottom: 8,
     justifyContent: 'center',
   },
-  text: { fontSize: 16, fontWeight: '600' },
+  text: { fontSize: 15 },
 });

@@ -1,29 +1,48 @@
 export const colors = {
-  crema: '#FAF7F2',
-  carbon: '#2B2B2B',
-  verde: '#2E6B4F',
-  ambar: '#E0A030',
-  rojo: '#B8442F',
-  blanco: '#FFFFFF',
-  gris: '#6B6B6B',
-  bordeSuave: '#CFC8BB',
-  verdeSuave: '#DFEEE6',
-  ambarSuave: '#FBEED3',
+  // Paleta oficial 60-30-10:
+  azul: '#132E66',       // 60% Primario (marca, navegación, títulos)
+  naranja: '#EA982B',    // 10% Acción / Acento (CTA principal, botones de acción)
+  grisBorde: '#DFE1E5',  // 30% Neutral / Secundario (bordes, separadores)
+  rojo: '#B8442F',       // Solo en modo emergencia
+  blanco: '#FFFFFF',     // Superficie limpia (tarjetas, modales)
+  fondo: '#F8F9FA',      // Fondo de pantallas
+  carbon: '#132E66',     // Texto de títulos / fuerte
+  texto: '#1E293B',      // Texto de párrafos y lectura
+  gris: '#64748B',       // Texto atenuado / secundario
+
+  // Compatibilidad con archivos existentes:
+  crema: '#F8F9FA',
+  verde: '#132E66',
+  ambar: '#EA982B',
+  bordeSuave: '#DFE1E5',
+  verdeSuave: '#E0ECFB',
+  ambarSuave: '#FEF3C7',
+};
+
+export const fonts = {
+  regular: 'InstrumentSans_400Regular',
+  medium: 'InstrumentSans_500Medium',
+  semiBold: 'InstrumentSans_600SemiBold',
+  bold: 'InstrumentSans_700Bold',
 };
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };
-export const radius = { md: 12, pill: 999 };
-export const typography = { base: 18, pequeno: 16, subtitulo: 22, titulo: 28 };
+export const radius = { sm: 8, md: 12, lg: 16, pill: 999 };
+export const typography = { base: 17, pequeno: 15, subtitulo: 20, titulo: 28 };
 export const touch = { min: 48 };
 
 export function getPalette(emergency: boolean) {
   return {
-    primary: emergency ? colors.rojo : colors.verde,
-    background: colors.crema,
+    primary: emergency ? colors.rojo : colors.azul,
+    accent: colors.naranja,
+    background: colors.fondo,
     surface: colors.blanco,
-    text: colors.carbon,
+    text: emergency ? colors.rojo : colors.carbon,
+    body: colors.texto,
     muted: colors.gris,
-    border: colors.bordeSuave,
+    border: colors.grisBorde,
+    badge: colors.verdeSuave,
+    emergency: colors.rojo,
   };
 }
 
