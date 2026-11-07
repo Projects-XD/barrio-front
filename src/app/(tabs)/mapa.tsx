@@ -39,6 +39,9 @@ import { styles } from '@/features/mapa/styles';
 
 type KindFilter = 'todos' | 'pedir' | 'ofrecer' | 'oficio' | 'emergencia';
 
+// Mismo radio que usa normalizeCoord para decidir si un punto "pertenece" a la zona.
+const ZONE_MATCH_RADIUS_KM = 8;
+
 type MapEntry = {
   id: string;
   kind: 'pedir' | 'ofrecer' | 'oficio' | 'emergencia';
@@ -136,9 +139,12 @@ export default function MapaBarrio() {
   const [userFocusTrigger, setUserFocusTrigger] = useState(0);
   const [locating, setLocating] = useState(false);
 
+  // La ubicación guardada en el perfil (BD/TanStack cache) manda siempre sobre la última lectura GPS:
+  // así, si el vecino cambia su ubicación en el Perfil, el marcador se actualiza solo (sin presionar nada)
+  // y el botón de precisión nunca "pisa" ese cambio con una posición vieja o simulada del emulador.
   const activeUserLocation: Coords | null = useMemo(
-    () => userLocation ?? (savedLocation ? { lat: savedLocation.lat, lng: savedLocation.lng } : null),
-    [userLocation, savedLocation],
+    () => (savedLocation ? { lat: savedLocation.lat, lng: savedLocation.lng } : userLocation),
+    [savedLocation, userLocation],
   );
 
   const zona = zonas.find((z) => z.id === zoneId);
@@ -147,8 +153,27 @@ export default function MapaBarrio() {
       ? { lat: zona.center_lat, lng: zona.center_lng }
       : CASTILLA_CENTER;
 
+  // Los favores siempre se filtran por la zona asignada en la BD (seguridad de zonas), aunque la
+  // ubicación marcada en el mapa esté lejos de esa zona (ej. se registró en otro barrio). Avisamos
+  // al vecino en ese caso para que no piense que el mapa está mostrando el lugar equivocado.
+  const fueraDeZonaAsignada = Boolean(
+    zona && activeUserLocation && distanceKm(
+      activeUserLocation.lat,
+      activeUserLocation.lng,
+      center.lat,
+      center.lng,
+    ) > ZONE_MATCH_RADIUS_KM,
+  );
+
   const ubicarmeEnMapa = async () => {
     if (locating) return;
+    // Si ya hay una ubicación guardada en el perfil, es la fuente de verdad: solo centramos
+    // el mapa en ella. No pedimos una lectura GPS en vivo que podría no coincidir (dispositivo
+    // simulado, GPS desactualizado) con lo que el vecino acaba de guardar.
+    if (savedLocation) {
+      setUserFocusTrigger((n) => n + 1);
+      return;
+    }
     setLocating(true);
     try {
       const pos = await getRealPosition();
@@ -179,7 +204,9 @@ export default function MapaBarrio() {
       let baseLat = rawLat ?? center.lat;
       let baseLng = rawLng ?? center.lng;
       const outOfZone =
-        rawLat == null || rawLng == null || distanceKm(baseLat, baseLng, center.lat, center.lng) > 8;
+        rawLat == null ||
+        rawLng == null ||
+        distanceKm(baseLat, baseLng, center.lat, center.lng) > ZONE_MATCH_RADIUS_KM;
       if (outOfZone) {
         const off = deterministicOffset(id, idx);
         baseLat = Number((center.lat + off.dLat * 2.4).toFixed(5));
@@ -455,6 +482,15 @@ export default function MapaBarrio() {
           </Pressable>
         </View>
       </View>
+
+      {fueraDeZonaAsignada && zona ? (
+        <View style={styles.zoneNotice}>
+          <Ionicons name="information-circle-outline" size={16} color={colors.azul} />
+          <Text style={[styles.zoneNoticeText, { color: colors.azul }]}>
+            Tu ubicación marcada está fuera de {zona.name}. Estás viendo los favores de tu zona asignada.
+          </Text>
+        </View>
+      ) : null}
 
       {isLoading ? (
         <View style={styles.loaderWrap}>
