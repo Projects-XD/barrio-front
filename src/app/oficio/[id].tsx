@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import * as Linking from 'expo-linking';
+import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
@@ -40,7 +41,7 @@ export default function OficioDetalle() {
   if (!profile) {
     return (
       <Screen>
-        <EmptyState title="Perfil no encontrado" message="Puede que este oficio ya no esté disponible." />
+        <EmptyState title="Perfil no disponible" message="Este perfil no se encuentra en tu zona." />
       </Screen>
     );
   }
@@ -54,7 +55,7 @@ export default function OficioDetalle() {
   const handleCall = () => {
     setShowContactModal(false);
     Linking.openURL('tel:+51987654321').catch(() => {
-      Alert.alert('Contacto', 'Teléfono del profesional: +51 987 654 321');
+      Alert.alert('Contacto telefónico', 'Teléfono: +51 987 654 321');
     });
   };
 
@@ -74,18 +75,21 @@ export default function OficioDetalle() {
 
       <Card>
         <View style={styles.headerRow}>
-          <View style={[styles.avatar, { backgroundColor: colors.azul }]}>
+          <View style={[styles.avatar, { backgroundColor: '#EBF3FC', borderColor: '#D0E3F8' }]}>
             <Text style={styles.initials}>{initials}</Text>
           </View>
           <View style={styles.headerInfo}>
             <Text style={[styles.nombre, { color: p.text }]}>{profile.user.fullName}</Text>
             <Text style={[styles.sub, { color: p.muted }]}>
-              {`${oficioLabel[profile.oficio.category]}${profile.yearsExperience ? ` · ${profile.yearsExperience} años de exp.` : ''}`}
+              {`${oficioLabel[profile.oficio.category]}${profile.yearsExperience ? ` · ${profile.yearsExperience} años exp.` : ''}`}
             </Text>
             {profile.distanceKm !== undefined ? (
-              <Text style={[styles.distancia, { color: colors.gris }]}>
-                📍 Aprox. a {profile.distanceKm} km de tu ubicación
-              </Text>
+              <View style={styles.distanciaRow}>
+                <Ionicons name="location-outline" size={13} color={colors.gris} />
+                <Text style={[styles.distancia, { color: colors.gris }]}>
+                  {profile.distanceKm} km en tu zona
+                </Text>
+              </View>
             ) : null}
           </View>
         </View>
@@ -96,14 +100,17 @@ export default function OficioDetalle() {
 
         <View style={styles.divider} />
 
-        <Text style={[styles.seccionTitulo, { color: p.text }]}>Sobre este servicio</Text>
+        <Text style={[styles.seccionTitulo, { color: p.text }]}>Servicio y especialidad</Text>
         <Text style={[styles.descripcion, { color: colors.texto }]}>{profile.description}</Text>
       </Card>
 
       <View style={styles.reglaCard}>
-        <Text style={styles.reglaTitulo}>💡 ¿Cómo funciona el visto bueno?</Text>
+        <View style={styles.reglaHeader}>
+          <Ionicons name="shield-checkmark-outline" size={16} color={colors.azul} />
+          <Text style={styles.reglaTitulo}>Garantía comunitaria</Text>
+        </View>
         <Text style={styles.reglaTexto}>
-          Solo vecinos de la misma zona pueden dar su visto bueno. Al sumar 2 o más recomendaciones, el profesional obtiene la insignia oficial de Validado.
+          Solo vecinos de la misma zona pueden otorgar avales. Al sumar 2 o más recomendaciones, el perfil queda oficialmente validado.
         </Text>
       </View>
 
@@ -111,17 +118,17 @@ export default function OficioDetalle() {
         <AppButton
           label={
             profile.hasVouchedByMe
-              ? '✓ Ya diste tu visto bueno'
+              ? 'Aval registrado'
               : vouch.isPending
-                ? 'Registrando visto bueno...'
-                : 'Dar visto bueno vecinal'
+                ? 'Registrando aval...'
+                : 'Dar visto bueno'
           }
           variant={profile.hasVouchedByMe ? 'secondary' : 'accent'}
           onPress={() => vouch.mutate()}
           disabled={profile.hasVouchedByMe || vouch.isPending}
         />
         <AppButton
-          label="Llamar o contactar"
+          label="Contactar técnico"
           variant="secondary"
           onPress={() => setShowContactModal(true)}
         />
@@ -138,22 +145,22 @@ export default function OficioDetalle() {
           <View style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>Contactar a {profile.user.fullName}</Text>
             <Text style={[styles.modalSub, { color: p.muted }]}>
-              Comunícate de vecino a vecino para coordinar el trabajo:
+              Coordina el servicio directamente con tu vecino:
             </Text>
 
             <View style={styles.modalButtons}>
               <AppButton
-                label="📞 Llamar por teléfono"
+                label="Llamar por teléfono"
                 variant="primary"
                 onPress={handleCall}
               />
               <AppButton
-                label="💬 Enviar WhatsApp"
+                label="Enviar WhatsApp"
                 variant="accent"
                 onPress={handleWhatsApp}
               />
               <AppButton
-                label="Cancelar"
+                label="Cerrar"
                 variant="link"
                 onPress={() => setShowContactModal(false)}
               />
@@ -169,34 +176,37 @@ const styles = StyleSheet.create({
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: spacing.xl },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: spacing.sm },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
   },
-  initials: { color: colors.blanco, fontFamily: fonts.bold, fontSize: 20 },
+  initials: { color: colors.azul, fontFamily: fonts.bold, fontSize: 18 },
   headerInfo: { flex: 1 },
-  nombre: { fontSize: 22, fontFamily: fonts.bold, marginBottom: 2 },
-  sub: { fontSize: 15, fontFamily: fonts.medium },
-  distancia: { fontSize: 13, fontFamily: fonts.regular, marginTop: 2 },
-  badgeWrapper: { marginVertical: 8 },
+  nombre: { fontSize: 20, fontFamily: fonts.bold, marginBottom: 2 },
+  sub: { fontSize: 14, fontFamily: fonts.medium },
+  distanciaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  distancia: { fontSize: 13, fontFamily: fonts.regular },
+  badgeWrapper: { marginVertical: 6 },
   divider: { height: 1, backgroundColor: colors.grisBorde, marginVertical: spacing.md },
-  seccionTitulo: { fontSize: 16, fontFamily: fonts.semiBold, marginBottom: 6 },
-  descripcion: { fontSize: 16, fontFamily: fonts.regular, lineHeight: 24 },
+  seccionTitulo: { fontSize: 15, fontFamily: fonts.semiBold, marginBottom: 6 },
+  descripcion: { fontSize: 15, fontFamily: fonts.regular, lineHeight: 22 },
   reglaCard: {
-    backgroundColor: '#E0ECFB',
+    backgroundColor: '#F8FAFC',
     borderRadius: radius.md,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#BDD7F5',
+    borderColor: colors.grisBorde,
     marginVertical: spacing.sm,
   },
-  reglaTitulo: { fontSize: 14, fontFamily: fonts.semiBold, color: colors.azul, marginBottom: 4 },
-  reglaTexto: { fontSize: 13, fontFamily: fonts.regular, color: colors.carbon, lineHeight: 18 },
+  reglaHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  reglaTitulo: { fontSize: 13.5, fontFamily: fonts.semiBold, color: colors.azul },
+  reglaTexto: { fontSize: 13, fontFamily: fonts.regular, color: colors.gris, lineHeight: 18 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(19, 46, 102, 0.4)',
+    backgroundColor: 'rgba(19, 46, 102, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.md,
@@ -209,13 +219,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.grisBorde,
     shadowColor: '#132E66',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+    elevation: 4,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 19,
     fontFamily: fonts.bold,
     marginBottom: 6,
     textAlign: 'center',

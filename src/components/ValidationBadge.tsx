@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '@/theme';
 
 type Props = { validatedCount: number; threshold?: number };
@@ -9,45 +10,71 @@ export function ValidationBadge({ validatedCount, threshold = 2 }: Props) {
   if (isValidated) {
     return (
       <View style={styles.validado}>
-        <Text style={styles.validadoText}>✓ Validado por vecinos ({validatedCount})</Text>
+        <Ionicons name="shield-checkmark" size={13} color={colors.azul} style={styles.icon} />
+        <Text style={styles.validadoText}>
+          {validatedCount > threshold ? `${validatedCount} avales vecinales` : 'Validado por vecinos'}
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={styles.pendiente}>
-      <Text style={styles.pendienteText}>{`🤝 ${validatedCount} de ${threshold} vistos buenos necesarios`}</Text>
+      <View style={styles.dotsRow}>
+        <View style={[styles.dot, { backgroundColor: validatedCount >= 1 ? colors.naranja : colors.grisBorde }]} />
+        <View style={[styles.dot, { backgroundColor: validatedCount >= 2 ? colors.naranja : colors.grisBorde }]} />
+      </View>
+      <Text style={styles.pendienteText}>
+        {`${validatedCount}/${threshold} avales`}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   validado: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#E0ECFB',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: '#E8F1FC',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderWidth: 1,
-    borderColor: '#BDD7F5',
+    borderColor: '#C8DEF8',
+  },
+  icon: {
+    marginRight: 4,
   },
   validadoText: {
     color: colors.azul,
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: fonts.semiBold,
   },
   pendiente: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderWidth: 1,
     borderColor: colors.grisBorde,
   },
+  dotsRow: {
+    flexDirection: 'row',
+    gap: 3,
+    marginRight: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
   pendienteText: {
     color: colors.gris,
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: fonts.medium,
   },
 });
