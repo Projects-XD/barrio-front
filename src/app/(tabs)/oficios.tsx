@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { router } from 'expo-router';
 import { Chip } from '@/components/Chip';
 import { EmptyState } from '@/components/EmptyState';
@@ -16,7 +24,13 @@ const categorias = Object.keys(oficioLabel) as OficioCategory[];
 export default function Oficios() {
   const p = usePalette();
   const [filtro, setFiltro] = useState<OficioCategory | undefined>(undefined);
-  const { data, isLoading } = useProfiles(filtro);
+  const [busqueda, setBusqueda] = useState('');
+  const { data, isLoading } = useProfiles(filtro, busqueda);
+
+  const resetFilters = () => {
+    setFiltro(undefined);
+    setBusqueda('');
+  };
 
   return (
     <Screen scroll={false}>
@@ -27,12 +41,35 @@ export default function Oficios() {
         </Text>
       </View>
 
+      {/* Barra de búsqueda en tiempo real */}
+      <View style={[styles.searchBox, { borderColor: p.border }]}>
+        <Text style={styles.searchIcon}>🔍</Text>
+        <TextInput
+          value={busqueda}
+          onChangeText={setBusqueda}
+          placeholder="Buscar oficio o vecino (ej. gasfitería, Tomás)..."
+          placeholderTextColor={colors.gris}
+          style={[styles.searchInput, { color: p.text }]}
+        />
+        {busqueda.length > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Limpiar búsqueda"
+            onPress={() => setBusqueda('')}
+            style={styles.clearBtn}
+          >
+            <Text style={styles.clearIcon}>✖</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
       <View style={styles.bannerInfo}>
         <Text style={styles.bannerTexto}>
           ℹ️ Un oficio queda <Text style={styles.bold}>Validado</Text> al recibir visto bueno de al menos 2 vecinos de la zona.
         </Text>
       </View>
 
+      {/* Filtro horizontal por categoría de oficio */}
       <View style={styles.chipsContainer}>
         <FlatList
           horizontal
@@ -65,10 +102,25 @@ export default function Oficios() {
             />
           )}
           ListEmptyComponent={
-            <EmptyState
-              title="Sin oficios en esta categoría"
-              message="Aún no hay perfiles registrados en esta categoría en tu zona."
-            />
+            <View style={styles.emptyWrapper}>
+              <EmptyState
+                title="Sin resultados"
+                message={
+                  busqueda || filtro
+                    ? 'No encontramos oficios que coincidan con tus filtros actuales.'
+                    : 'Aún no hay oficios registrados en tu zona.'
+                }
+              />
+              {busqueda || filtro ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={resetFilters}
+                  style={[styles.resetBtn, { borderColor: p.primary }]}
+                >
+                  <Text style={[styles.resetText, { color: p.primary }]}>Limpiar filtros</Text>
+                </Pressable>
+              ) : null}
+            </View>
           }
           contentContainerStyle={{ paddingBottom: spacing.xl }}
         />
@@ -79,39 +131,66 @@ export default function Oficios() {
 
 const styles = StyleSheet.create({
   header: {
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     marginTop: spacing.xs,
   },
   titulo: {
-    fontSize: 28,
+    fontSize: 26,
     fontFamily: fonts.bold,
     marginBottom: 4,
   },
   subtitulo: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: fonts.regular,
     lineHeight: 20,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.blanco,
+    borderWidth: 1.5,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    height: 48,
+    marginVertical: spacing.xs,
+  },
+  searchIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    fontFamily: fonts.regular,
+    fontSize: 15,
+  },
+  clearBtn: {
+    padding: 6,
+  },
+  clearIcon: {
+    fontSize: 12,
+    color: colors.gris,
   },
   bannerInfo: {
     backgroundColor: '#E0ECFB',
     borderRadius: radius.sm,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: spacing.sm,
+    paddingVertical: 7,
+    marginVertical: spacing.xs,
     borderWidth: 1,
     borderColor: '#BDD7F5',
   },
   bannerTexto: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontFamily: fonts.regular,
     color: colors.azul,
-    lineHeight: 18,
+    lineHeight: 17,
   },
   bold: {
     fontFamily: fonts.bold,
   },
   chipsContainer: {
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   chipsList: {
     paddingVertical: 4,
@@ -121,5 +200,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingTop: spacing.xl,
+  },
+  emptyWrapper: {
+    alignItems: 'center',
+    paddingTop: spacing.md,
+  },
+  resetBtn: {
+    marginTop: spacing.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+  },
+  resetText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
   },
 });

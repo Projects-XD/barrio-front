@@ -25,95 +25,103 @@ export default function Register() {
   };
 
   return (
-    <Screen>
-      <View style={styles.header}>
-        <Text style={[styles.titulo, { color: p.text }]}>Únete a tu Barrio</Text>
-        <Text style={[styles.sub, { color: p.muted }]}>
-          Identifícate con tus vecinos para pedir favores y recomendar oficios de confianza.
-        </Text>
-      </View>
+    <Screen scroll={false}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={[styles.titulo, { color: p.text }]}>Únete a tu Barrio</Text>
+          <Text style={[styles.sub, { color: p.muted }]}>
+            Conéctate con tus vecinos de forma cercana y segura.
+          </Text>
+        </View>
 
-      <Text style={[styles.label, { color: p.text }]}>Tu nombre y apellido</Text>
-      <TextInput
-        value={nombre}
-        onChangeText={setNombre}
-        placeholder="Ej. Alexander García"
-        placeholderTextColor={colors.gris}
-        style={[
-          styles.input,
-          { borderColor: p.border, color: p.text, backgroundColor: colors.blanco },
-        ]}
-      />
+        <View style={styles.form}>
+          <Text style={[styles.label, { color: p.text }]}>Nombre y apellido</Text>
+          <TextInput
+            value={nombre}
+            onChangeText={setNombre}
+            placeholder="Ej. Alexander García"
+            placeholderTextColor={colors.gris}
+            style={[
+              styles.input,
+              { borderColor: p.border, color: p.text, backgroundColor: colors.blanco },
+            ]}
+          />
 
-      <Text style={[styles.label, { color: p.text }]}>Selecciona tu zona o barrio</Text>
-      <Text style={[styles.helper, { color: p.muted }]}>
-        Solo verás y publicarás para vecinos de tu misma zona.
-      </Text>
-      <View style={styles.chips}>
-        {zonas.map((z) => (
-          <Chip key={z} label={z} selected={zona === z} onPress={() => setZona(z)} />
-        ))}
-      </View>
+          <Text style={[styles.label, { color: p.text }]}>Tu zona o barrio</Text>
+          <View style={styles.chips}>
+            {zonas.map((z) => (
+              <Chip key={z} label={z} selected={zona === z} onPress={() => setZona(z)} />
+            ))}
+          </View>
+        </View>
 
-      <View style={styles.garantiaCard}>
-        <Text style={styles.garantiaTitulo}>Privacidad vecinal</Text>
-        <Text style={styles.garantiaTexto}>
-          Tus datos se usan únicamente dentro de tu barrio. Las direcciones exactas nunca se publican abiertamente.
-        </Text>
-      </View>
+        <View style={styles.footer}>
+          <Text style={[styles.privacyNote, { color: p.muted }]}>
+            🔒 Tu dirección exacta nunca será compartida públicamente.
+          </Text>
 
-      <View style={styles.garantiaCard}>
-        <Text style={styles.garantiaTitulo}>🔒 Privacidad vecinal</Text>
-        <Text style={styles.garantiaTexto}>
-          Tus datos se usan únicamente dentro de tu barrio. Las direcciones exactas nunca se publican abiertamente.
-        </Text>
-      </View>
-
-      <View style={{ marginTop: spacing.lg }}>
-        <AppButton
-          label="Entrar al barrio"
-          variant="accent"
-          onPress={submit}
-          disabled={!canSubmit}
-        />
+          <AppButton
+            label="Entrar al barrio"
+            variant="accent"
+            onPress={submit}
+            disabled={!canSubmit}
+          />
+        </View>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { marginBottom: spacing.md, marginTop: spacing.sm },
-  titulo: { fontSize: 28, fontFamily: fonts.bold, marginBottom: 8 },
-  sub: { fontSize: 16, fontFamily: fonts.regular, lineHeight: 22 },
-  label: { fontSize: 16, fontFamily: fonts.semiBold, marginTop: spacing.md, marginBottom: 6 },
-  helper: { fontSize: 14, fontFamily: fonts.regular, marginBottom: spacing.sm },
+  container: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+  },
+  header: {
+    marginBottom: spacing.md,
+    marginTop: spacing.xs,
+  },
+  titulo: {
+    fontSize: 28,
+    fontFamily: fonts.bold,
+    marginBottom: 6,
+  },
+  sub: {
+    fontSize: 15,
+    fontFamily: fonts.regular,
+    lineHeight: 22,
+  },
+  form: {
+    flex: 1,
+  },
+  label: {
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
+    marginBottom: 8,
+    marginTop: spacing.sm,
+  },
   input: {
-    minHeight: 52,
+    minHeight: 50,
     borderWidth: 1.5,
     borderRadius: radius.md,
     paddingHorizontal: 16,
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: fonts.regular,
+    marginBottom: spacing.xs,
   },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.sm },
-  garantiaCard: {
-    backgroundColor: '#E0ECFB',
-    borderRadius: radius.md,
-    padding: 16,
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 2,
+  },
+  footer: {
     marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: '#BDD7F5',
   },
-  garantiaTitulo: {
-    fontSize: 15,
-    fontFamily: fonts.semiBold,
-    color: colors.azul,
-    marginBottom: 4,
-  },
-  garantiaTexto: {
-    fontSize: 14,
+  privacyNote: {
+    fontSize: 13,
     fontFamily: fonts.regular,
-    color: colors.carbon,
-    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
 });
