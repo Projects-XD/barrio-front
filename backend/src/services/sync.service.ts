@@ -8,7 +8,6 @@ import {
   type SyncOperationDTO,
 } from '../utils/validators';
 import { logger } from '../utils/logger';
-import { moderationStatusFor } from './favor.service';
 import { assertProfileInUserZone, resolveUserZone } from './zoneAccess';
 
 export interface SyncProcessResult {
@@ -262,7 +261,7 @@ export class SyncService {
         status: 'abierta',
         sync_status: 'enviado',
         urgency: payload.urgency,
-        moderation_status: moderationStatusFor(payload.urgency),
+        moderation_status: 'pendiente', // igual que createFavor: todo favor nuevo espera aprobación
       })
       .select()
       .single();

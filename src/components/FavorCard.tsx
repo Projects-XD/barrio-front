@@ -2,18 +2,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 import type { Favor } from '@/types';
 import { favorStatusLabel, favorTypeLabel, syncStatusLabel } from '@/i18n/labels';
-import { favorTypeIcon } from '@/i18n/icons';
+import { favorTypeIcon, type IconName } from '@/i18n/icons';
 import { usePalette } from '@/hooks/usePalette';
 import { colors, fonts, radius } from '@/theme';
 import { timeAgo } from '@/utils/time';
 import { Card } from './Card';
+import { UrgencyBadge } from './UrgencyBadge';
 
 type Props = { favor: Favor; onPress?: () => void };
 
 export function FavorCard({ favor, onPress }: Props) {
   const p = usePalette();
-  const pending = favor.syncStatus !== 'enviado';
-  const statusText = pending ? syncStatusLabel[favor.syncStatus] : favorStatusLabel[favor.status];
+  // Sin enviar tiene prioridad: la cola offline también marca sus favores como 'pendiente'.
+  // Un favor en revisión solo llega al feed de su autor: el backend lo filtra para los demás.
+  const pill: { bg: string; fg: string; icon: IconName; iconSize: number; text: string } =
+    favor.syncStatus !== 'enviado'
+      ? { bg: colors.naranjaSuave, fg: colors.azul, icon: 'cloud-upload-outline', iconSize: 14, text: syncStatusLabel[favor.syncStatus] }
+      : favor.moderationStatus === 'pendiente'
+        ? { bg: colors.naranja, fg: colors.azul, icon: 'time-outline', iconSize: 14, text: 'En revisión' }
+        : { bg: colors.verdeExitoSuave, fg: colors.verdeExito, icon: 'ellipse', iconSize: 8, text: favorStatusLabel[favor.status] };
   const meta = [favor.author.fullName, timeAgo(favor.createdAt)].filter(Boolean).join(' · ');
 
   return (
@@ -23,6 +30,7 @@ export function FavorCard({ favor, onPress }: Props) {
           <Ionicons name={favorTypeIcon[favor.type]} size={24} color={p.text} />
         </View>
         <View style={styles.info}>
+          {favor.moderationStatus === 'aprobado' ? <UrgencyBadge urgency={favor.urgency} /> : null}
           <Text style={[styles.type, { color: p.muted }]}>{favorTypeLabel[favor.type]}</Text>
           <Text style={[styles.title, { color: p.text }]} numberOfLines={2}>
             {favor.title}
@@ -35,13 +43,9 @@ export function FavorCard({ favor, onPress }: Props) {
         <Text style={[styles.meta, { color: p.muted }]} numberOfLines={1}>
           {meta}
         </Text>
-        <View style={[styles.pill, { backgroundColor: pending ? colors.naranjaSuave : colors.verdeExitoSuave }]}>
-          <Ionicons
-            name={pending ? 'cloud-upload-outline' : 'ellipse'}
-            size={pending ? 14 : 8}
-            color={pending ? colors.azul : colors.verdeExito}
-          />
-          <Text style={[styles.status, { color: pending ? colors.azul : colors.verdeExito }]}>{statusText}</Text>
+        <View style={[styles.pill, { backgroundColor: pill.bg }]}>
+          <Ionicons name={pill.icon} size={pill.iconSize} color={pill.fg} />
+          <Text style={[styles.status, { color: pill.fg }]}>{pill.text}</Text>
         </View>
       </View>
     </Card>

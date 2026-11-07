@@ -3,8 +3,6 @@ import type {
   Database,
   Tables,
   FavorType,
-  FavorUrgency,
-  ModerationStatus,
 } from '../types/database.types';
 import { AppError } from '../middlewares/errorHandler';
 import type { CreateFavorDTO, UpdateFavorDTO, CreateFavorInterestDTO } from '../utils/validators';
@@ -14,13 +12,6 @@ const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const isWithinEditWindow = (createdAt: string) =>
   Date.now() - new Date(createdAt).getTime() <= EDIT_WINDOW_MS;
-
-/**
- * Estrategia híbrida: solo el privilegio de urgencia requiere revisión de un admin.
- * Lo decide siempre el servidor, también para las operaciones offline.
- */
-export const moderationStatusFor = (urgency: FavorUrgency): ModerationStatus =>
-  urgency === 'normal' ? 'aprobado' : 'pendiente';
 
 export class FavorService {
   /**
@@ -40,6 +31,8 @@ export class FavorService {
       .eq('zone_id', zoneId)
       .in('status', ['abierta', 'en_curso'])
       .is('deleted_at', null)
+      // Sin aprobar solo lo ve su autor. userId sale del token verificado, no del cliente.
+      .or(`moderation_status.eq.aprobado,author_id.eq.${userId}`)
       .order('created_at', { ascending: false })
       .order('id'); // desempate estable: la paginación no repite ni omite filas
 
@@ -157,7 +150,7 @@ export class FavorService {
         status: 'abierta',
         sync_status: 'enviado',
         urgency: dto.urgency,
-        moderation_status: moderationStatusFor(dto.urgency),
+        moderation_status: 'pendiente', // todo favor nuevo espera aprobación, sin importar su urgencia
       })
       .select()
       .single();
@@ -245,7 +238,7 @@ export class FavorService {
    * Actualiza el estado o datos de un favor.
    * Un favor desactivado no admite cambios.
    * La ventana de 24 h aplica al contenido: pasado ese plazo el autor aún puede cerrar su favor.
-   * Editar el contenido de un favor urgente lo devuelve a la cola: la aprobación cubría el texto anterior.
+   * Editar el contenido de cualquier favor lo devuelve a la cola: la aprobación cubría el texto anterior.
    */
   public async updateFavor(
     supabase: SupabaseClient<Database>,
@@ -255,7 +248,7 @@ export class FavorService {
   ): Promise<Tables<'favors'>> {
     const { data: currentFavor } = await supabase
       .from('favors')
-      .select('status, created_at, deleted_at, urgency')
+      .select('status, created_at, deleted_at')
       .eq('id', favorId)
       .eq('author_id', userId)
       .single();
@@ -288,13 +281,12 @@ export class FavorService {
           : {}),
         ...(editsContent && { edited_at: new Date().toISOString() }),
         // Se escribe sin mirar el estado leído: una aprobación simultánea no puede cubrir el texto nuevo.
-        ...(editsContent &&
-          currentFavor.urgency !== 'normal' && {
-            moderation_status: moderationStatusFor(currentFavor.urgency),
-            moderated_by: null,
-            moderated_at: null,
-            moderation_reason: null,
-          }),
+        ...(editsContent && {
+          moderation_status: 'pendiente' as const,
+          moderated_by: null,
+          moderated_at: null,
+          moderation_reason: null,
+        }),
         updated_at: new Date().toISOString(),
       })
       .eq('id', favorId)

@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
+import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
+import { UrgencyBadge } from '@/components/UrgencyBadge';
 import { usePalette } from '@/hooks/usePalette';
 import { useCreateFavor } from '@/hooks/useData';
 import { favorTypeIcon } from '@/i18n/icons';
-import { favorTypeLabel } from '@/i18n/labels';
-import type { FavorType } from '@/types';
+import { favorTypeLabel, favorUrgencyLabel } from '@/i18n/labels';
+import type { FavorType, FavorUrgency } from '@/types';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
 
 const tipos = Object.keys(favorTypeLabel) as FavorType[];
+const urgencias = Object.keys(favorUrgencyLabel) as FavorUrgency[];
 
 const PASOS = ['Elige el tipo', 'Escribe tu favor', 'Revisa y publica'];
 
@@ -22,31 +25,21 @@ export default function NuevoFavor() {
   const [tipo, setTipo] = useState<FavorType | null>(null);
   const [confirmando, setConfirmando] = useState(false);
   const [texto, setTexto] = useState('');
+  const [urgencia, setUrgencia] = useState<FavorUrgency>('normal');
+  const [resultado, setResultado] = useState<{ queued: boolean } | null>(null);
   const crear = useCreateFavor();
 
-  const publicar = async () => {
+  const publicar = () => {
     if (!tipo || !texto.trim() || crear.isPending) return;
+    crear.mutate(
+      { type: tipo, title: texto.trim(), description: null, urgency: urgencia },
+      { onSuccess: ({ queued }) => setResultado({ queued }) }
+    );
+  };
 
-    try {
-      const { queued } = await crear.mutateAsync({
-        type: tipo,
-        title: texto.trim(),
-        description: null,
-      });
-
-      // Navegar de inmediato: en web Alert no ejecuta sus botones, así que no depende de ellos.
-      router.replace('/(tabs)/favores');
-      Alert.alert(
-        queued ? 'Guardado sin conexión' : '¡Favor publicado!',
-        queued
-          ? 'Tu favor se guardó en el teléfono y se publicará solo cuando vuelva la conexión.'
-          : 'Tu publicación ya está disponible en el muro de favores de tu barrio.',
-        [{ text: 'Entendido' }]
-      );
-    } catch (err: any) {
-      const errorMsg = err?.message || 'No se pudo publicar el favor. Verifica tu conexión con el servidor.';
-      Alert.alert('Error al publicar favor', errorMsg);
-    }
+  const irAFavores = () => {
+    setResultado(null);
+    router.replace('/(tabs)/favores');
   };
 
   return (
@@ -120,6 +113,16 @@ export default function NuevoFavor() {
           />
           <Text style={[styles.charCount, { color: p.muted }]}>{texto.trim().length}/120</Text>
 
+          <Text style={[styles.urgenciaLabel, { color: p.text }]}>¿Qué tan urgente es?</Text>
+          <View style={styles.urgencias}>
+            {urgencias.map((u) => (
+              <Chip key={u} label={favorUrgencyLabel[u]} selected={urgencia === u} onPress={() => setUrgencia(u)} />
+            ))}
+          </View>
+          <Text style={[styles.urgenciaNota, { color: p.muted }]}>
+            Tu favor será revisado por un administrador antes de publicarse.
+          </Text>
+
           <View style={{ marginTop: spacing.md }}>
             <AppButton
               label="Siguiente"
@@ -142,11 +145,18 @@ export default function NuevoFavor() {
                 <Ionicons name={favorTypeIcon[tipo]} size={24} color={p.text} />
               </View>
               <View style={{ flex: 1 }}>
+                <UrgencyBadge urgency={urgencia} />
                 <Text style={[styles.resumenTipo, { color: p.muted }]}>{favorTypeLabel[tipo]}</Text>
                 <Text style={[styles.resumenTitulo, { color: p.text }]}>{texto.trim()}</Text>
               </View>
             </View>
           </Card>
+
+          {crear.error ? (
+            <Text accessibilityRole="alert" style={styles.error}>
+              No se pudo publicar tu favor: {crear.error.message}
+            </Text>
+          ) : null}
 
           <View style={{ marginTop: spacing.md }}>
             {crear.isPending ? (
@@ -179,7 +189,9 @@ export default function NuevoFavor() {
             <Text style={[styles.textoModal, { color: p.body }]}>
               {tipo ? favorTypeLabel[tipo] : ''}: {texto.trim()}
             </Text>
-            <Text style={[styles.textoModal, { color: p.muted }]}>Lo verán los vecinos de tu zona.</Text>
+            <Text style={[styles.textoModal, { color: p.muted }]}>
+              Un administrador lo revisará antes de que lo vean los vecinos de tu zona.
+            </Text>
             <AppButton
               label="Sí, publicar"
               icon="checkmark"
@@ -191,6 +203,26 @@ export default function NuevoFavor() {
             <AppButton label="Revisar otra vez" variant="secondary" onPress={() => setConfirmando(false)} />
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* Modal y no Alert.alert, que en web (react-native-web) no hace nada. */}
+      <Modal visible={resultado !== null} transparent animationType="fade" onRequestClose={irAFavores}>
+        <View style={styles.overlay}>
+          <View style={styles.tarjeta}>
+            <View style={[styles.modalIcono, { backgroundColor: p.highlight }]}>
+              <Ionicons name={resultado?.queued ? 'cloud-upload-outline' : 'checkmark'} size={28} color={p.text} />
+            </View>
+            <Text style={[styles.tituloModal, { color: p.text }]}>
+              {resultado?.queued ? 'Guardado sin conexión' : '¡Favor enviado a revisión!'}
+            </Text>
+            <Text style={[styles.textoModal, { color: p.body }]}>
+              {resultado?.queued
+                ? 'Tu favor se guardó en el teléfono y se enviará a revisión cuando vuelva la conexión.'
+                : 'Tu favor será revisado por un administrador antes de publicarse. Mientras tanto, solo tú puedes verlo en el muro.'}
+            </Text>
+            <AppButton label="Ver favores" onPress={irAFavores} />
+          </View>
+        </View>
       </Modal>
     </Screen>
   );
@@ -227,6 +259,10 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   charCount: { fontSize: 14, fontFamily: fonts.regular, textAlign: 'right', marginTop: 6 },
+  urgenciaLabel: { fontSize: 16, fontFamily: fonts.semiBold, marginTop: spacing.sm, marginBottom: 8 },
+  urgencias: { flexDirection: 'row', flexWrap: 'wrap' },
+  urgenciaNota: { fontSize: 14, fontFamily: fonts.regular, lineHeight: 20, marginTop: spacing.xs },
+  error: { color: colors.rojo, fontSize: 14, fontFamily: fonts.medium, lineHeight: 20, marginTop: spacing.sm },
 
   resumenRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   resumenTipo: { fontFamily: fonts.semiBold, fontSize: 14 },

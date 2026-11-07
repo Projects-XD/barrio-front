@@ -1,8 +1,10 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
 import {
+  approveFavor,
   createFavor,
   createReport,
+  deleteFavor,
   expressInterest,
   getEmergencyState,
   getFavorById,
@@ -10,11 +12,14 @@ import {
   getVouchStatus,
   listFavors,
   listOficios,
+  listPendingFavors,
   listProfiles,
   listReports,
   listResources,
   listServices,
   listZones,
+  rejectFavor,
+  updateFavor,
   upsertProfile,
   vouchProfile,
   type BackendFavor,
@@ -22,6 +27,7 @@ import {
   type BackendReport,
   type BackendResource,
   type BackendService,
+  type UpdateFavorPayload,
 } from '@/api/endpoints';
 import { enqueue, listPending, type OutboxItem } from '@/offline/outbox';
 import { flushOutbox } from '@/offline/sync';
@@ -30,6 +36,7 @@ import type {
   CriticalResource,
   Favor,
   FavorType,
+  FavorUrgency,
   OficioCategory,
   ProfessionalProfile,
   ResourceType,
@@ -90,6 +97,11 @@ export function mapBackendFavorToFrontend(bf: BackendFavor, currentUserId?: stri
     hasInterestedByMe: Boolean(currentUserId) && interests.some((i) => i.user_id === currentUserId),
     createdAt: bf.created_at,
     syncStatus: 'enviado',
+    urgency: bf.urgency,
+    moderationStatus: bf.moderation_status,
+    moderationReason: bf.moderation_reason ?? null,
+    canEdit: bf.can_edit ?? false,
+    isDeactivated: bf.is_deactivated ?? false,
   };
 }
 
@@ -108,6 +120,12 @@ function mapPendingFavor(item: OutboxItem, userId: string | null, userName: stri
     hasInterestedByMe: false,
     createdAt: item.createdAt,
     syncStatus: item.attempts > 0 ? 'error' : 'pendiente',
+    // Las operaciones encoladas antes de existir este campo no lo traen.
+    urgency: (p.urgency as FavorUrgency | undefined) ?? 'normal',
+    moderationStatus: 'pendiente',
+    moderationReason: null,
+    canEdit: false,
+    isDeactivated: false,
   };
 }
 
@@ -367,7 +385,7 @@ export function useCreateFavor() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { type: FavorType; title: string; description: string | null }) => {
+    mutationFn: async (input: { type: FavorType; title: string; description: string | null; urgency: FavorUrgency }) => {
       const { zoneId, isOnline } = useAppStore.getState();
       if (!zoneId) throw new Error('Tu cuenta no tiene zona asignada.');
 
@@ -378,6 +396,7 @@ export function useCreateFavor() {
         type: input.type,
         title: input.title,
         description: input.description,
+        urgency: input.urgency,
       };
 
       if (isOnline) {
@@ -396,6 +415,79 @@ export function useCreateFavor() {
       qc.invalidateQueries({ queryKey: ['favors'] });
       void flushOutbox();
     },
+  });
+}
+
+function invalidateFavor(qc: QueryClient, id: string) {
+  qc.invalidateQueries({ queryKey: ['favor', id] });
+  qc.invalidateQueries({ queryKey: ['favors'] });
+  qc.invalidateQueries({ queryKey: ['adminPending'] });
+}
+
+export function useUpdateFavor(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpdateFavorPayload) => updateFavor(id, payload),
+    onSuccess: () => invalidateFavor(qc, id),
+  });
+}
+
+export function useDeleteFavor(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => deleteFavor(id),
+    onSuccess: () => invalidateFavor(qc, id),
+  });
+}
+
+// ============================================================================
+// ADMINISTRACIÓN
+// ============================================================================
+
+// public.users tiene RLS sin políticas, así que el cliente no puede leer is_admin, y la metadata
+// del JWT la edita el propio usuario. Se pregunta a la ruta protegida: 403 significa que no es admin.
+export function useIsAdmin() {
+  const userId = useAppStore((s) => s.userId);
+  return useQuery({
+    queryKey: ['isAdmin', userId],
+    enabled: Boolean(userId),
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      try {
+        await listPendingFavors(1);
+        return true;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 403) return false;
+        throw error;
+      }
+    },
+  });
+}
+
+// Al resolver un favor, la recarga trae los siguientes de la cola: no hace falta paginar.
+export function usePendingFavors(enabled: boolean) {
+  const userId = useAppStore((s) => s.userId);
+  return useQuery({
+    queryKey: ['adminPending'],
+    enabled,
+    queryFn: async () => (await listPendingFavors(20)).map((bf) => mapBackendFavorToFrontend(bf, userId)),
+  });
+}
+
+// onSettled y no onSuccess: con un 409 (otro admin ya lo resolvió) la cola también debe refrescarse.
+export function useApproveFavor(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => approveFavor(id),
+    onSettled: () => invalidateFavor(qc, id),
+  });
+}
+
+export function useRejectFavor(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reason: string) => rejectFavor(id, reason),
+    onSettled: () => invalidateFavor(qc, id),
   });
 }
 

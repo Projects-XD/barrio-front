@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import type { IconName } from '@/i18n/icons';
 import { colors, fonts, radius } from '@/theme';
 
-type Props = { variant: 'emergencia' | 'offline'; visible: boolean };
+type Props = { variant: 'emergencia' | 'offline' | 'desactivado' | 'revision'; visible: boolean };
 
 const variants: Record<Props['variant'], { text: string; bg: string; fg: string; icon: IconName }> = {
   emergencia: {
@@ -17,6 +17,18 @@ const variants: Record<Props['variant'], { text: string; bg: string; fg: string;
     bg: colors.naranjaSuave,
     fg: colors.azul,
     icon: 'cloud-offline-outline',
+  },
+  desactivado: {
+    text: 'Este favor ha sido desactivado',
+    bg: colors.rojoSuave,
+    fg: colors.rojo,
+    icon: 'ban-outline',
+  },
+  revision: {
+    text: 'Este favor está en revisión y aún no es visible para todos los vecinos',
+    bg: colors.naranjaSuave,
+    fg: colors.azul,
+    icon: 'time-outline',
   },
 };
 
