@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Alert, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Redirect, router } from 'expo-router';
+import { router } from 'expo-router';
+import { AppButton } from '@/components/AppButton';
 import { EmptyState } from '@/components/EmptyState';
 import { FavorCard } from '@/components/FavorCard';
 import { Screen } from '@/components/Screen';
 import { SectionHeader } from '@/components/SectionHeader';
 import { StatusBanner } from '@/components/StatusBanner';
 import { usePalette } from '@/hooks/usePalette';
-import { useFavors, useIsAdmin, useUnreadNotificationCount, useZones } from '@/hooks/useData';
+import { useFavors, useUnreadNotificationCount, useZones } from '@/hooks/useData';
 import type { IconName } from '@/i18n/icons';
 import { selectEmergencyActive, useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
@@ -52,14 +53,10 @@ export default function Inicio() {
   const zoneId = useAppStore((s) => s.zoneId);
   const firstName = useAppStore((s) => s.userFullName)?.trim().split(' ')[0];
   const { data: zonas = [] } = useZones();
-  const { data: favors = [], isLoading } = useFavors();
+  const { data: favors = [], isLoading, isError, refetch } = useFavors();
   const zona = zonas.find((z) => z.id === zoneId)?.name;
-  const { data: isAdmin } = useIsAdmin();
   const { data: unread } = useUnreadNotificationCount();
 
-  // Login, reapertura y el tab Inicio pasan todos por aquí. No se bloquea mientras carga el rol:
-  // los vecinos no deben esperar a /admin/me para ver su inicio.
-  if (isAdmin) return <Redirect href="/admin" />;
 
   const tiles: Tile[] = emergency
     ? [
@@ -164,7 +161,16 @@ export default function Inicio() {
             onPress={f.syncStatus === 'enviado' ? () => router.push(`/favores/${f.id}`) : undefined}
           />
         ))
-      ) : isLoading ? null : (
+      ) : isLoading ? null : isError ? (
+        <>
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="No pudimos cargar los favores"
+            message="Revisa tu conexión o tu zona e inténtalo de nuevo."
+          />
+          <AppButton label="Reintentar" variant="secondary" onPress={() => refetch()} />
+        </>
+      ) : (
         <EmptyState
           icon="heart-outline"
           title="Aún no hay favores en tu zona"

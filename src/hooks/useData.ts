@@ -1,7 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { api, ApiError } from '@/api/client';
+import { ApiError } from '@/api/client';
 import {
-  approveFavor,
   blockConversationUser,
   createFavor,
   createReport,
@@ -18,8 +17,6 @@ import {
   listMessages,
   listNotifications,
   listOficios,
-  listPendingFavors,
-  listUserReports,
   listProfiles,
   listReports,
   listResources,
@@ -30,7 +27,6 @@ import {
   sendMessage,
   unblockConversationUser,
   updateConversation,
-  rejectFavor,
   updateFavor,
   upsertProfile,
   vouchProfile,
@@ -45,6 +41,7 @@ import {
   type BackendService,
   type UpdateFavorPayload,
 } from '@/api/endpoints';
+import { supabase } from '@/lib/supabase';
 import { enqueue, listPending, type OutboxItem } from '@/offline/outbox';
 import { flushOutbox } from '@/offline/sync';
 import { useAppStore } from '@/store/app-store';
@@ -265,6 +262,45 @@ export function useMyProfile() {
   });
 }
 
+export function useMyAvatarUrl() {
+  const userId = useAppStore((s) => s.userId);
+  return useQuery({
+    queryKey: ['myAvatar', userId],
+    enabled: Boolean(userId),
+    queryFn: async (): Promise<string | null> => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('avatar_url')
+        .eq('id', userId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.avatar_url ?? null;
+    },
+  });
+}
+
+export function useUpdateAvatar() {
+  const qc = useQueryClient();
+  const userId = useAppStore((s) => s.userId);
+  return useMutation({
+    mutationFn: async (localUri: string): Promise<string> => {
+      if (!userId) throw new Error('Tu sesión no está activa.');
+      const body = await (await fetch(localUri)).arrayBuffer();
+      const path = `${userId}/avatar.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, body, { contentType: 'image/jpeg', upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+      const url = `${pub.publicUrl}?v=${Date.now()}`;
+      const { error: dbError } = await supabase.from('users').update({ avatar_url: url }).eq('id', userId);
+      if (dbError) throw dbError;
+      return url;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['myAvatar', userId] }),
+  });
+}
+
 export function useMyProfiles() {
   const zoneId = useAppStore((s) => s.zoneId);
   const userId = useAppStore((s) => s.userId);
@@ -399,6 +435,22 @@ export function useFavor(id: string) {
   });
 }
 
+export function useReportFavor(favorId: string) {
+  const userId = useAppStore((s) => s.userId);
+  return useMutation({
+    mutationFn: async (reason: string): Promise<void> => {
+      if (!userId) throw new Error('Tu sesión no está activa.');
+      const { error } = await supabase
+        .from('favor_reports')
+        .insert({ favor_id: favorId, reporter_id: userId, reason });
+      if (error) {
+        if (error.code === '23505') throw new Error('Ya reportaste este favor.');
+        throw new Error(error.message);
+      }
+    },
+  });
+}
+
 export function useExpressInterest(id: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -454,7 +506,6 @@ export function useCreateFavor() {
 function invalidateFavor(qc: QueryClient, id: string) {
   qc.invalidateQueries({ queryKey: ['favor', id] });
   qc.invalidateQueries({ queryKey: ['favors'] });
-  qc.invalidateQueries({ queryKey: ['adminPending'] });
 }
 
 export function useUpdateFavor(id: string) {
@@ -470,55 +521,6 @@ export function useDeleteFavor(id: string) {
   return useMutation({
     mutationFn: () => deleteFavor(id),
     onSuccess: () => invalidateFavor(qc, id),
-  });
-}
-
-// =====================================================================// ADMINISTRACIÓN
-// =====================================================================
-// public.users tiene RLS sin políticas, así que el cliente no puede leer is_admin, y la metadata
-// del JWT la edita el propio usuario. Por eso lo responde el backend.
-export function useIsAdmin() {
-  const userId = useAppStore((s) => s.userId);
-  return useQuery({
-    queryKey: ['isAdmin', userId],
-    enabled: Boolean(userId),
-    staleTime: 5 * 60_000,
-    queryFn: async () => (await api.get<{ is_admin: boolean }>('/admin/me')).is_admin,
-  });
-}
-
-// Al resolver un favor, la recarga trae los siguientes de la cola: no hace falta paginar.
-export function usePendingFavors(enabled: boolean) {
-  const userId = useAppStore((s) => s.userId);
-  return useQuery({
-    queryKey: ['adminPending'],
-    enabled,
-    queryFn: async () => (await listPendingFavors(20)).map((bf) => mapBackendFavorToFrontend(bf, userId)),
-  });
-}
-
-export function useUserReports(enabled: boolean) {
-  return useQuery({
-    queryKey: ['adminReports'],
-    enabled,
-    queryFn: () => listUserReports(50),
-  });
-}
-
-// onSettled y no onSuccess: con un 409 (otro admin ya lo resolvió) la cola también debe refrescarse.
-export function useApproveFavor(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => approveFavor(id),
-    onSettled: () => invalidateFavor(qc, id),
-  });
-}
-
-export function useRejectFavor(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (reason: string) => rejectFavor(id, reason),
-    onSettled: () => invalidateFavor(qc, id),
   });
 }
 

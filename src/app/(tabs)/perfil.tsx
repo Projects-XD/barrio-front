@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -22,7 +23,15 @@ import { ValidationBadge } from '@/components/ValidationBadge';
 import { supabase } from '@/lib/supabase';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
-import { useFavors, useIsAdmin, useMyProfile, useMyProfiles, useUpsertMyProfile } from '@/hooks/useData';
+import * as ImagePicker from 'expo-image-picker';
+import {
+  useFavors,
+  useMyAvatarUrl,
+  useMyProfile,
+  useMyProfiles,
+  useUpdateAvatar,
+  useUpsertMyProfile,
+} from '@/hooks/useData';
 import { oficioLabel } from '@/i18n/labels';
 import type { OficioCategory, ProfessionalProfile } from '@/types';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -50,7 +59,28 @@ export default function Perfil() {
   const { data: favors = [] } = useFavors();
   const misFavores = favors.filter((f) => f.authorId === userId).length;
   const upsertProfile = useUpsertMyProfile();
-  const { data: isAdmin } = useIsAdmin();
+  const { data: avatarUrl } = useMyAvatarUrl();
+  const updateAvatar = useUpdateAvatar();
+
+  const cambiarFoto = async () => {
+    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permiso.granted) {
+      Alert.alert('Sin permiso', 'Activa el acceso a tus fotos para cambiar tu foto de perfil.');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (res.canceled || !res.assets[0]) return;
+    try {
+      await updateAvatar.mutateAsync(res.assets[0].uri);
+    } catch (err) {
+      Alert.alert('No se pudo guardar la foto', (err as Error).message);
+    }
+  };
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedCat, setSelectedCat] = useState<OficioCategory>(
@@ -119,9 +149,28 @@ export default function Perfil() {
 
       <Card>
         <View style={styles.usuarioRow}>
-          <View style={[styles.avatar, { backgroundColor: colors.azul }]}>
-            <Text style={styles.avatarText}>{initials || 'V'}</Text>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cambiar foto de perfil"
+            onPress={cambiarFoto}
+            disabled={updateAvatar.isPending}
+            style={styles.avatarWrap}
+          >
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: colors.azul }]}>
+                <Text style={styles.avatarText}>{initials || 'V'}</Text>
+              </View>
+            )}
+            <View style={styles.avatarEdit}>
+              {updateAvatar.isPending ? (
+                <ActivityIndicator size="small" color={colors.blanco} />
+              ) : (
+                <Ionicons name="camera" size={12} color={colors.blanco} />
+              )}
+            </View>
+          </Pressable>
           <View style={styles.usuarioInfo}>
             <Text style={[styles.nombre, { color: p.text }]}>{userFullName}</Text>
             <Text style={[styles.zona, { color: p.muted }]}>
@@ -211,13 +260,6 @@ export default function Perfil() {
       ) : null}
 
       <View style={{ marginTop: spacing.md }}>
-        {isAdmin ? (
-          <AppButton
-            label="Panel de Administración"
-            icon="shield-checkmark-outline"
-            onPress={() => router.replace('/admin')}
-          />
-        ) : null}
         <AppButton
           label="Marcar mi ubicación"
           variant="secondary"
@@ -340,6 +382,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: { color: colors.blanco, fontSize: 18, fontFamily: fonts.bold },
+  avatarWrap: { position: 'relative' },
+  avatarEdit: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.azul,
+    borderWidth: 2,
+    borderColor: colors.blanco,
+  },
   usuarioInfo: { flex: 1 },
   nombre: { fontSize: 19, fontFamily: fonts.bold, marginBottom: 2 },
   zona: { fontSize: 14, fontFamily: fonts.regular },
