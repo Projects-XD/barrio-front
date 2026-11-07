@@ -329,6 +329,8 @@ export interface Database {
           client_id: string;
           sync_status: SyncStatus;
           closed_at: string | null;
+          deleted_at: string | null;
+          edited_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -346,6 +348,8 @@ export interface Database {
           client_id: string;
           sync_status?: SyncStatus;
           closed_at?: string | null;
+          deleted_at?: string | null;
+          edited_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -363,6 +367,8 @@ export interface Database {
           client_id?: string;
           sync_status?: SyncStatus;
           closed_at?: string | null;
+          deleted_at?: string | null;
+          edited_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

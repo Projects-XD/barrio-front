@@ -149,6 +149,8 @@ router.get('/:id', requireAuth, (req, res, next) => favorController.getById(req,
  *     responses:
  *       200:
  *         description: Favor actualizado exitosamente
+ *       403:
+ *         description: Favor desactivado o plazo de edición de 24 horas vencido
  */
 router.patch(
   '/:id',
@@ -156,6 +158,30 @@ router.patch(
   validate(updateFavorSchema),
   (req, res, next) => favorController.update(req, res, next)
 );
+
+/**
+ * @openapi
+ * /favors/{id}:
+ *   delete:
+ *     summary: Desactivar un favor propio (soft-delete)
+ *     tags:
+ *       - Favores Vecinales
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Favor desactivado
+ *       404:
+ *         description: Favor no encontrado o de otro autor
+ */
+router.delete('/:id', requireAuth, (req, res, next) => favorController.remove(req, res, next));
 
 /**
  * @openapi

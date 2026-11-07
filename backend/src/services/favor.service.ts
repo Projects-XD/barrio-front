@@ -4,6 +4,11 @@ import { AppError } from '../middlewares/errorHandler';
 import type { CreateFavorDTO, UpdateFavorDTO, CreateFavorInterestDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
 
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+const isWithinEditWindow = (createdAt: string) =>
+  Date.now() - new Date(createdAt).getTime() <= EDIT_WINDOW_MS;
+
 export class FavorService {
   /**
    * Lista favores vecinales activos (status = 'abierta' o 'en_curso') de la zona del usuario.
@@ -21,6 +26,7 @@ export class FavorService {
       .select('*, author:users!favors_author_id_fkey(id, full_name, avatar_url)')
       .eq('zone_id', zoneId)
       .in('status', ['abierta', 'en_curso'])
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (params.type) {
@@ -38,12 +44,19 @@ export class FavorService {
   /**
    * Obtiene el detalle de un favor por su ID.
    * REGLA DE ZONA: solo su autor o un vecino de la misma zona pueden verlo.
+   * Un favor desactivado responde 200 con is_deactivated = true. Solo su autor ve el contenido.
    */
   public async getFavorById(
     supabase: SupabaseClient<Database>,
     userId: string,
     favorId: string
-  ): Promise<Tables<'favors'> & { interests: Tables<'favor_interests'>[] }> {
+  ): Promise<
+    Tables<'favors'> & {
+      interests: Tables<'favor_interests'>[];
+      is_deactivated: boolean;
+      can_edit: boolean;
+    }
+  > {
     const { data, error } = await supabase
       .from('favors')
       .select('*, author:users!favors_author_id_fkey(id, full_name, avatar_url), interests:favor_interests(*, user:users(id, full_name, avatar_url))')
@@ -58,7 +71,28 @@ export class FavorService {
       throw new AppError('Acceso denegado: este favor no pertenece a tu zona', 403);
     }
 
-    return data as unknown as Tables<'favors'> & { interests: Tables<'favor_interests'>[] };
+    const favor = data as unknown as Tables<'favors'> & { interests: Tables<'favor_interests'>[] };
+    const isAuthor = favor.author_id === userId;
+    const isDeactivated = favor.deleted_at !== null;
+    const flags = {
+      is_deactivated: isDeactivated,
+      can_edit: isAuthor && !isDeactivated && isWithinEditWindow(favor.created_at),
+    };
+
+    if (isDeactivated && !isAuthor) {
+      return {
+        ...favor,
+        ...flags,
+        title: '',
+        description: null,
+        location_lat: null,
+        location_lng: null,
+        assigned_to_user_id: null,
+        interests: [],
+      };
+    }
+
+    return { ...favor, ...flags };
   }
 
   /**
@@ -186,6 +220,8 @@ export class FavorService {
 
   /**
    * Actualiza el estado o datos de un favor.
+   * Un favor desactivado no admite cambios.
+   * La ventana de 24 h aplica al contenido: pasado ese plazo el autor aún puede cerrar su favor.
    */
   public async updateFavor(
     supabase: SupabaseClient<Database>,
@@ -195,13 +231,24 @@ export class FavorService {
   ): Promise<Tables<'favors'>> {
     const { data: currentFavor } = await supabase
       .from('favors')
-      .select('status')
+      .select('status, created_at, deleted_at')
       .eq('id', favorId)
       .eq('author_id', userId)
       .single();
 
     if (!currentFavor) {
       throw new AppError('Favor no encontrado o no tienes permisos de edición', 404);
+    }
+
+    if (currentFavor.deleted_at) {
+      throw new AppError('Este favor fue desactivado y ya no se puede modificar', 403);
+    }
+
+    const editsContent =
+      dto.title !== undefined || dto.description !== undefined || dto.type !== undefined;
+
+    if (editsContent && !isWithinEditWindow(currentFavor.created_at)) {
+      throw new AppError('El plazo de 24 horas para editar este favor ya terminó', 403);
     }
 
     const { data, error } = await supabase
@@ -215,6 +262,7 @@ export class FavorService {
         ...(dto.status === 'cerrada' || dto.status === 'cancelada'
           ? { closed_at: new Date().toISOString() }
           : {}),
+        ...(editsContent && { edited_at: new Date().toISOString() }),
         updated_at: new Date().toISOString(),
       })
       .eq('id', favorId)
@@ -233,6 +281,59 @@ export class FavorService {
         actor_user_id: userId,
         from_status: currentFavor.status,
         to_status: dto.status,
+      });
+    }
+
+    return data;
+  }
+
+  /**
+   * Desactiva un favor sin borrarlo. Solo su autor puede hacerlo y repetirlo no cambia nada.
+   */
+  public async softDeleteFavor(
+    supabase: SupabaseClient<Database>,
+    userId: string,
+    favorId: string
+  ): Promise<Tables<'favors'>> {
+    const { data: currentFavor } = await supabase
+      .from('favors')
+      .select('*')
+      .eq('id', favorId)
+      .eq('author_id', userId)
+      .single();
+
+    if (!currentFavor) {
+      throw new AppError('Favor no encontrado o no tienes permisos para desactivarlo', 404);
+    }
+
+    if (currentFavor.deleted_at) {
+      return currentFavor;
+    }
+
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('favors')
+      .update({
+        status: 'cancelada',
+        deleted_at: now,
+        closed_at: currentFavor.closed_at ?? now,
+        updated_at: now,
+      })
+      .eq('id', favorId)
+      .eq('author_id', userId)
+      .select()
+      .single();
+
+    if (error || !data) {
+      throw new AppError(`No se pudo desactivar el favor: ${error?.message || 'Error desconocido'}`, 400);
+    }
+
+    if (currentFavor.status !== 'cancelada') {
+      await supabase.from('favor_events').insert({
+        favor_id: favorId,
+        actor_user_id: userId,
+        from_status: currentFavor.status,
+        to_status: 'cancelada',
       });
     }
 
