@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
 import { useProfile, useVouch } from '@/hooks/useData';
+import { useAppStore } from '@/store/app-store';
 import { oficioLabel } from '@/i18n/labels';
 import { colors, fonts, radius, spacing } from '@/theme';
 
@@ -25,8 +26,11 @@ export default function OficioDetalle() {
   const { data: profile, isLoading } = useProfile(id);
   const vouch = useVouch(id);
   const [showContactModal, setShowContactModal] = useState(false);
+  const userId = useAppStore((s) => s.userId);
+  const esMio = Boolean(userId) && profile?.userId === userId;
 
   const handleVouch = async () => {
+    if (esMio) return;
     if (!profile) return;
     try {
       await vouch.mutateAsync();
@@ -132,15 +136,15 @@ export default function OficioDetalle() {
         />
         <AppButton
           label={
-            profile.hasVouchedByMe
-              ? 'Visto bueno registrado'
+            esMio || profile.hasVouchedByMe
+              ? (esMio ? 'Es tu oficio' : 'Visto bueno registrado')
               : vouch.isPending
                 ? 'Registrando visto bueno...'
                 : 'Dar visto bueno'
           }
           variant="secondary"
           onPress={handleVouch}
-          disabled={profile.hasVouchedByMe || vouch.isPending}
+          disabled={esMio || profile.hasVouchedByMe || vouch.isPending}
         />
       </View>
 
