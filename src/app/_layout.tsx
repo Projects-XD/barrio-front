@@ -10,11 +10,13 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { usePalette } from '@/hooks/usePalette';
+import { useOfflineSync } from '@/offline/sync';
 
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const p = usePalette();
+  useOfflineSync();
   const [fontsLoaded] = useFonts({
     InstrumentSans_400Regular,
     InstrumentSans_500Medium,
