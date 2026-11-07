@@ -6,11 +6,11 @@ import { AppError } from '../middlewares/errorHandler';
 export class ResourceController {
   public async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const zoneId = req.query.zoneId as string;
+      const zoneId = (req.query.zone_id || req.query.zoneId) as string;
       const kind = req.query.kind as string | undefined;
 
       if (!zoneId) {
-        throw new AppError('zoneId es requerido', 400);
+        throw new AppError('zone_id o zoneId es requerido', 400);
       }
 
       const supabase = getSupabaseClient(req);

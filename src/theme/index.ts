@@ -36,8 +36,7 @@ export function getPalette(emergency: boolean) {
   return {
     primary: emergency ? colors.rojo : colors.azul,
     accent: colors.naranja,
-    cta: emergency ? colors.rojo : colors.azul,
-    // Blanco sobre naranja da 2.3:1; azul marino sobre naranja da 5.6:1 (WCAG AA).
+    cta: emergency ? colors.rojo : colors.naranja,
     ctaText: colors.blanco,
     background: colors.fondo,
     surface: colors.blanco,

@@ -12,6 +12,8 @@ import {
   InstrumentSans_700Bold,
   useFonts,
 } from '@expo-google-fonts/instrument-sans';
+import { getMyUserAndProfile } from '@/api/endpoints';
+import { FALLBACK_CASTILLA_ZONE_ID } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import { useOfflineSync } from '@/offline/sync';
 import { supabase } from '@/lib/supabase';
@@ -23,13 +25,36 @@ import { colors, fonts } from '@/theme';
 LogBox.ignoreLogs(['[API_CLIENT]']);
 
 function sessionToStore(session: Session) {
-  useAppStore.getState().setSession({
+  const current = useAppStore.getState();
+  const initialZoneId =
+    session.user.user_metadata?.zone_id || current.zoneId || FALLBACK_CASTILLA_ZONE_ID;
+
+  current.setSession({
     token: session.access_token,
     userId: session.user.id,
-    zoneId: session.user.user_metadata?.zone_id || useAppStore.getState().zoneId || '',
+    zoneId: initialZoneId,
     userFullName: session.user.user_metadata?.full_name,
     userEmail: session.user.email,
   });
+
+  // Sincronizar zone_id y datos reales desde el backend (public.users)
+  getMyUserAndProfile()
+    .then(({ user }) => {
+      if (user) {
+        useAppStore.getState().setSession({
+          token: session.access_token,
+          userId: user.id,
+          zoneId: user.zone_id || initialZoneId,
+          zoneName: user.zone?.name ?? 'Castilla',
+          userFullName: user.full_name || session.user.user_metadata?.full_name,
+          userEmail: session.user.email,
+          emergencyRole: user.emergency_role,
+        });
+      }
+    })
+    .catch(() => {
+      // Si el backend está apagado, se conserva la zona de metadata o Castilla por defecto
+    });
 }
 
 export default function RootLayout() {

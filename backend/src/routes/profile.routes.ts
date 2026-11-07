@@ -5,6 +5,7 @@ import {
   validate,
   listProfilesQuerySchema,
   upsertProfessionalProfileSchema,
+  updateUserProfileSchema,
 } from '../utils/validators';
 
 const router = Router();
@@ -21,6 +22,31 @@ const router = Router();
  *         description: Lista de oficios registrados en el sistema
  */
 router.get('/oficios', (req, res, next) => profileController.listOficios(req, res, next));
+
+/**
+ * @openapi
+ * /profiles/me:
+ *   get:
+ *     summary: Obtener y sincronizar datos del usuario autenticado y su perfil profesional
+ *     tags:
+ *       - Oficios y Perfiles
+ */
+router.get('/me', requireAuth, (req, res, next) => profileController.getMe(req, res, next));
+
+/**
+ * @openapi
+ * /profiles/me:
+ *   patch:
+ *     summary: Actualizar zona o nombre del usuario autenticado
+ *     tags:
+ *       - Oficios y Perfiles
+ */
+router.patch(
+  '/me',
+  requireAuth,
+  validate(updateUserProfileSchema),
+  (req, res, next) => profileController.updateMe(req, res, next)
+);
 
 /**
  * @openapi

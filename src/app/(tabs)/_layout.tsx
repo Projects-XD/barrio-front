@@ -3,13 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { EmergencyFab } from '@/components/EmergencyFab';
-import { useEmergencyState } from '@/hooks/useData';
+import { useCurrentUser, useEmergencyState } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts } from '@/theme';
 
 export default function TabsLayout() {
   const p = usePalette();
+  useCurrentUser();
   const { data: emergency } = useEmergencyState();
 
   useEffect(() => {

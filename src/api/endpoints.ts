@@ -1,5 +1,6 @@
 import { api } from './client';
 import type {
+  FavorStatus,
   FavorType,
   OficioCategory,
   ResourceKind,
@@ -17,6 +18,17 @@ export interface BackendZone {
   city: string;
   center_lat: number | null;
   center_lng: number | null;
+}
+
+export interface BackendUser {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  zone_id: string | null;
+  status: 'active' | 'suspended' | 'deleted';
+  is_anonymous_by_default: boolean;
+  emergency_role: boolean;
+  zone?: BackendZone | null;
 }
 
 export interface BackendOficio {
@@ -48,6 +60,18 @@ export interface BackendProfile {
   oficio: BackendOficio | null;
 }
 
+export interface BackendFavorInterest {
+  id: string;
+  user_id: string;
+  message?: string | null;
+  created_at?: string;
+  user?: {
+    id: string;
+    full_name: string;
+    avatar_url?: string | null;
+  } | null;
+}
+
 export interface BackendFavor {
   id: string;
   author_id: string;
@@ -55,7 +79,7 @@ export interface BackendFavor {
   type: FavorType;
   title: string;
   description: string | null;
-  status: 'abierta' | 'en_curso' | 'cerrada' | 'cancelada';
+  status: FavorStatus;
   client_id: string;
   sync_status: 'pendiente' | 'enviado' | 'error';
   created_at: string;
@@ -66,7 +90,7 @@ export interface BackendFavor {
     full_name: string;
     avatar_url: string | null;
   } | null;
-  interests?: { id: string; user_id: string }[];
+  interests?: BackendFavorInterest[];
 }
 
 export interface BackendEmergencyState {
@@ -119,6 +143,15 @@ export const listZones = () => api.get<BackendZone[]>('/zones');
 // OFICIOS Y PERFILES
 // ============================================================================
 
+export const getMyUserAndProfile = () =>
+  api.get<{ user: BackendUser; professionalProfile: BackendProfile | null }>('/profiles/me');
+
+export const updateMyUser = (payload: {
+  full_name?: string;
+  zone_id?: string | null;
+  emergency_role?: boolean;
+}) => api.patch<BackendUser>('/profiles/me', payload);
+
 export const listOficios = () => api.get<BackendOficio[]>('/profiles/oficios');
 
 export const listProfiles = (params: { zoneId: string; category?: OficioCategory }) => {
@@ -135,6 +168,9 @@ export const getVouchStatus = (id: string) =>
 
 export const vouchProfile = (profileId: string) =>
   api.post<{ profile: BackendProfile; vouch: unknown }>(`/profiles/${profileId}/vouch`);
+
+export const removeVouchProfile = (profileId: string) =>
+  api.delete<{ profile: BackendProfile }>(`/profiles/${profileId}/vouch`);
 
 export interface UpsertProfilePayload {
   // Con id, el backend actualiza ese perfil (incluido el oficio) en lugar de crear otro.
@@ -174,8 +210,19 @@ export interface CreateFavorPayload {
 export const createFavor = (payload: CreateFavorPayload) =>
   api.post<BackendFavor>('/favors', payload);
 
+export interface UpdateFavorPayload {
+  title?: string;
+  description?: string | null;
+  type?: FavorType;
+  status?: FavorStatus;
+  assigned_to_user_id?: string | null;
+}
+
+export const updateFavor = (favorId: string, payload: UpdateFavorPayload) =>
+  api.patch<BackendFavor>(`/favors/${favorId}`, payload);
+
 export const expressInterest = (favorId: string, message?: string) =>
-  api.post<unknown>(`/favors/${favorId}/interest`, { message: message ?? null });
+  api.post<BackendFavorInterest>(`/favors/${favorId}/interest`, { message: message ?? null });
 
 // ============================================================================
 // EMERGENCIA
@@ -183,6 +230,12 @@ export const expressInterest = (favorId: string, message?: string) =>
 
 export const getEmergencyState = (zoneId: string) =>
   api.get<BackendEmergencyState>(`/emergency?zone_id=${zoneId}`);
+
+export const activateEmergencyState = (payload: { zone_id: string; reason: string }) =>
+  api.post<BackendEmergencyState>('/emergency/activate', payload);
+
+export const deactivateEmergencyState = (payload: { zone_id: string; reason?: string }) =>
+  api.post<BackendEmergencyState>('/emergency/deactivate', payload);
 
 export const listServices = (zoneId: string) =>
   api.get<BackendService[]>(`/emergency/services?zone_id=${zoneId}`);
@@ -203,7 +256,18 @@ export const createReport = (payload: CreateReportPayload) =>
   api.post<BackendReport>('/emergency/reports', payload);
 
 export const listResources = (zoneId: string) =>
-  api.get<BackendResource[]>(`/resources?zoneId=${zoneId}`);
+  api.get<BackendResource[]>(`/resources?zone_id=${zoneId}`);
+
+export interface CreateResourcePayload {
+  zone_id: string;
+  kind: ResourceKind;
+  resource: ResourceType;
+  quantity?: number | null;
+  notes?: string | null;
+}
+
+export const createResource = (payload: CreateResourcePayload) =>
+  api.post<BackendResource>('/resources', payload);
 
 // ============================================================================
 // SINCRONIZACIÓN OFFLINE

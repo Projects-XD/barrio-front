@@ -38,6 +38,14 @@ export interface ProfessionalProfile {
   hasVouchedByMe: boolean;
 }
 
+export interface FavorInterestItem {
+  id: string;
+  userId: string;
+  userName: string;
+  message: string | null;
+  createdAt: string;
+}
+
 export interface Favor {
   id: string;
   authorId: string;
@@ -50,6 +58,7 @@ export interface Favor {
   distanceKm?: number;
   interestedCount: number;
   hasInterestedByMe: boolean;
+  interests?: FavorInterestItem[];
   createdAt: string;
   syncStatus: E.SyncStatus;
 }
@@ -86,6 +95,7 @@ export interface CriticalResource {
   quantity: number | null;
   notes: string | null;
   status: 'abierto' | 'cubierto' | 'cancelado';
+  userName?: string | null;
   distanceKm?: number;
 }
 

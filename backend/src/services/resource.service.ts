@@ -2,6 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables } from '../types/database.types';
 import { AppError } from '../middlewares/errorHandler';
 import type { CreateCriticalResourceDTO } from '../utils/validators';
+import { profileService } from './profile.service';
 
 export class ResourceService {
   public async listResources(
@@ -32,25 +33,32 @@ export class ResourceService {
     userId: string,
     dto: CreateCriticalResourceDTO
   ): Promise<Tables<'critical_resources'>> {
+    const userRecord = await profileService.ensureUserRecord(
+      supabase,
+      userId,
+      undefined,
+      dto.zone_id
+    );
+
     const { data, error } = await supabase
       .from('critical_resources')
       .insert({
         user_id: userId,
-        zone_id: dto.zone_id ?? null,
+        zone_id: dto.zone_id ?? userRecord.zone_id ?? null,
         kind: dto.kind,
         resource: dto.resource,
         quantity: dto.quantity ?? null,
         notes: dto.notes ?? null,
         status: dto.status ?? 'abierto',
       })
-      .select()
+      .select('*, user:users(id, full_name)')
       .single();
 
     if (error) {
       throw new AppError(`Error al registrar recurso crítico: ${error.message}`, 400);
     }
 
-    return data;
+    return data as unknown as Tables<'critical_resources'>;
   }
 }
 

@@ -20,7 +20,13 @@ import { ValidationBadge } from '@/components/ValidationBadge';
 import { supabase } from '@/lib/supabase';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
-import { useFavors, useMyProfile, useUpsertMyProfile } from '@/hooks/useData';
+import {
+  useFavors,
+  useMyProfile,
+  useUpdateMyUser,
+  useUpsertMyProfile,
+  useZones,
+} from '@/hooks/useData';
 import { oficioLabel } from '@/i18n/labels';
 import type { OficioCategory } from '@/types';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -39,15 +45,20 @@ export default function Perfil() {
   const setOnline = useAppStore((s) => s.setOnline);
   const clearSession = useAppStore((s) => s.clearSession);
   const userId = useAppStore((s) => s.userId);
+  const zoneId = useAppStore((s) => s.zoneId);
+  const zoneName = useAppStore((s) => s.zoneName) || 'Castilla';
   const userFullName = useAppStore((s) => s.userFullName) || 'Vecino';
   const userEmail = useAppStore((s) => s.userEmail);
 
+  const { data: zones = [] } = useZones();
   const { data: myProfile } = useMyProfile();
   const { data: favors = [] } = useFavors();
   const misFavores = favors.filter((f) => f.authorId === userId).length;
   const upsertProfile = useUpsertMyProfile();
+  const updateMyUser = useUpdateMyUser();
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [zoneModalVisible, setZoneModalVisible] = useState(false);
   const [selectedCat, setSelectedCat] = useState<OficioCategory>(
     myProfile?.oficio.category ?? 'gasfiteria'
   );
@@ -68,7 +79,9 @@ export default function Perfil() {
     if (myProfile) {
       setSelectedCat(myProfile.oficio.category);
       setDescripcion(myProfile.description);
-      setExperiencia(myProfile.yearsExperience ? String(myProfile.yearsExperience) : '2');
+      setExperiencia(
+        myProfile.yearsExperience ? String(myProfile.yearsExperience) : '2'
+      );
     }
     setModalVisible(true);
   };
@@ -88,6 +101,16 @@ export default function Perfil() {
     );
   };
 
+  const handleSelectZone = (newZoneId: string, newZoneName: string) => {
+    useAppStore.getState().setZone(newZoneId, newZoneName);
+    updateMyUser.mutate(
+      { zone_id: newZoneId },
+      {
+        onSettled: () => setZoneModalVisible(false),
+      }
+    );
+  };
+
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -101,7 +124,7 @@ export default function Perfil() {
       <View style={styles.header}>
         <Text style={[styles.titulo, { color: p.text }]}>Mi Perfil</Text>
         <Text style={[styles.subtitulo, { color: p.muted }]}>
-          Gestiona tu identidad vecinal y preferencias de la app.
+          Gestiona tu identidad vecinal, zona y oficio comunitario.
         </Text>
       </View>
 
@@ -113,23 +136,37 @@ export default function Perfil() {
           <View style={styles.usuarioInfo}>
             <Text style={[styles.nombre, { color: p.text }]}>{userFullName}</Text>
             <Text style={[styles.zona, { color: p.muted }]}>
-              {userEmail ? `${userEmail} · ` : ''}Miembro activo
+              {userEmail ? `${userEmail}` : 'Miembro activo'}
             </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setZoneModalVisible(true)}
+              style={styles.zoneSelectorBtn}
+            >
+              <Ionicons name="location-outline" size={14} color={colors.azul} />
+              <Text style={styles.zoneSelectorText}>
+                Zona: {zoneName} · Cambiar
+              </Text>
+            </Pressable>
           </View>
         </View>
       </Card>
 
       {/* Sección: Mi Oficio Profesional en el Barrio */}
-      <Text style={[styles.seccionLabel, { color: p.text }]}>Mi oficio en el barrio</Text>
+      <Text style={[styles.seccionLabel, { color: p.text }]}>
+        Mi oficio en el barrio
+      </Text>
       {myProfile ? (
-        <Card>
+        <Card onPress={() => router.push(`/oficio/${myProfile.id}`)}>
           <View style={styles.oficioHeader}>
-            <View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={[styles.oficioNombre, { color: p.text }]}>
                 {oficioLabel[myProfile.oficio.category]}
               </Text>
               <Text style={[styles.oficioExp, { color: p.muted }]}>
-                {myProfile.yearsExperience ? `${myProfile.yearsExperience} años de experiencia` : 'Oficio registrado'}
+                {myProfile.yearsExperience
+                  ? `${myProfile.yearsExperience} años de experiencia`
+                  : 'Oficio registrado'}
               </Text>
             </View>
             <ValidationBadge validatedCount={myProfile.validatedCount} />
@@ -139,7 +176,7 @@ export default function Perfil() {
             {myProfile.description}
           </Text>
 
-          <View style={{ marginTop: spacing.sm }}>
+          <View style={styles.profileButtonsRow}>
             <AppButton
               label="Editar mi oficio"
               variant="secondary"
@@ -171,7 +208,9 @@ export default function Perfil() {
       )}
 
       {/* Sección: Reputación vecinal */}
-      <Text style={[styles.seccionLabel, { color: p.text }]}>Mi confianza comunitaria</Text>
+      <Text style={[styles.seccionLabel, { color: p.text }]}>
+        Mi confianza comunitaria
+      </Text>
       <Card>
         <View style={styles.metricasRow}>
           <View style={styles.metrica}>
@@ -182,7 +221,9 @@ export default function Perfil() {
           </View>
           <View style={styles.metricaDivider} />
           <View style={styles.metrica}>
-            <Text style={[styles.metricaValor, { color: colors.azul }]}>{misFavores}</Text>
+            <Text style={[styles.metricaValor, { color: colors.azul }]}>
+              {misFavores}
+            </Text>
             <Text style={styles.metricaLabel}>Favores activos</Text>
           </View>
         </View>
@@ -190,36 +231,37 @@ export default function Perfil() {
 
       {/* Sección: Simulaciones del Reto */}
       {SHOW_DEMO_TOOLS ? (
-      <>
-      <Text style={[styles.seccionLabel, { color: p.text }]}>Simulaciones del Reto (Hackathon)</Text>
-      <Card>
-        <ToggleRow
-          label="Simular modo emergencia"
-          value={simulatedEmergency}
-          onChange={setSimulatedEmergency}
-        />
-        {serverEmergency ? (
-          <Text style={[styles.sinOficioTexto, { color: colors.rojo }]}>
-            Tu zona está en emergencia real según el sistema.
+        <>
+          <Text style={[styles.seccionLabel, { color: p.text }]}>
+            Simulaciones del Reto (Hackathon)
           </Text>
-        ) : null}
-        <View style={styles.separador} />
-        <ToggleRow
-          label="Simular modo sin conexión"
-          value={!isOnline}
-          onChange={(v) => setOnline(!v)}
-        />
-      </Card>
-      </>
+          <Card>
+            <ToggleRow
+              label="Simular modo emergencia"
+              value={simulatedEmergency}
+              onChange={setSimulatedEmergency}
+            />
+            {serverEmergency ? (
+              <Text style={[styles.sinOficioTexto, { color: colors.rojo }]}>
+                Tu zona está en emergencia real según el sistema.
+              </Text>
+            ) : null}
+            <View style={styles.separador} />
+            <ToggleRow
+              label="Simular modo sin conexión"
+              value={!isOnline}
+              onChange={(v) => setOnline(!v)}
+            />
+          </Card>
+        </>
       ) : null}
 
-      <View style={{ marginTop: spacing.md }}>
+      <View style={styles.bottomActions}>
         <AppButton
           label="Marcar mi ubicación"
           variant="secondary"
           onPress={() => router.push('/ubicacion')}
         />
-
         <AppButton
           label="Ver tutorial de la app"
           variant="secondary"
@@ -232,6 +274,52 @@ export default function Perfil() {
         />
       </View>
 
+      {/* Modal para cambiar de zona */}
+      <Modal
+        visible={zoneModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setZoneModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setZoneModalVisible(false)}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={[styles.modalCard, { backgroundColor: colors.blanco }]}
+          >
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[styles.modalTitle, { color: p.text }]}>
+                Cambiar mi zona barrial
+              </Text>
+              <Text style={[styles.modalSub, { color: p.muted }]}>
+                Elige el sector o centro poblado de Castilla donde resides actualmente.
+              </Text>
+
+              <View style={styles.catChips}>
+                {zones.map((z) => (
+                  <Chip
+                    key={z.id}
+                    label={z.name}
+                    selected={zoneId === z.id}
+                    onPress={() => handleSelectZone(z.id, z.name)}
+                  />
+                ))}
+              </View>
+
+              <View style={{ marginTop: spacing.sm }}>
+                <AppButton
+                  label="Cerrar"
+                  variant="link"
+                  onPress={() => setZoneModalVisible(false)}
+                />
+              </View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Modal para registrar o editar oficio */}
       <Modal
         visible={modalVisible}
@@ -240,8 +328,10 @@ export default function Perfil() {
         onRequestClose={() => setModalVisible(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
-          {/* Pressable vacío: los toques dentro de la tarjeta no llegan al fondo que cierra el modal. */}
-          <Pressable onPress={() => {}} style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
+          <Pressable
+            onPress={() => {}}
+            style={[styles.modalCard, { backgroundColor: colors.blanco }]}
+          >
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.modalTitle, { color: p.text }]}>
                 {myProfile ? 'Editar mi Oficio' : 'Ofrecer Oficio en el Barrio'}
@@ -250,7 +340,9 @@ export default function Perfil() {
                 Comparte tus habilidades técnicas con tus vecinos para recibir recomendaciones y avales.
               </Text>
 
-              <Text style={[styles.inputLabel, { color: p.text }]}>Categoría técnica</Text>
+              <Text style={[styles.inputLabel, { color: p.text }]}>
+                Categoría técnica
+              </Text>
               <View style={styles.catChips}>
                 {categorias.map((cat) => (
                   <Chip
@@ -262,7 +354,9 @@ export default function Perfil() {
                 ))}
               </View>
 
-              <Text style={[styles.inputLabel, { color: p.text }]}>Años de experiencia</Text>
+              <Text style={[styles.inputLabel, { color: p.text }]}>
+                Años de experiencia
+              </Text>
               <TextInput
                 value={experiencia}
                 onChangeText={setExperiencia}
@@ -272,7 +366,9 @@ export default function Perfil() {
                 style={[styles.modalInput, { borderColor: p.border, color: p.text }]}
               />
 
-              <Text style={[styles.inputLabel, { color: p.text }]}>Descripción del servicio</Text>
+              <Text style={[styles.inputLabel, { color: p.text }]}>
+                Descripción del servicio
+              </Text>
               <TextInput
                 value={descripcion}
                 onChangeText={setDescripcion}
@@ -282,13 +378,20 @@ export default function Perfil() {
                 numberOfLines={3}
                 style={[
                   styles.modalInput,
-                  { minHeight: 80, textAlignVertical: 'top', borderColor: p.border, color: p.text },
+                  {
+                    minHeight: 80,
+                    textAlignVertical: 'top',
+                    borderColor: p.border,
+                    color: p.text,
+                  },
                 ]}
               />
 
               <View style={{ marginTop: spacing.md, gap: 8 }}>
                 <AppButton
-                  label={upsertProfile.isPending ? 'Guardando...' : 'Guardar y publicar'}
+                  label={
+                    upsertProfile.isPending ? 'Guardando...' : 'Guardar y publicar'
+                  }
                   variant="accent"
                   onPress={handleSaveProfile}
                   disabled={upsertProfile.isPending}
@@ -323,7 +426,30 @@ const styles = StyleSheet.create({
   usuarioInfo: { flex: 1 },
   nombre: { fontSize: 19, fontFamily: fonts.bold, marginBottom: 2 },
   zona: { fontSize: 14, fontFamily: fonts.regular },
-  seccionLabel: { fontSize: 16, fontFamily: fonts.semiBold, marginTop: spacing.md, marginBottom: 8 },
+  zoneSelectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: '#EEF5FD',
+    borderColor: '#D0E3F8',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginTop: 6,
+  },
+  zoneSelectorText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12.5,
+    color: colors.azul,
+  },
+  seccionLabel: {
+    fontSize: 16,
+    fontFamily: fonts.semiBold,
+    marginTop: spacing.md,
+    marginBottom: 8,
+  },
   oficioHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -332,17 +458,34 @@ const styles = StyleSheet.create({
   },
   oficioNombre: { fontSize: 18, fontFamily: fonts.bold },
   oficioExp: { fontSize: 13, fontFamily: fonts.medium, marginTop: 2 },
-  oficioDesc: { fontSize: 14, fontFamily: fonts.regular, lineHeight: 20, marginVertical: spacing.xs },
+  oficioDesc: {
+    fontSize: 14.5,
+    fontFamily: fonts.regular,
+    lineHeight: 20,
+    marginVertical: spacing.xs,
+  },
+  profileButtonsRow: {
+    marginTop: spacing.sm,
+  },
   sinOficioRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  sinOficioIcono: { fontSize: 32 },
   sinOficioTitulo: { fontSize: 16, fontFamily: fonts.semiBold, marginBottom: 2 },
   sinOficioTexto: { fontSize: 13, fontFamily: fonts.regular, lineHeight: 18 },
-  metricasRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingVertical: 4 },
+  metricasRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
   metrica: { alignItems: 'center' },
   metricaValor: { fontSize: 26, fontFamily: fonts.bold, marginBottom: 2 },
   metricaLabel: { fontSize: 14, fontFamily: fonts.regular, color: colors.gris },
   metricaDivider: { width: 1, height: 36, backgroundColor: colors.grisBorde },
   separador: { height: 1, backgroundColor: colors.grisBorde, marginVertical: 4 },
+  bottomActions: {
+    marginTop: spacing.md,
+    gap: 10,
+    paddingBottom: spacing.lg,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(19, 46, 102, 0.45)',
@@ -355,8 +498,18 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
   },
   modalTitle: { fontSize: 22, fontFamily: fonts.bold, marginBottom: 4 },
-  modalSub: { fontSize: 14, fontFamily: fonts.regular, lineHeight: 20, marginBottom: spacing.md },
-  inputLabel: { fontSize: 15, fontFamily: fonts.semiBold, marginBottom: 6, marginTop: spacing.sm },
+  modalSub: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  inputLabel: {
+    fontSize: 15,
+    fontFamily: fonts.semiBold,
+    marginBottom: 6,
+    marginTop: spacing.sm,
+  },
   catChips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.xs },
   modalInput: {
     minHeight: 48,

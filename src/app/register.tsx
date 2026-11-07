@@ -10,11 +10,12 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import { getMyUserAndProfile, updateMyUser } from '@/api/endpoints';
 import { distanceKm, getRealPosition, normalizeText, openLocationSettings, placeTexts } from '@/utils/location';
 import { AppButton } from '@/components/AppButton';
 import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
-import { useZones } from '@/hooks/useData';
+import { FALLBACK_CASTILLA_ZONE_ID, useZones } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
@@ -123,30 +124,41 @@ export default function Register() {
 
         // Obtener zone_id asignado al usuario
         let userZoneId = data.user.user_metadata?.zone_id as string | undefined;
+        let userZoneName: string | null = null;
         let userFullName = (data.user.user_metadata?.full_name as string) || cleanEmail.split('@')[0];
+        let emergencyRole = false;
+
+        // Establecer token provisional para que el cliente HTTP pueda consultar /profiles/me
+        setSession({
+          token: data.session.access_token,
+          userId: data.user.id,
+          zoneId: userZoneId || zonas[0]?.id || FALLBACK_CASTILLA_ZONE_ID,
+          userFullName,
+          userEmail: data.user.email,
+        });
 
         try {
-          const { data: dbUser } = await supabase
-            .from('users')
-            .select('full_name, zone_id')
-            .eq('id', data.user.id)
-            .maybeSingle();
-
-          if (dbUser?.zone_id) userZoneId = dbUser.zone_id;
-          if (dbUser?.full_name) userFullName = dbUser.full_name;
+          const me = await getMyUserAndProfile();
+          if (me.user?.zone_id) userZoneId = me.user.zone_id;
+          if (me.user?.zone?.name) userZoneName = me.user.zone.name;
+          if (me.user?.full_name) userFullName = me.user.full_name;
+          emergencyRole = Boolean(me.user?.emergency_role);
         } catch (dbErr: any) {
-          logger.warn('AUTH_LOGIN', 'No se pudo leer perfil desde public.users, usando metadata', dbErr);
+          logger.warn('AUTH_LOGIN', 'No se pudo sincronizar perfil desde /profiles/me, usando metadata', dbErr);
         }
 
-        const effectiveZoneId = userZoneId || zonaSeleccionada?.id || '';
+        const effectiveZoneId =
+          userZoneId || zonaSeleccionada?.id || zonas[0]?.id || FALLBACK_CASTILLA_ZONE_ID;
 
-        // Guardar sesión en el store
+        // Guardar sesión definitiva en el store
         setSession({
           token: data.session.access_token,
           userId: data.user.id,
           zoneId: effectiveZoneId,
+          zoneName: userZoneName ?? zonas.find((z) => z.id === effectiveZoneId)?.name ?? 'Castilla',
           userFullName,
           userEmail: data.user.email,
+          emergencyRole,
         });
 
         logger.info('AUTH_LOGIN', `Sesión iniciada exitosamente para ${cleanEmail} en zona ${effectiveZoneId}`);
@@ -195,26 +207,28 @@ export default function Register() {
 
         // Si Supabase devuelve sesión inmediata (auto-confirm activo)
         if (data.session) {
-          // Asegurar que el registro en public.users exista
-          try {
-            await supabase.from('users').upsert({
-              id: data.user.id,
-              full_name: nombre.trim(),
-              zone_id: zonaSeleccionada?.id,
-              status: 'active',
-            });
-            logger.debug('AUTH_REGISTER', `Registro en public.users asegurado para ${data.user.id}`);
-          } catch (upsertErr: any) {
-            logger.warn('AUTH_REGISTER', 'Aviso al insertar en public.users (será manejado por el trigger SQL)', upsertErr);
-          }
+          const targetZoneId =
+            zonaSeleccionada?.id || zonas[0]?.id || FALLBACK_CASTILLA_ZONE_ID;
 
           setSession({
             token: data.session.access_token,
             userId: data.user.id,
-            zoneId: zonaSeleccionada?.id ?? '',
+            zoneId: targetZoneId,
+            zoneName: zonaSeleccionada?.name ?? 'Castilla',
             userFullName: nombre.trim(),
             userEmail: cleanEmail,
           });
+
+          // Sincronizar registro en public.users a través del backend (con Service Role)
+          try {
+            await updateMyUser({
+              full_name: nombre.trim(),
+              zone_id: targetZoneId,
+            });
+            logger.debug('AUTH_REGISTER', `Registro en public.users asegurado para ${data.user.id}`);
+          } catch (upsertErr: any) {
+            logger.warn('AUTH_REGISTER', 'Aviso al sincronizar public.users con el backend', upsertErr);
+          }
 
           logger.info('AUTH_REGISTER', `Registro completado y sesión establecida para ${cleanEmail}`);
           router.replace('/(tabs)/inicio');

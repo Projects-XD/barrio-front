@@ -1,44 +1,65 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
-import { useProfile, useVouch } from '@/hooks/useData';
+import { useProfile, useRemoveVouch, useVouch } from '@/hooks/useData';
 import { oficioLabel } from '@/i18n/labels';
+import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 export default function OficioDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
-  const { data: profile, isLoading } = useProfile(id);
+  const userId = useAppStore((s) => s.userId);
+  const zoneName = useAppStore((s) => s.zoneName) || 'Castilla';
+  const { data: profile, isLoading, refetch } = useProfile(id);
   const vouch = useVouch(id);
-  const [showContactModal, setShowContactModal] = useState(false);
+  const removeVouch = useRemoveVouch(id);
 
-  const handleVouch = async () => {
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  const handleToggleVouch = async () => {
     if (!profile) return;
+    setFeedback(null);
+
     try {
-      await vouch.mutateAsync();
-      Alert.alert(
-        '¡Visto Bueno Registrado!',
-        `Has respaldado exitosamente el trabajo de ${profile.user.fullName}. Tu confianza ayuda a mantener seguro el barrio.`
-      );
+      if (profile.hasVouchedByMe) {
+        await removeVouch.mutateAsync();
+        setFeedback({
+          type: 'success',
+          text: `Retiraste tu visto bueno del perfil de ${profile.user.fullName}.`,
+        });
+      } else {
+        await vouch.mutateAsync();
+        setFeedback({
+          type: 'success',
+          text: `¡Visto bueno registrado! Has respaldado el oficio de ${profile.user.fullName} en tu zona.`,
+        });
+      }
     } catch (err: any) {
       const errorMsg =
         err?.message ||
-        'No se pudo registrar el visto bueno. Recuerda que solo vecinos de la misma zona pueden validar un perfil.';
-      Alert.alert('No se pudo otorgar el visto bueno', errorMsg);
+        'No se pudo procesar el visto bueno. Recuerda que solo vecinos de la misma zona pueden validar un perfil.';
+      setFeedback({
+        type: 'error',
+        text: errorMsg,
+      });
     }
   };
 
@@ -55,19 +76,35 @@ export default function OficioDetalle() {
   if (!profile) {
     return (
       <Screen>
-        <EmptyState title="Perfil no disponible" message="Este perfil no se encuentra en tu zona." />
+        <EmptyState
+          title="Perfil no disponible"
+          message="Este perfil no se encuentra en tu zona o no pudo cargarse."
+        />
+        <View style={styles.actionButtons}>
+          <AppButton label="Reintentar" variant="accent" onPress={() => refetch()} />
+          <AppButton
+            label="Volver al directorio de oficios"
+            variant="secondary"
+            onPress={() => router.replace('/(tabs)/oficios')}
+          />
+        </View>
       </Screen>
     );
   }
 
-  // Los perfiles aún no guardan teléfono: se abre WhatsApp con el mensaje listo para elegir el contacto.
+  const esMio = profile.userId === userId;
+  const isVouchLoading = vouch.isPending || removeVouch.isPending;
+
   const handleWhatsApp = () => {
     setShowContactModal(false);
     const msg = encodeURIComponent(
-      `Hola ${profile.user.fullName}, vi tu perfil de ${oficioLabel[profile.oficio.category]} en la app Barrio.`
+      `Hola ${profile.user.fullName}, vi tu perfil de ${oficioLabel[profile.oficio.category]} en la app Barrio (${zoneName}) y quisiera consultar por tus servicios.`
     );
     Linking.openURL(`https://wa.me/?text=${msg}`).catch(() => {
-      Alert.alert('WhatsApp', 'No se pudo abrir WhatsApp.');
+      setFeedback({
+        type: 'error',
+        text: 'No se pudo abrir WhatsApp en este dispositivo.',
+      });
     });
   };
 
@@ -95,7 +132,7 @@ export default function OficioDetalle() {
           <Text style={styles.oficio}>{oficioLabel[profile.oficio.category]}</Text>
         </View>
 
-        {/* Barra de métricas tipográfica (sin iconos genéricos) */}
+        {/* Barra de métricas tipográfica */}
         <View style={styles.statsBar}>
           {stats.map((st, idx) => (
             <View key={st.label} style={styles.statColWrapper}>
@@ -114,35 +151,71 @@ export default function OficioDetalle() {
         <Text style={[styles.descripcion, { color: colors.texto }]}>{profile.description}</Text>
       </Card>
 
-      {/* Nota comunitaria sutil y humana (sin cajas ni escudos genéricos) */}
+      {/* Mensaje de confirmación o error inline (visible tanto en Web como en Móvil) */}
+      {feedback ? (
+        <View
+          style={[
+            styles.feedbackBox,
+            feedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError,
+          ]}
+        >
+          <Text
+            style={[
+              styles.feedbackText,
+              { color: feedback.type === 'success' ? colors.azul : '#991B1B' },
+            ]}
+          >
+            {feedback.text}
+          </Text>
+        </View>
+      ) : null}
+
+      {/* Nota comunitaria sutil y humana */}
       <View style={styles.notaComunitaria}>
         <Text style={styles.notaTexto}>
           {profile.validatedCount >= 2
-            ? 'Perfil validado con visto bueno de vecinos de Castilla. Las recomendaciones son otorgadas únicamente por residentes de la misma zona.'
-            : 'Este oficio necesita 2 vistos buenos de vecinos de Castilla para considerarse oficialmente validado.'}
+            ? `Perfil validado con visto bueno de vecinos de ${zoneName}. Las recomendaciones son otorgadas únicamente por residentes de la misma zona.`
+            : `Este oficio cuenta con ${profile.validatedCount} de 2 vistos buenos requeridos por vecinos de ${zoneName} para su validación comunitaria.`}
         </Text>
       </View>
 
-      {/* Botones de acción con jerarquía y colores diferenciados */}
-      <View style={styles.actionButtons}>
-        <AppButton
-          label="Contactar técnico"
-          variant="accent"
-          onPress={() => setShowContactModal(true)}
-        />
-        <AppButton
-          label={
-            profile.hasVouchedByMe
-              ? 'Visto bueno registrado'
-              : vouch.isPending
-                ? 'Registrando visto bueno...'
-                : 'Dar visto bueno'
-          }
-          variant="secondary"
-          onPress={handleVouch}
-          disabled={profile.hasVouchedByMe || vouch.isPending}
-        />
-      </View>
+      {/* Botones de acción con jerarquía y colores claramente diferenciados */}
+      {esMio ? (
+        <View style={styles.actionButtons}>
+          <AppButton
+            label="Editar mi oficio en Perfil"
+            variant="accent"
+            onPress={() => router.push('/(tabs)/perfil')}
+          />
+          <AppButton
+            label="Volver a oficios"
+            variant="secondary"
+            onPress={() =>
+              router.canGoBack() ? router.back() : router.replace('/(tabs)/oficios')
+            }
+          />
+        </View>
+      ) : (
+        <View style={styles.actionButtons}>
+          <AppButton
+            label="Contactar técnico"
+            variant="accent"
+            onPress={() => setShowContactModal(true)}
+          />
+          <AppButton
+            label={
+              isVouchLoading
+                ? 'Procesando visto bueno...'
+                : profile.hasVouchedByMe
+                  ? 'Visto bueno otorgado · Retirar'
+                  : 'Dar visto bueno'
+            }
+            variant="secondary"
+            onPress={handleToggleVouch}
+            disabled={isVouchLoading}
+          />
+        </View>
+      )}
 
       {/* Modal de opciones de contacto vecinal */}
       <Modal
@@ -152,10 +225,15 @@ export default function OficioDetalle() {
         onRequestClose={() => setShowContactModal(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowContactModal(false)}>
-          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
-            <Text style={[styles.modalTitle, { color: p.text }]}>Contactar a {profile.user.fullName}</Text>
+          <Pressable
+            onPress={() => {}}
+            style={[styles.modalContent, { backgroundColor: colors.blanco }]}
+          >
+            <Text style={[styles.modalTitle, { color: p.text }]}>
+              Contactar a {profile.user.fullName}
+            </Text>
             <Text style={[styles.modalSub, { color: p.muted }]}>
-              Abre WhatsApp con un mensaje listo y elige el contacto de tu vecino.
+              Abre WhatsApp con un mensaje listo para consultar disponibilidad y presupuesto.
             </Text>
 
             <View style={styles.modalButtons}>
@@ -178,7 +256,12 @@ export default function OficioDetalle() {
 }
 
 const styles = StyleSheet.create({
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: spacing.xl },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: spacing.xl,
+  },
   headerInfo: {
     marginBottom: spacing.xs,
   },
@@ -227,7 +310,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontFamily: fonts.medium,
     color: '#64748B',
   },
@@ -237,15 +320,35 @@ const styles = StyleSheet.create({
     marginVertical: spacing.md,
   },
   seccionTitulo: {
-    fontSize: 14.5,
+    fontSize: 15,
     fontFamily: fonts.semiBold,
     marginBottom: 6,
   },
   descripcion: {
-    fontSize: 14.5,
+    fontSize: 15,
     fontFamily: fonts.regular,
     lineHeight: 22,
     color: '#334155',
+  },
+  feedbackBox: {
+    borderRadius: radius.md,
+    padding: 12,
+    borderWidth: 1,
+    marginTop: spacing.xs,
+  },
+  feedbackSuccess: {
+    backgroundColor: '#EEF5FD',
+    borderColor: '#BFDBFE',
+  },
+  feedbackError: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FCA5A5',
+  },
+  feedbackText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
   },
   notaComunitaria: {
     backgroundColor: '#F8FAFC',
@@ -257,10 +360,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   notaTexto: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontFamily: fonts.regular,
     color: '#64748B',
-    lineHeight: 18,
+    lineHeight: 19,
     textAlign: 'center',
   },
   actionButtons: {
@@ -302,5 +405,6 @@ const styles = StyleSheet.create({
   },
   modalButtons: {
     marginTop: spacing.xs,
+    gap: 8,
   },
 });

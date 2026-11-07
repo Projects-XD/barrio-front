@@ -6,6 +6,52 @@ import type { OficioCategory } from '../types/database.types';
 
 export class ProfileController {
   /**
+   * GET /api/profiles/me
+   * Obtiene (y sincroniza si hace falta) el registro public.users del usuario actual y su perfil de oficio.
+   */
+  public async getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+
+      const supabase = getSupabaseClient(req);
+      const data = await profileService.getMyUserAndProfile(supabase, req.user.id, req.user);
+
+      res.json({
+        success: true,
+        data,
+        code: 200,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * PATCH /api/profiles/me
+   * Actualiza los datos del usuario autenticado (full_name, zone_id, etc.).
+   */
+  public async updateMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+
+      const supabase = getSupabaseClient(req);
+      const updatedUser = await profileService.updateMyUser(supabase, req.user.id, req.body, req.user);
+
+      res.json({
+        success: true,
+        data: updatedUser,
+        code: 200,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * GET /api/profiles
    * Lista perfiles profesionales filtrados por zone_id y opcionalmente oficio_id.
    */
@@ -71,7 +117,7 @@ export class ProfileController {
       }
 
       const supabase = getSupabaseClient(req);
-      const profile = await profileService.upsertProfile(supabase, req.user.id, req.body);
+      const profile = await profileService.upsertProfile(supabase, req.user.id, req.body, req.user);
 
       res.status(201).json({
         success: true,
@@ -99,7 +145,7 @@ export class ProfileController {
       }
 
       const supabase = getSupabaseClient(req);
-      const result = await profileService.giveVouch(supabase, req.user.id, profileId);
+      const result = await profileService.giveVouch(supabase, req.user.id, profileId, req.user);
 
       res.status(201).json({
         success: true,

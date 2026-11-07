@@ -2,6 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables, FavorType } from '../types/database.types';
 import { AppError } from '../middlewares/errorHandler';
 import type { CreateFavorDTO, UpdateFavorDTO, CreateFavorInterestDTO } from '../utils/validators';
+import { profileService } from './profile.service';
 
 export class FavorService {
   /**
@@ -13,7 +14,9 @@ export class FavorService {
   ): Promise<Tables<'favors'>[]> {
     let query = supabase
       .from('favors')
-      .select('*, author:users!favors_author_id_fkey(id, full_name, avatar_url)')
+      .select(
+        '*, author:users!favors_author_id_fkey(id, full_name, avatar_url), interests:favor_interests(id, user_id, message, created_at, user:users(id, full_name, avatar_url))'
+      )
       .eq('zone_id', params.zoneId)
       .in('status', ['abierta', 'en_curso'])
       .order('created_at', { ascending: false });
@@ -60,19 +63,14 @@ export class FavorService {
     authorId: string,
     dto: CreateFavorDTO
   ): Promise<Tables<'favors'>> {
-    // 1. Si no se especificó zone_id, obtener la zona asignada del autor
-    let targetZoneId = dto.zone_id;
-    if (!targetZoneId) {
-      const { data: user } = await supabase
-        .from('users')
-        .select('zone_id')
-        .eq('id', authorId)
-        .single();
-
-      if (user?.zone_id) {
-        targetZoneId = user.zone_id;
-      }
-    }
+    // 1. Asegurar que el autor exista en public.users y obtener su zona asignada si no viene en dto
+    const userRecord = await profileService.ensureUserRecord(
+      supabase,
+      authorId,
+      undefined,
+      dto.zone_id
+    );
+    const targetZoneId = dto.zone_id || userRecord.zone_id || undefined;
 
     // 2. Comprobar si ya existe un favor con el mismo client_id para este autor (Idempotencia)
     const { data: existing } = await supabase
@@ -155,6 +153,8 @@ export class FavorService {
     if (favor.author_id === userId) {
       throw new AppError('El autor del favor no puede manifestar interés en su propia publicación', 400);
     }
+
+    await profileService.ensureUserRecord(supabase, userId);
 
     // 2. Insertar registro de interés
     const { data, error } = await supabase

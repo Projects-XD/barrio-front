@@ -1,9 +1,176 @@
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient, User } from '@supabase/supabase-js';
 import type { Database, Tables, OficioCategory } from '../types/database.types';
 import { AppError } from '../middlewares/errorHandler';
-import type { UpsertProfessionalProfileDTO } from '../utils/validators';
+import type { UpsertProfessionalProfileDTO, UpdateUserProfileDTO } from '../utils/validators';
+
+const DEFAULT_OFICIOS: { category: OficioCategory; name: string }[] = [
+  { category: 'gasfiteria', name: 'Gasfitería' },
+  { category: 'carpinteria', name: 'Carpintería' },
+  { category: 'electricidad', name: 'Electricidad' },
+  { category: 'cerrajeria', name: 'Cerrajería' },
+  { category: 'clases', name: 'Clases particulares' },
+  { category: 'paseador_mascotas', name: 'Paseo de mascotas' },
+  { category: 'otro', name: 'Otros oficios' },
+];
 
 export class ProfileService {
+  /**
+   * Garantiza que el usuario autenticado exista en public.users y tenga una zona asignada.
+   */
+  public async ensureUserRecord(
+    supabase: SupabaseClient<Database>,
+    userId: string,
+    authUser?: User,
+    fallbackZoneId?: string | null
+  ): Promise<Tables<'users'>> {
+    const { data: existing } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    const metaZoneId =
+      (typeof authUser?.user_metadata?.zone_id === 'string' && authUser.user_metadata.zone_id.trim()) ||
+      null;
+    const metaName =
+      (typeof authUser?.user_metadata?.full_name === 'string' && authUser.user_metadata.full_name.trim()) ||
+      authUser?.email?.split('@')[0] ||
+      'Vecino';
+
+    let targetZoneId = existing?.zone_id || metaZoneId || fallbackZoneId || null;
+
+    if (!targetZoneId) {
+      const { data: castillaZone } = await supabase
+        .from('zones')
+        .select('id')
+        .ilike('name', '%Castilla%')
+        .limit(1)
+        .maybeSingle();
+
+      if (castillaZone?.id) {
+        targetZoneId = castillaZone.id;
+      } else {
+        const { data: anyZone } = await supabase
+          .from('zones')
+          .select('id')
+          .order('name')
+          .limit(1)
+          .maybeSingle();
+        targetZoneId = anyZone?.id ?? null;
+      }
+    }
+
+    if (!existing) {
+      const { data: created, error } = await supabase
+        .from('users')
+        .upsert({
+          id: userId,
+          full_name: metaName,
+          zone_id: targetZoneId,
+          status: 'active',
+        })
+        .select('*')
+        .single();
+
+      if (error || !created) {
+        throw new AppError(`No se pudo sincronizar el usuario en el sistema: ${error?.message || ''}`, 400);
+      }
+      return created;
+    }
+
+    if (!existing.zone_id && targetZoneId) {
+      const { data: updated } = await supabase
+        .from('users')
+        .update({ zone_id: targetZoneId, updated_at: new Date().toISOString() })
+        .eq('id', userId)
+        .select('*')
+        .single();
+
+      if (updated) return updated;
+    }
+
+    return existing;
+  }
+
+  /**
+   * Obtiene los datos del usuario actual en public.users (con su zona) y su perfil profesional.
+   */
+  public async getMyUserAndProfile(
+    supabase: SupabaseClient<Database>,
+    userId: string,
+    authUser?: User
+  ): Promise<{
+    user: Tables<'users'> & { zone?: Tables<'zones'> | null };
+    professionalProfile: Tables<'professional_profiles'> | null;
+  }> {
+    await this.ensureUserRecord(supabase, userId, authUser);
+
+    const { data: userWithZone, error: userErr } = await supabase
+      .from('users')
+      .select('*, zone:zones(*)')
+      .eq('id', userId)
+      .single();
+
+    if (userErr || !userWithZone) {
+      throw new AppError('No se pudo obtener el perfil del usuario actual', 404);
+    }
+
+    const { data: profProfile } = await supabase
+      .from('professional_profiles')
+      .select('*, user:users!professional_profiles_user_id_fkey(id, full_name, avatar_url, zone_id), oficio:oficios(*)')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return {
+      user: userWithZone as unknown as Tables<'users'> & { zone?: Tables<'zones'> | null },
+      professionalProfile: (profProfile as unknown as Tables<'professional_profiles'>) ?? null,
+    };
+  }
+
+  /**
+   * Actualiza los datos del usuario autenticado (nombre, zona, rol de emergencia, etc.)
+   * y sincroniza la zona de su perfil profesional si existe.
+   */
+  public async updateMyUser(
+    supabase: SupabaseClient<Database>,
+    userId: string,
+    dto: UpdateUserProfileDTO,
+    authUser?: User
+  ): Promise<Tables<'users'> & { zone?: Tables<'zones'> | null }> {
+    await this.ensureUserRecord(supabase, userId, authUser, dto.zone_id);
+
+    const { data: updatedUser, error } = await supabase
+      .from('users')
+      .update({
+        ...(dto.full_name !== undefined && { full_name: dto.full_name }),
+        ...(dto.avatar_url !== undefined && { avatar_url: dto.avatar_url }),
+        ...(dto.zone_id !== undefined && { zone_id: dto.zone_id }),
+        ...(dto.is_anonymous_by_default !== undefined && {
+          is_anonymous_by_default: dto.is_anonymous_by_default,
+        }),
+        ...(dto.emergency_role !== undefined && { emergency_role: dto.emergency_role }),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select('*, zone:zones(*)')
+      .single();
+
+    if (error || !updatedUser) {
+      throw new AppError(`No se pudo actualizar el usuario: ${error?.message || ''}`, 400);
+    }
+
+    if (dto.zone_id) {
+      await supabase
+        .from('professional_profiles')
+        .update({ zone_id: dto.zone_id, updated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+    }
+
+    return updatedUser as unknown as Tables<'users'> & { zone?: Tables<'zones'> | null };
+  }
+
   /**
    * Crea o actualiza el perfil profesional de un usuario autenticado.
    * Si ya existe un perfil para la dupla (user_id, oficio_id), actualiza los datos;
@@ -12,9 +179,13 @@ export class ProfileService {
   public async upsertProfile(
     supabase: SupabaseClient<Database>,
     userId: string,
-    dto: UpsertProfessionalProfileDTO
+    dto: UpsertProfessionalProfileDTO,
+    authUser?: User
   ): Promise<Tables<'professional_profiles'>> {
-    // 1. Determinar si ya existe un perfil para este usuario y oficio
+    const userRecord = await this.ensureUserRecord(supabase, userId, authUser, dto.zone_id);
+    const effectiveZoneId = dto.zone_id ?? userRecord.zone_id ?? null;
+
+    // 1. Determinar si ya existe un perfil para este usuario
     let existingId = dto.id;
 
     if (!existingId) {
@@ -36,7 +207,7 @@ export class ProfileService {
         .from('professional_profiles')
         .update({
           oficio_id: dto.oficio_id,
-          zone_id: dto.zone_id ?? null,
+          zone_id: effectiveZoneId,
           description: dto.description ?? null,
           years_experience: dto.years_experience ?? 0,
           location_lat: dto.location_lat ?? null,
@@ -46,7 +217,7 @@ export class ProfileService {
         })
         .eq('id', existingId)
         .eq('user_id', userId)
-        .select('*, oficio:oficios(*)')
+        .select('*, user:users!professional_profiles_user_id_fkey(id, full_name, avatar_url, zone_id), oficio:oficios(*)')
         .single();
 
       if (error || !data) {
@@ -65,14 +236,14 @@ export class ProfileService {
       .insert({
         user_id: userId,
         oficio_id: dto.oficio_id,
-        zone_id: dto.zone_id ?? null,
+        zone_id: effectiveZoneId,
         description: dto.description ?? null,
         years_experience: dto.years_experience ?? 0,
         location_lat: dto.location_lat ?? null,
         location_lng: dto.location_lng ?? null,
         is_visible: dto.is_visible ?? true,
       })
-      .select('*, oficio:oficios(*)')
+      .select('*, user:users!professional_profiles_user_id_fkey(id, full_name, avatar_url, zone_id), oficio:oficios(*)')
       .single();
 
     if (error) {
@@ -140,6 +311,43 @@ export class ProfileService {
   }
 
   /**
+   * Recalcula explícitamente el número de vistos buenos (validated_count) y estado (is_validated)
+   * para garantizar consistencia inmediata incluso si el trigger SQL no se ejecutó.
+   */
+  private async recalculateAndReloadProfile(
+    supabase: SupabaseClient<Database>,
+    profileId: string
+  ): Promise<Tables<'professional_profiles'>> {
+    const { count } = await supabase
+      .from('vouches')
+      .select('id', { count: 'exact', head: true })
+      .eq('profile_id', profileId);
+
+    const validatedCount = count ?? 0;
+
+    await supabase
+      .from('professional_profiles')
+      .update({
+        validated_count: validatedCount,
+        is_validated: validatedCount >= 2,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', profileId);
+
+    const { data: updatedProfile, error: reloadError } = await supabase
+      .from('professional_profiles')
+      .select('*, user:users!professional_profiles_user_id_fkey(id, full_name, avatar_url, zone_id), oficio:oficios(*)')
+      .eq('id', profileId)
+      .single();
+
+    if (reloadError || !updatedProfile) {
+      throw new AppError('Error al recuperar el perfil actualizado tras el visto bueno', 500);
+    }
+
+    return updatedProfile as unknown as Tables<'professional_profiles'>;
+  }
+
+  /**
    * Otorga un Visto Bueno (Vouch) a un perfil profesional.
    * REGLA DE NEGOCIO ESTRICTA EN NODE:
    * Antes de insertar en `vouches`, valida mediante query que el `zone_id` del usuario que da el visto bueno
@@ -149,27 +357,10 @@ export class ProfileService {
   public async giveVouch(
     supabase: SupabaseClient<Database>,
     voucherUserId: string,
-    profileId: string
+    profileId: string,
+    authUser?: User
   ): Promise<{ profile: Tables<'professional_profiles'>; vouch: Tables<'vouches'> }> {
-    // 1. Consultar el zone_id del usuario que emite el visto bueno en la tabla users
-    const { data: voucherUser, error: userError } = await supabase
-      .from('users')
-      .select('id, zone_id')
-      .eq('id', voucherUserId)
-      .single();
-
-    if (userError || !voucherUser) {
-      throw new AppError('Usuario votante no encontrado en el sistema', 404);
-    }
-
-    if (!voucherUser.zone_id) {
-      throw new AppError(
-        'Debes pertenecer a una zona vecinal registrada para otorgar vistos buenos',
-        403
-      );
-    }
-
-    // 2. Consultar el perfil profesional objetivo y su zone_id
+    // 1. Consultar el perfil profesional objetivo y su zone_id
     const { data: targetProfile, error: profileError } = await supabase
       .from('professional_profiles')
       .select('id, user_id, zone_id')
@@ -180,9 +371,24 @@ export class ProfileService {
       throw new AppError('Perfil profesional objetivo no encontrado', 404);
     }
 
-    // 3. Validación de auto-vouching
+    // 2. Validación de auto-vouching
     if (targetProfile.user_id === voucherUserId) {
-      throw new AppError('No puedes otorgarte un visto bueno a tu propio perfil', 400);
+      throw new AppError('No puedes otorgarte un visto bueno a tu propio perfil profesional', 400);
+    }
+
+    // 3. Asegurar que el usuario votante exista en public.users y tenga zona asignada
+    const voucherUser = await this.ensureUserRecord(
+      supabase,
+      voucherUserId,
+      authUser,
+      targetProfile.zone_id
+    );
+
+    if (!voucherUser.zone_id) {
+      throw new AppError(
+        'Debes pertenecer a una zona vecinal registrada para otorgar vistos buenos',
+        403
+      );
     }
 
     // 4. REGLA DE NEGOCIO ESTRICTA: Coincidencia exacta de zone_id
@@ -210,19 +416,11 @@ export class ProfileService {
       throw new AppError(`Error al registrar visto bueno: ${insertError.message}`, 400);
     }
 
-    // 6. Consultar el perfil con los valores recalculados por el trigger de base de datos
-    const { data: updatedProfile, error: reloadError } = await supabase
-      .from('professional_profiles')
-      .select('*, user:users!professional_profiles_user_id_fkey(id, full_name, avatar_url, zone_id), oficio:oficios(*)')
-      .eq('id', profileId)
-      .single();
-
-    if (reloadError || !updatedProfile) {
-      throw new AppError('Error al recuperar el perfil actualizado tras el visto bueno', 500);
-    }
+    // 6. Recalcular y consultar el perfil actualizado
+    const updatedProfile = await this.recalculateAndReloadProfile(supabase, profileId);
 
     return {
-      profile: updatedProfile as unknown as Tables<'professional_profiles'>,
+      profile: updatedProfile,
       vouch,
     };
   }
@@ -245,17 +443,9 @@ export class ProfileService {
       throw new AppError(`Error al remover visto bueno: ${deleteError.message}`, 400);
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from('professional_profiles')
-      .select('*, user:users!professional_profiles_user_id_fkey(id, full_name, avatar_url, zone_id), oficio:oficios(*)')
-      .eq('id', profileId)
-      .single();
+    const profile = await this.recalculateAndReloadProfile(supabase, profileId);
 
-    if (profileError || !profile) {
-      throw new AppError('Error al consultar el perfil actualizado', 500);
-    }
-
-    return { profile: profile as unknown as Tables<'professional_profiles'> };
+    return { profile };
   }
 
   /**
@@ -281,6 +471,7 @@ export class ProfileService {
 
   /**
    * Lista todos los oficios activos en el sistema.
+   * Si el catálogo aún está vacío en la base de datos, lo inicializa automáticamente.
    */
   public async listOficios(supabase: SupabaseClient<Database>): Promise<Tables<'oficios'>[]> {
     const { data, error } = await supabase
@@ -293,7 +484,17 @@ export class ProfileService {
       throw new AppError(`Error al obtener oficios: ${error.message}`, 400);
     }
 
-    return data || [];
+    if (data && data.length > 0) {
+      return data;
+    }
+
+    // Sembrar oficios base si la tabla está vacía
+    const { data: inserted } = await supabase
+      .from('oficios')
+      .insert(DEFAULT_OFICIOS.map((o) => ({ ...o, is_active: true })))
+      .select('*');
+
+    return inserted || [];
   }
 }
 
