@@ -131,7 +131,7 @@ export default function Register() {
       } else {
         setLocStatus('outside');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.warn('AUTH_REGISTER', 'No se pudo obtener la ubicación', err);
       setLocStatus('notfound');
     }
@@ -177,15 +177,17 @@ export default function Register() {
         let userFullName = (data.user.user_metadata?.full_name as string) || cleanEmail.split('@')[0];
 
         try {
-          const { data: dbUser } = await supabase
+          const { data: dbUser, error: dbReadError } = await supabase
             .from('users')
             .select('full_name, zone_id')
             .eq('id', data.user.id)
             .maybeSingle();
 
+          // supabase-js devuelve el fallo en `error` sin lanzarlo: hay que propagarlo para que el aviso salga.
+          if (dbReadError) throw dbReadError;
           if (dbUser?.zone_id) userZoneId = dbUser.zone_id;
           if (dbUser?.full_name) userFullName = dbUser.full_name;
-        } catch (dbErr: any) {
+        } catch (dbErr: unknown) {
           logger.warn('AUTH_LOGIN', 'No se pudo leer perfil desde public.users, usando metadata', dbErr);
         }
 
@@ -268,8 +270,8 @@ export default function Register() {
           );
         }
       }
-    } catch (err: any) {
-      const msg = err.message || 'Ocurrió un error inesperado al autenticar.';
+    } catch (err: unknown) {
+      const msg = (err instanceof Error && err.message) || 'Ocurrió un error inesperado al autenticar.';
       logger.error('AUTH_ERROR', `Fallo capturado en autenticación (${mode}) para ${cleanEmail}`, {
         error: err,
         message: msg,

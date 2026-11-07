@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables } from '../types/database.types';
-import { AppError } from '../middlewares/errorHandler';
+import { AppError, dbError } from '../middlewares/errorHandler';
 import {
   createFavorSchema,
   createEmergencyReportSchema,
@@ -276,7 +276,7 @@ export class SyncService {
           .single();
         if (dup) return dup;
       }
-      throw new AppError(`Error al insertar favor en sincronización: ${error.message}`, 400);
+      throw dbError('Error al insertar favor en sincronización', error);
     }
 
     return data;
@@ -322,7 +322,7 @@ export class SyncService {
       .single();
 
     if (error) {
-      throw new AppError(`Error al insertar reporte en sincronización: ${error.message}`, 400);
+      throw dbError('Error al insertar reporte en sincronización', error);
     }
 
     if (data.is_anonymous) {
@@ -378,7 +378,7 @@ export class SyncService {
           .single();
         if (dup) return dup;
       }
-      throw new AppError(`Error al insertar visto bueno en sincronización: ${error.message}`, 400);
+      throw dbError('Error al insertar visto bueno en sincronización', error);
     }
 
     return data;

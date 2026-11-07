@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables, TablesUpdate } from '../types/database.types';
-import { AppError } from '../middlewares/errorHandler';
+import { AppError, dbError } from '../middlewares/errorHandler';
 
 type Client = SupabaseClient<Database>;
 type UserLite = { id: string; full_name: string };
@@ -31,7 +31,7 @@ export class ModerationService {
       .range(offset, offset + limit - 1);
 
     if (error) {
-      throw new AppError(`Error al consultar la cola de moderación: ${error.message}`, 400);
+      throw dbError('Error al consultar la cola de moderación', error);
     }
 
     return (data as unknown as Tables<'favors'>[]) || [];
@@ -57,7 +57,7 @@ export class ModerationService {
       .range(offset, offset + limit - 1);
 
     if (error) {
-      throw new AppError(`Error al consultar los reportes: ${error.message}`, 400);
+      throw dbError('Error al consultar los reportes', error);
     }
 
     const rows = (data ?? []) as unknown as (Tables<'user_reports'> & { users: UserLite })[];
@@ -69,7 +69,7 @@ export class ModerationService {
       .in('id', [...new Set(rows.map((row) => row.target_id))]);
 
     if (targetsError) {
-      throw new AppError(`Error al consultar los reportes: ${targetsError.message}`, 400);
+      throw dbError('Error al consultar los reportes', targetsError);
     }
 
     return rows.map(({ users: reporter, ...report }) => ({
@@ -163,7 +163,7 @@ export class ModerationService {
       .maybeSingle();
 
     if (updateError) {
-      throw new AppError(`No se pudo moderar el favor: ${updateError.message}`, 400);
+      throw dbError('No se pudo moderar el favor', updateError);
     }
 
     if (!updated) {

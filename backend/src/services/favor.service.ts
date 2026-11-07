@@ -5,7 +5,7 @@ import type {
   FavorType,
   ReportReason,
 } from '../types/database.types';
-import { AppError } from '../middlewares/errorHandler';
+import { AppError, dbError } from '../middlewares/errorHandler';
 import type { CreateFavorDTO, UpdateFavorDTO, CreateFavorInterestDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
 
@@ -78,7 +78,7 @@ export class FavorService {
 
     const { data, error } = await query;
     if (error) {
-      throw new AppError(`Error al consultar favores: ${error.message}`, 400);
+      throw dbError('Error al consultar favores', error);
     }
 
     return (data as unknown as Tables<'favors'>[]) || [];
@@ -107,7 +107,7 @@ export class FavorService {
       .single();
 
     // Solo "0 filas" (PGRST116) e "ID no es UUID" (22P02) significan que no existe.
-    if (error && error.code !== 'PGRST116' && error.code !== '22P02') throw new AppError(`Error al consultar el favor: ${error.message}`, 500);
+    if (error && error.code !== 'PGRST116' && error.code !== '22P02') throw dbError('Error al consultar el favor', error, 500);
     if (!data) throw new AppError('Favor no encontrado', 404);
 
     if (data.author_id !== userId && data.zone_id !== (await resolveUserZone(supabase, userId))) {
@@ -230,7 +230,7 @@ export class FavorService {
           .single();
         if (duplicate) return duplicate;
       }
-      throw new AppError(`Error al crear el favor: ${error.message}`, 400);
+      throw dbError('Error al crear el favor', error);
     }
 
     // 4. Registrar evento inicial en favor_events
@@ -301,7 +301,7 @@ export class FavorService {
       if (error.code === '23505') {
         throw new AppError('Ya has manifestado interés previamente en este favor', 409);
       }
-      throw new AppError(`Error al registrar interés en el favor: ${error.message}`, 400);
+      throw dbError('Error al registrar interés en el favor', error);
     }
 
     const created = result?.[0];
@@ -525,7 +525,7 @@ export class FavorService {
       if (insertErr.code === '23505') {
         throw new AppError('Ya reportaste este favor.', 409);
       }
-      throw new AppError(`No se pudo registrar el reporte: ${insertErr.message}`, 400);
+      throw dbError('No se pudo registrar el reporte', insertErr);
     }
 
     // Calcular puntos acumulados de reporte para este favor

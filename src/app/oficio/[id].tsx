@@ -66,9 +66,9 @@ export default function OficioDetalle() {
         '¡Visto Bueno Registrado!',
         `Has respaldado exitosamente el trabajo de ${profile.user.fullName}. Tu confianza ayuda a mantener seguro el barrio.`
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMsg =
-        err?.message ||
+        (err instanceof Error && err.message) ||
         'No se pudo registrar el visto bueno. Recuerda que solo vecinos de la misma zona pueden validar un perfil.';
       Alert.alert('No se pudo otorgar el visto bueno', errorMsg);
     }

@@ -20,6 +20,7 @@ import { Screen } from '@/components/Screen';
 import { ToggleRow } from '@/components/ToggleRow';
 import { ValidationBadge } from '@/components/ValidationBadge';
 import { supabase } from '@/lib/supabase';
+import { logger } from '@/utils/logger';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
 import {
@@ -146,7 +147,9 @@ export default function Perfil() {
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-    } catch {}
+    } catch (err) {
+      logger.warn('AUTH_LOGOUT', 'No se pudo cerrar la sesión en Supabase', err);
+    }
     clearSession();
     router.replace('/welcome');
   };

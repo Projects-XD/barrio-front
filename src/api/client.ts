@@ -105,8 +105,8 @@ export async function request<T>(
       ...options,
       headers,
     });
-  } catch (netErr: any) {
-    const netMsg = netErr?.message || 'Error de conexión / Servidor inaccesible';
+  } catch (netErr: unknown) {
+    const netMsg = (netErr instanceof Error && netErr.message) || 'Error de conexión / Servidor inaccesible';
     logger.error('API_CLIENT', `Fallo de red en ${method} ${url}`, {
       status: 0,
       url,

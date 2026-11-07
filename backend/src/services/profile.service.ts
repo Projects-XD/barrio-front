@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables, OficioCategory } from '../types/database.types';
-import { AppError } from '../middlewares/errorHandler';
+import { AppError, dbError } from '../middlewares/errorHandler';
 import type { UpsertProfessionalProfileDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
 
@@ -103,7 +103,7 @@ export class ProfileService {
       if (error.code === '23505') {
         throw new AppError('Ya tienes un perfil registrado para este oficio', 409);
       }
-      throw new AppError(`Error al crear perfil profesional: ${error.message}`, 400);
+      throw dbError('Error al crear perfil profesional', error);
     }
 
     return data as unknown as Tables<'professional_profiles'>;
@@ -142,7 +142,7 @@ export class ProfileService {
 
     const { data, error } = await query;
     if (error) {
-      throw new AppError(`Error al consultar perfiles: ${error.message}`, 400);
+      throw dbError('Error al consultar perfiles', error);
     }
 
     return (data as unknown as Tables<'professional_profiles'>[]) || [];
@@ -242,7 +242,7 @@ export class ProfileService {
       if (insertError.code === '23505') {
         throw new AppError('Ya has otorgado un visto bueno a este perfil profesional', 409);
       }
-      throw new AppError(`Error al registrar visto bueno: ${insertError.message}`, 400);
+      throw dbError('Error al registrar visto bueno', insertError);
     }
 
     // 6. Consultar el perfil con los valores recalculados por el trigger de base de datos
@@ -277,7 +277,7 @@ export class ProfileService {
       .eq('voucher_user_id', voucherUserId);
 
     if (deleteError) {
-      throw new AppError(`Error al remover visto bueno: ${deleteError.message}`, 400);
+      throw dbError('Error al remover visto bueno', deleteError);
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -325,7 +325,7 @@ export class ProfileService {
       .order('name');
 
     if (error) {
-      throw new AppError(`Error al obtener oficios: ${error.message}`, 400);
+      throw dbError('Error al obtener oficios', error);
     }
 
     return data || [];
@@ -360,7 +360,7 @@ export class ProfileService {
       .eq('user_id', userId);
 
     if (deleteErr) {
-      throw new AppError(`No se pudo eliminar el oficio: ${deleteErr.message}`, 400);
+      throw dbError('No se pudo eliminar el oficio', deleteErr);
     }
 
     return { id: profileId };

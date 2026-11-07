@@ -122,7 +122,7 @@ export function buildMapHtml(initial: Coords, options?: MapHtmlOptions) {
       if (zoneId) payload.zoneId = zoneId;
       var msg = JSON.stringify(payload);
       if (typeof eventCallback === 'function') {
-        try { eventCallback(msg); } catch (err) {}
+        try { eventCallback(msg); } catch (err) { console.warn('barrio-map: error en callback', err); }
       }
       if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
         window.ReactNativeWebView.postMessage(msg);
@@ -228,7 +228,7 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
       if (typeof eventCb === 'function') {
         try {
           eventCb(payloadObj);
-        } catch (e) {}
+        } catch (e) { console.warn('barrio-map: error en callback', e); }
       }
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(s);

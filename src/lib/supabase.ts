@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { logger } from '@/utils/logger';
 
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -35,12 +36,12 @@ const ExpoSecureStoreAdapter = {
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem(key, value);
         }
-      } catch {}
+      } catch (err) { logger.warn('AUTH_STORAGE', 'No se pudo guardar la sesión en el almacenamiento', err); }
       return;
     }
     try {
       await SecureStore.setItemAsync(key, value);
-    } catch {}
+    } catch (err) { logger.warn('AUTH_STORAGE', 'No se pudo guardar la sesión en el almacenamiento', err); }
   },
   removeItem: async (key: string): Promise<void> => {
     if (Platform.OS === 'web') {
@@ -48,12 +49,12 @@ const ExpoSecureStoreAdapter = {
         if (typeof localStorage !== 'undefined') {
           localStorage.removeItem(key);
         }
-      } catch {}
+      } catch (err) { logger.warn('AUTH_STORAGE', 'No se pudo borrar la sesión del almacenamiento', err); }
       return;
     }
     try {
       await SecureStore.deleteItemAsync(key);
-    } catch {}
+    } catch (err) { logger.warn('AUTH_STORAGE', 'No se pudo borrar la sesión del almacenamiento', err); }
   },
 };
 
