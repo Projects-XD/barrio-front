@@ -8,6 +8,8 @@ type Props = {
   center: Coords;
   points: BarrioPoint[];
   selectedId?: string | null;
+  userLocation?: Coords | null;
+  userFocusTrigger?: number;
   fitTrigger?: number;
   onPointPress?: (id: string) => void;
   onMapClear?: () => void;
@@ -19,10 +21,12 @@ export function BarrioMap({
   center,
   points,
   selectedId = null,
+  userLocation = null,
+  userFocusTrigger = 0,
   fitTrigger = 0,
   onPointPress,
   onMapClear,
-  height = 340,
+  height,
 }: Props) {
   const webRef = useRef<ElementRef<typeof WebView>>(null);
   const [html] = useState(() => buildBarrioMapHtml(center, points));
@@ -54,6 +58,17 @@ export function BarrioMap({
   }, [selectedId, ready]);
 
   useEffect(() => {
+    if (!ready) return;
+    if (!userLocation) {
+      webRef.current?.injectJavaScript(`if (window.setUserLocation) window.setUserLocation(null, null, false); true;`);
+      return;
+    }
+    webRef.current?.injectJavaScript(
+      `if (window.setUserLocation) window.setUserLocation(${userLocation.lat}, ${userLocation.lng}, ${userFocusTrigger > 0}); true;`,
+    );
+  }, [userLocation, userFocusTrigger, ready]);
+
+  useEffect(() => {
     if (!ready || fitTrigger === 0) return;
     webRef.current?.injectJavaScript(`if (window.fitAllPoints) window.fitAllPoints(); true;`);
   }, [fitTrigger, ready]);
@@ -64,7 +79,7 @@ export function BarrioMap({
   }, [center.lat, center.lng, ready]);
 
   return (
-    <View style={[styles.wrap, { height }]}>
+    <View style={[styles.wrap, height != null ? { height } : styles.fill]}>
       <WebView
         ref={webRef}
         originWhitelist={['*']}
@@ -91,6 +106,7 @@ export function BarrioMap({
 
 const styles = StyleSheet.create({
   wrap: { borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#EAE3D8' },
+  fill: { flex: 1 },
   web: { flex: 1 },
 });
 

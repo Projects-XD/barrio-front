@@ -7,6 +7,8 @@ type Props = {
   center: Coords;
   points: BarrioPoint[];
   selectedId?: string | null;
+  userLocation?: Coords | null;
+  userFocusTrigger?: number;
   fitTrigger?: number;
   onPointPress?: (id: string) => void;
   onMapClear?: () => void;
@@ -16,6 +18,7 @@ type Props = {
 type FrameWindow = Window & {
   setPoints?: (points: BarrioPoint[], shouldFit?: boolean) => void;
   focusPoint?: (id: string | null, lat?: number, lng?: number) => void;
+  setUserLocation?: (lat: number | null, lng: number | null, centerOnUser?: boolean) => void;
   fitAllPoints?: () => void;
   setCenter?: (lat: number, lng: number) => void;
 };
@@ -25,10 +28,12 @@ export function BarrioMap({
   center,
   points,
   selectedId = null,
+  userLocation = null,
+  userFocusTrigger = 0,
   fitTrigger = 0,
   onPointPress,
   onMapClear,
-  height = 340,
+  height,
 }: Props) {
   const [frame, setFrame] = useState<HTMLIFrameElement | null>(null);
   const [srcDoc] = useState(() => buildBarrioMapHtml(center, points));
@@ -81,6 +86,16 @@ export function BarrioMap({
   }, [selectedId, ready, frame]);
 
   useEffect(() => {
+    if (!ready) return;
+    const win = frame?.contentWindow as FrameWindow | null | undefined;
+    if (!userLocation) {
+      win?.setUserLocation?.(null, null, false);
+      return;
+    }
+    win?.setUserLocation?.(userLocation.lat, userLocation.lng, userFocusTrigger > 0);
+  }, [userLocation, userFocusTrigger, ready, frame]);
+
+  useEffect(() => {
     if (!ready || fitTrigger === 0) return;
     const win = frame?.contentWindow as FrameWindow | null | undefined;
     win?.fitAllPoints?.();
@@ -93,7 +108,7 @@ export function BarrioMap({
   }, [center.lat, center.lng, ready, frame]);
 
   return (
-    <View style={[styles.wrap, { height }]}>
+    <View style={[styles.wrap, height != null ? { height } : styles.fill]}>
       {createElement('iframe', {
         ref: setFrame,
         srcDoc,
@@ -107,5 +122,6 @@ export function BarrioMap({
 
 const styles = StyleSheet.create({
   wrap: { borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#EAE3D8' },
+  fill: { flex: 1 },
 });
 
