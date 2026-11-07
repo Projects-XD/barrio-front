@@ -166,15 +166,6 @@ export default function Ubicacion() {
         }}
       />
 
-      <Pressable
-        accessibilityRole="button"
-        onPress={irAlPerfil}
-        style={styles.inlineBackBtn}
-      >
-        <Ionicons name="arrow-back" size={18} color={p.primary} />
-        <Text style={[styles.inlineBackText, { color: p.primary }]}>Volver a mi perfil</Text>
-      </Pressable>
-
       <Text style={[styles.titulo, { color: p.text }]}>Marca dónde vives o trabajas</Text>
       <Text style={[styles.sub, { color: p.muted }]}>
         Toca cualquier punto del mapa o usa tu ubicación actual. La dirección se completará automáticamente.

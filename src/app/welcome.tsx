@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
 
 const logoBarrio = require('../../assets/brand/logo-barrio.png');
@@ -64,6 +65,7 @@ export default function Welcome() {
   const { width, height } = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
   const isLast = currentIndex === SLIDES.length - 1;
+  const isLoggedIn = Boolean(useAppStore((s) => s.token && s.userId));
 
   // Ancho útil del contenedor principal (máximo 500px en PC para preservar relación de aspecto)
   const containerWidth = Math.min(width, 500);
@@ -122,16 +124,28 @@ export default function Welcome() {
     );
   }, []);
 
+  const finishGuide = () => {
+    if (isLoggedIn) {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.navigate('/(tabs)/perfil');
+      }
+      return;
+    }
+    router.replace('/register');
+  };
+
   const handleNext = () => {
     if (isLast) {
-      router.replace('/register');
+      finishGuide();
     } else {
       goToSlide(currentIndex + 1);
     }
   };
 
   const handleSkip = () => {
-    router.replace('/register');
+    finishGuide();
   };
 
   return (
@@ -143,7 +157,7 @@ export default function Welcome() {
           <View style={styles.header}>
             <Image source={logoBarrio} style={styles.logo} resizeMode="contain" />
             <Pressable onPress={handleSkip} hitSlop={16} style={styles.skipBtn}>
-              <Text style={styles.skipText}>Saltar</Text>
+              <Text style={styles.skipText}>{isLoggedIn ? 'Cerrar' : 'Saltar'}</Text>
             </Pressable>
           </View>
         </SafeAreaView>
@@ -222,7 +236,7 @@ export default function Welcome() {
               ]}
             >
               <Text style={styles.ctaText}>
-                {isLast ? 'Empezar ahora' : 'Continuar'}
+                {isLast ? (isLoggedIn ? 'Finalizar guía' : 'Empezar ahora') : 'Continuar'}
               </Text>
             </Pressable>
           </View>

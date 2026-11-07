@@ -169,18 +169,6 @@ export default function OficioDetalle() {
         options={{
           title: 'Detalle de oficio',
           headerBackTitle: 'Volver',
-          headerRight: esMio
-            ? () => (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Opciones de mi oficio"
-                  hitSlop={12}
-                  onPress={() => setMenuOpciones(true)}
-                >
-                  <Ionicons name="ellipsis-vertical" size={22} color={colors.azul} />
-                </Pressable>
-              )
-            : undefined,
         }}
       />
 
