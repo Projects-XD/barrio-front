@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction, ErrorRequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { env } from '../config/env';
+import { logger } from '../utils/logger';
 
 /**
  * Clase personalizada para errores operacionales de la aplicación.
@@ -19,8 +20,8 @@ export class AppError extends Error {
 }
 
 /**
- * Middleware global de manejo de excepciones.
- * Garantiza respuestas JSON homogéneas con formato:
+ * Middleware global de manejo de excepciones con observabilidad estructurada.
+ * Garantiza respuestas JSON homogéneas:
  * { success: false, error: "Mensaje", code: number }
  */
 export const errorHandler: ErrorRequestHandler = (
@@ -48,10 +49,22 @@ export const errorHandler: ErrorRequestHandler = (
     message = err.message || message;
   }
 
-  // Registro del error en logs
-  const timestamp = new Date().toISOString();
-  console.error(`[${timestamp}]  Error ${statusCode} en ${req.method} ${req.originalUrl}:`, {
-    message: err.message,
+  // Sanitización de seguridad para campos sensibles en el cuerpo de la petición
+  let sanitizedBody: unknown = req.body;
+  if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+    const copy = { ...req.body };
+    if ('password' in copy) copy.password = '[REDACTED]';
+    if ('token' in copy) copy.token = '[REDACTED]';
+    sanitizedBody = copy;
+  }
+
+  // Registro del error en logs utilizando el nuevo sistema de observabilidad
+  logger.error(`Error HTTP ${statusCode} en ${req.method} ${req.originalUrl}: ${message}`, {
+    method: req.method,
+    route: req.originalUrl,
+    statusCode,
+    body: sanitizedBody,
+    query: req.query,
     stack: env.NODE_ENV === 'development' ? err.stack : undefined,
   });
 
