@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
@@ -16,6 +16,7 @@ export default function NuevoFavor() {
   const p = usePalette();
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
   const [tipo, setTipo] = useState<FavorType | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
   const [texto, setTexto] = useState('');
   const crear = useCreateFavor();
 
@@ -149,7 +150,7 @@ export default function NuevoFavor() {
                 <AppButton
                   label="Publicar en el barrio"
                   variant="accent"
-                  onPress={publicar}
+                  onPress={() => setConfirmando(true)}
                   disabled={crear.isPending}
                 />
                 <AppButton label="Atrás" variant="secondary" onPress={() => setPaso(2)} />
@@ -158,11 +159,35 @@ export default function NuevoFavor() {
           </View>
         </>
       )}
+      <Modal visible={confirmando} transparent animationType="fade" onRequestClose={() => setConfirmando(false)}>
+        <Pressable style={styles.overlay} onPress={() => setConfirmando(false)}>
+          <Pressable onPress={() => {}} style={[styles.tarjeta, { backgroundColor: colors.blanco }]}>
+            <Text style={[styles.tituloModal, { color: p.text }]}>Â¿Publicar tu favor?</Text>
+            <Text style={[styles.textoModal, { color: p.muted }]}>
+              {tipo ? favorTypeLabel[tipo] : ''}: {texto.trim()}
+            </Text>
+            <Text style={[styles.textoModal, { color: p.muted }]}>Lo verÃ¡n los vecinos de tu zona.</Text>
+            <AppButton
+              label="SÃ­, publicar"
+              variant="accent"
+              onPress={() => {
+                setConfirmando(false);
+                publicar();
+              }}
+            />
+            <AppButton label="Revisar otra vez" variant="link" onPress={() => setConfirmando(false)} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(19, 46, 102, 0.45)', justifyContent: 'center', padding: spacing.md },
+  tarjeta: { borderRadius: radius.lg, padding: spacing.lg },
+  tituloModal: { fontFamily: fonts.bold, fontSize: 20, marginBottom: spacing.sm },
+  textoModal: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, marginBottom: spacing.sm },
   progreso: {
     flexDirection: 'row',
     gap: 8,
