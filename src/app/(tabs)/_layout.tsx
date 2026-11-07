@@ -3,7 +3,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { EmergencyFab } from '@/components/EmergencyFab';
 import { useEmergencyState, useUnreadNotificationCount } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import type { IconName } from '@/i18n/icons';
@@ -25,8 +24,6 @@ export default function TabsLayout() {
   const { data: emergency } = useEmergencyState();
   const { data: unread } = useUnreadNotificationCount();
 
-  // Para celulares con barra de navegación por gestos (insets.bottom suele ser 20-34px)
-  // o celulares con botones tradicionales (insets.bottom es 0-10px)
   const bottomPadding = Math.max(insets.bottom, 12);
   const totalBarHeight = 60 + bottomPadding;
 
@@ -91,7 +88,6 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-      <EmergencyFab bottomOffset={totalBarHeight + 12} />
     </View>
   );
 }
