@@ -3,11 +3,13 @@ import type { Database, Tables } from '../types/database.types';
 import { AppError, dbError } from '../middlewares/errorHandler';
 import {
   createFavorSchema,
+  type CreateFavorDTO,
   createEmergencyReportSchema,
   createVouchSchema,
   type SyncOperationDTO,
 } from '../utils/validators';
 import { logger } from '../utils/logger';
+import { favorService } from './favor.service';
 import { assertProfileInUserZone, resolveUserZone } from './zoneAccess';
 
 export interface SyncProcessResult {
@@ -138,7 +140,6 @@ export class SyncService {
               executionResult = await this.executeCreateFavor(
                 supabase,
                 userId,
-                item.client_id,
                 parseSyncPayload(createFavorSchema, {
                   ...item.payload,
                   client_id: item.client_id,
@@ -229,58 +230,11 @@ export class SyncService {
   private async executeCreateFavor(
     supabase: SupabaseClient<Database>,
     userId: string,
-    clientId: string,
-    payload: any
+    payload: CreateFavorDTO
   ): Promise<Tables<'favors'>> {
-    // Verificar si ya existe en favors (idempotencia interna por client_id)
-    const { data: existing } = await supabase
-      .from('favors')
-      .select('*')
-      .eq('author_id', userId)
-      .eq('client_id', clientId)
-      .maybeSingle();
-
-    if (existing) {
-      return existing;
-    }
-
-    // Después de la idempotencia: un reintento de algo ya creado no debe fallar por zona.
-    const zoneId = await resolveUserZone(supabase, userId, payload.zone_id);
-
-    const { data, error } = await supabase
-      .from('favors')
-      .insert({
-        author_id: userId,
-        client_id: clientId,
-        zone_id: zoneId,
-        type: payload.type,
-        title: payload.title,
-        description: payload.description ?? null,
-        location_lat: payload.location_lat ?? null,
-        location_lng: payload.location_lng ?? null,
-        status: 'abierta',
-        sync_status: 'enviado',
-        urgency: payload.urgency,
-        intent: payload.intent,
-        moderation_status: 'aprobado',
-      })
-      .select()
-      .single();
-
-    if (error) {
-      if (error.code === '23505') {
-        const { data: dup } = await supabase
-          .from('favors')
-          .select('*')
-          .eq('author_id', userId)
-          .eq('client_id', clientId)
-          .single();
-        if (dup) return dup;
-      }
-      throw dbError('Error al insertar favor en sincronización', error);
-    }
-
-    return data;
+    // Mismo camino que POST /favors: valida titulo, duplicados y limite, resuelve la zona desde la base
+    // y es idempotente por client_id. Antes esta ruta insertaba por su cuenta y se saltaba esas reglas.
+    return favorService.createFavor(supabase, userId, payload);
   }
 
   /**

@@ -7,9 +7,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/services/favor.service.test.ts src/services/conversation.service.test.ts src/services/moderation.service.test.ts src/services/ai.service.test.ts src/utils/authCache.test.ts",
+    "test": "tsx --test src/services/favor.service.test.ts src/services/conversation.service.test.ts src/services/ai.service.test.ts src/utils/authCache.test.ts src/utils/validators.test.ts src/services/zoneAccess.test.ts src/middlewares/errorHandler.test.ts",
     "seed": "tsx scripts/seed-auth.ts"
   },
   "keywords": [
@@ -35,13 +35,16 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.13.1",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
+    "eslint": "^10.14.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.72.1"
   }
 }

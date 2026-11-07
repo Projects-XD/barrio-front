@@ -268,7 +268,7 @@ export default function Chat() {
       </View>
 
       <Modal visible={panel !== null} transparent animationType="fade" onRequestClose={closePanel}>
-        <Pressable style={styles.overlay} onPress={closePanel}>
+        <Pressable accessibilityRole="button" style={styles.overlay} onPress={closePanel}>
           <Pressable onPress={() => {}} style={styles.card}>
             {panel === 'menu' ? (
               <>

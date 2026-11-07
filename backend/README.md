@@ -143,7 +143,7 @@ npm start
 - `GET /favors/:id`: Detalle de un favor e interesados.
 - `POST /favors`: Publicar solicitud u oferta de favor (Soporta `client_id` para idempotencia offline).
 - `PATCH /favors/:id`: Actualizar estado o asignar favor.
-- `POST /favors/:id/interests`: Manifestar interés en ayudar en un favor.
+- `POST /favors/:id/interest`: Manifestar interés en ayudar en un favor.
 
 ### Estado de Emergencia y Soporte
 - `GET /emergency?zoneId=<uuid>`: Estado de alerta o contingencia de la zona.

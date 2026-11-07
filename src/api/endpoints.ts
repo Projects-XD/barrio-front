@@ -79,6 +79,8 @@ export interface BackendFavor {
     avatar_url: string | null;
   } | null;
   interests?: { id: string; user_id: string }[];
+  // Solo en GET /favors/:id: el backend ya no manda los datos de los demas interesados.
+  interested_count?: number;
 }
 
 export interface BackendEmergencyState {

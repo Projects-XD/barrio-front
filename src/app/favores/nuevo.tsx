@@ -290,7 +290,7 @@ export default function NuevoFavor() {
       )}
 
       <Modal visible={confirmando} transparent animationType="fade" onRequestClose={() => setConfirmando(false)}>
-        <Pressable style={styles.overlay} onPress={() => setConfirmando(false)}>
+        <Pressable accessibilityRole="button" style={styles.overlay} onPress={() => setConfirmando(false)}>
           <Pressable onPress={() => {}} style={styles.tarjeta}>
             <View style={[styles.modalIcono, { backgroundColor: p.highlight }]}>
               <Ionicons name="paper-plane" size={28} color={p.text} />

@@ -12,6 +12,8 @@ export type SuggestedMatch = {
   targetRoute: string;
 };
 
+const STOP_WORDS = new Set(['necesito', 'ofrezco', 'para', 'como', 'este', 'esta']);
+
 const KEYWORD_TO_OFICIO: { pattern: RegExp; categories: OficioCategory[] }[] = [
   {
     pattern: /(fuga|tuber[ií]a|ca[ñn]o|grifo|desag[üu]e|inodoro|agua|ba[ñn]o|tanque|gasfiter)/i,
@@ -48,11 +50,6 @@ const FAVOR_TYPE_TO_OFICIO: Record<FavorType, OficioCategory[]> = {
   otros: ['otro', 'clases'],
 };
 
-function isOfferFavor(title: string, description?: string | null): boolean {
-  const text = `${title} ${description ?? ''}`.trim();
-  return /^(ofrezco|ofrece|tengo\s+para\s+prestar|presto|dono|regalo|puedo\s+ayudar|puedo\s+enseñar)/i.test(text);
-}
-
 export function findMatchesForFavor(params: {
   favorType: FavorType;
   title: string;
@@ -88,13 +85,15 @@ export function findMatchesForFavor(params: {
 
   const results: (SuggestedMatch & { score: number })[] = [];
 
+  // Palabras del favor para comparar con la descripción de cada perfil (se calculan una sola vez).
+  const textWords = fullText
+    .split(/\s+/)
+    .filter((w) => w.length >= 4 && !STOP_WORDS.has(w));
+
   // 1. Buscar oficios registrados en la zona que coincidan
   for (const prof of profiles) {
     if (authorId && prof.userId === authorId) continue;
     const catMatch = matchedCategories.has(prof.oficio.category);
-    const textWords = fullText
-      .split(/\s+/)
-      .filter((w) => w.length >= 4 && !['necesito', 'ofrezco', 'para', 'como', 'este', 'esta'].includes(w));
     const descMatch = textWords.some(
       (w) => prof.description.toLowerCase().includes(w) || prof.oficio.name.toLowerCase().includes(w)
     );
@@ -131,7 +130,7 @@ export function findMatchesForFavor(params: {
   for (const f of favors) {
     if (authorId && f.authorId === authorId) continue;
     if (f.status !== 'abierta' && f.status !== 'en_curso') continue;
-    if (!isOfferFavor(f.title, f.description)) continue;
+    if (f.intent !== 'ofrecer') continue;
     if (f.type !== favorType) continue;
 
     const dist =

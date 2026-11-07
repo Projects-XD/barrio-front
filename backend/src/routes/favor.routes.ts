@@ -239,13 +239,6 @@ router.post(
 );
 
 router.post(
-  '/:id/interests',
-  requireAuth,
-  validate(createFavorInterestSchema),
-  (req, res, next) => favorController.addInterest(req, res, next)
-);
-
-router.post(
   '/:id/report',
   requireAuth,
   validate(reportFavorSchema),

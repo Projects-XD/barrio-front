@@ -487,7 +487,7 @@ export default function MapaBarrio() {
                     style={[styles.searchInput, { color: p.text }]}
                   />
                   {busqueda.length > 0 ? (
-                    <Pressable onPress={() => setBusqueda('')} hitSlop={8}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Borrar búsqueda" onPress={() => setBusqueda('')} hitSlop={8}>
                       <Ionicons name="close-circle" size={18} color={colors.gris} />
                     </Pressable>
                   ) : null}
@@ -521,6 +521,7 @@ export default function MapaBarrio() {
               {/* Selector de capas comunitarias en el panel lateral */}
               <View style={styles.sideCapasRow}>
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => setMostrarCapaOficios((v) => !v)}
                   style={[
                     styles.capaChip,
@@ -543,6 +544,7 @@ export default function MapaBarrio() {
                 </Pressable>
 
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => setMostrarCapaAlertas((v: boolean) => !v)}
                   style={[
                     styles.capaChip,
@@ -588,6 +590,7 @@ export default function MapaBarrio() {
                     const distTxt = formatDistance(entry.distanceMeters);
                     return (
                       <Pressable
+                        accessibilityRole="button"
                         key={entry.id}
                         onPress={() => setSelectedId(entry.id)}
                         style={[
@@ -704,6 +707,7 @@ export default function MapaBarrio() {
                 contentContainerStyle={styles.floatingPills}
               >
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => {
                     setFiltroIntencion('todos');
                     setSelectedId(null);
@@ -730,6 +734,7 @@ export default function MapaBarrio() {
                 </Pressable>
 
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => {
                     setFiltroIntencion(filtroIntencion === 'pedir' ? 'todos' : 'pedir');
                     setSelectedId(null);
@@ -757,6 +762,7 @@ export default function MapaBarrio() {
                 </Pressable>
 
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => {
                     setFiltroIntencion(filtroIntencion === 'ofrecer' ? 'todos' : 'ofrecer');
                     setSelectedId(null);
@@ -782,6 +788,7 @@ export default function MapaBarrio() {
                 </Pressable>
 
                 <Pressable
+                  accessibilityRole="button"
                   onPress={() => {
                     setMostrarCapaOficios((v) => !v);
                     setFitTrigger((n) => n + 1);
@@ -808,6 +815,7 @@ export default function MapaBarrio() {
 
                 {filtroCategoria ? (
                   <Pressable
+                    accessibilityRole="button"
                     onPress={() => setFiltroCategoria(undefined)}
                     style={[styles.pillBtn, styles.pillBtnActiveTag]}
                   >
@@ -820,6 +828,7 @@ export default function MapaBarrio() {
 
                 {filtroUrgencia ? (
                   <Pressable
+                    accessibilityRole="button"
                     onPress={() => setFiltroUrgencia(undefined)}
                     style={[styles.pillBtn, styles.pillBtnActiveTag]}
                   >
@@ -1004,11 +1013,11 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalFiltros(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalFiltros(false)}>
+        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalFiltros(false)}>
           <Pressable onPress={() => {}} style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>Filtros y capas del mapa</Text>
-              <Pressable onPress={() => setModalFiltros(false)} hitSlop={8}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalFiltros(false)} hitSlop={8}>
                 <Ionicons name="close-circle" size={26} color={colors.gris} />
               </Pressable>
             </View>
@@ -1126,13 +1135,13 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalLista(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalLista(false)}>
+        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalLista(false)}>
           <Pressable onPress={() => {}} style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>
                 Puntos en el mapa ({filteredItems.length})
               </Text>
-              <Pressable onPress={() => setModalLista(false)} hitSlop={8}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalLista(false)} hitSlop={8}>
                 <Ionicons name="close-circle" size={26} color={colors.gris} />
               </Pressable>
             </View>
@@ -1148,6 +1157,7 @@ export default function MapaBarrio() {
                   const distTxt = formatDistance(entry.distanceMeters);
                   return (
                     <Pressable
+                      accessibilityRole="button"
                       key={entry.id}
                       onPress={() => {
                         setSelectedId(entry.id);
@@ -1186,11 +1196,11 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalPublicar(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalPublicar(false)}>
+        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalPublicar(false)}>
           <Pressable onPress={() => {}} style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>¿Qué deseas publicar en el mapa?</Text>
-              <Pressable onPress={() => setModalPublicar(false)} hitSlop={8}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalPublicar(false)} hitSlop={8}>
                 <Ionicons name="close-circle" size={26} color={colors.gris} />
               </Pressable>
             </View>
@@ -1199,6 +1209,7 @@ export default function MapaBarrio() {
             </Text>
 
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 setModalPublicar(false);
                 router.push('/favores/nuevo?modo=pedir');
@@ -1218,6 +1229,7 @@ export default function MapaBarrio() {
             </Pressable>
 
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 setModalPublicar(false);
                 router.push('/favores/nuevo?modo=ofrecer');

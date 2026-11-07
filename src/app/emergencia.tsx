@@ -142,7 +142,7 @@ export default function Emergencia() {
       )}
 
       <Modal visible={menuReporte !== null} transparent animationType="fade" onRequestClose={() => setMenuReporte(null)}>
-        <Pressable style={styles.overlay} onPress={() => setMenuReporte(null)}>
+        <Pressable accessibilityRole="button" style={styles.overlay} onPress={() => setMenuReporte(null)}>
           <Pressable onPress={() => {}} style={styles.menuCard}>
             <Text style={[styles.nombre, { color: p.text, marginBottom: spacing.xs }]}>Opciones del reporte</Text>
             <Pressable
