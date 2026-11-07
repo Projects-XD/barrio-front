@@ -1,5 +1,11 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, Tables, FavorType } from '../types/database.types';
+import type {
+  Database,
+  Tables,
+  FavorType,
+  FavorUrgency,
+  ModerationStatus,
+} from '../types/database.types';
 import { AppError } from '../middlewares/errorHandler';
 import type { CreateFavorDTO, UpdateFavorDTO, CreateFavorInterestDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
@@ -8,6 +14,13 @@ const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const isWithinEditWindow = (createdAt: string) =>
   Date.now() - new Date(createdAt).getTime() <= EDIT_WINDOW_MS;
+
+/**
+ * Estrategia híbrida: solo el privilegio de urgencia requiere revisión de un admin.
+ * Lo decide siempre el servidor, también para las operaciones offline.
+ */
+export const moderationStatusFor = (urgency: FavorUrgency): ModerationStatus =>
+  urgency === 'normal' ? 'aprobado' : 'pendiente';
 
 export class FavorService {
   /**
@@ -65,13 +78,13 @@ export class FavorService {
   > {
     const { data, error } = await supabase
       .from('favors')
-      .select('*, author:users!favors_author_id_fkey(id, full_name, avatar_url), interests:favor_interests(*, user:users(id, full_name, avatar_url))')
+      .select('*, author:users!favors_author_id_fkey(id, full_name, avatar_url), interests:favor_interests(*, user:users!favor_interests_user_id_fkey(id, full_name, avatar_url))')
       .eq('id', favorId)
       .single();
 
-    if (error || !data) {
-      throw new AppError('Favor no encontrado', 404);
-    }
+    // Solo "0 filas" (PGRST116) e "ID no es UUID" (22P02) significan que no existe.
+    if (error && error.code !== 'PGRST116' && error.code !== '22P02') throw new AppError(`Error al consultar el favor: ${error.message}`, 500);
+    if (!data) throw new AppError('Favor no encontrado', 404);
 
     if (data.author_id !== userId && data.zone_id !== (await resolveUserZone(supabase, userId))) {
       throw new AppError('Acceso denegado: este favor no pertenece a tu zona', 403);
@@ -94,6 +107,8 @@ export class FavorService {
         location_lat: null,
         location_lng: null,
         assigned_to_user_id: null,
+        moderated_by: null,
+        moderation_reason: null,
         interests: [],
       };
     }
@@ -141,6 +156,8 @@ export class FavorService {
         location_lng: dto.location_lng ?? null,
         status: 'abierta',
         sync_status: 'enviado',
+        urgency: dto.urgency,
+        moderation_status: moderationStatusFor(dto.urgency),
       })
       .select()
       .single();
@@ -228,6 +245,7 @@ export class FavorService {
    * Actualiza el estado o datos de un favor.
    * Un favor desactivado no admite cambios.
    * La ventana de 24 h aplica al contenido: pasado ese plazo el autor aún puede cerrar su favor.
+   * Editar el contenido de un favor urgente lo devuelve a la cola: la aprobación cubría el texto anterior.
    */
   public async updateFavor(
     supabase: SupabaseClient<Database>,
@@ -237,7 +255,7 @@ export class FavorService {
   ): Promise<Tables<'favors'>> {
     const { data: currentFavor } = await supabase
       .from('favors')
-      .select('status, created_at, deleted_at')
+      .select('status, created_at, deleted_at, urgency')
       .eq('id', favorId)
       .eq('author_id', userId)
       .single();
@@ -269,10 +287,19 @@ export class FavorService {
           ? { closed_at: new Date().toISOString() }
           : {}),
         ...(editsContent && { edited_at: new Date().toISOString() }),
+        // Se escribe sin mirar el estado leído: una aprobación simultánea no puede cubrir el texto nuevo.
+        ...(editsContent &&
+          currentFavor.urgency !== 'normal' && {
+            moderation_status: moderationStatusFor(currentFavor.urgency),
+            moderated_by: null,
+            moderated_at: null,
+            moderation_reason: null,
+          }),
         updated_at: new Date().toISOString(),
       })
       .eq('id', favorId)
       .eq('author_id', userId)
+      .is('deleted_at', null) // un rechazo simultáneo gana: no se reabre un favor ya retirado
       .select()
       .single();
 

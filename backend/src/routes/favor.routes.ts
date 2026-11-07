@@ -81,6 +81,11 @@ router.get(
  *                 type: number
  *               location_lng:
  *                 type: number
+ *               urgency:
+ *                 type: string
+ *                 enum: [normal, urgente, emergencia]
+ *                 default: normal
+ *                 description: urgente y emergencia quedan pendientes de aprobación de un admin
  *     responses:
  *       201:
  *         description: Favor creado exitosamente

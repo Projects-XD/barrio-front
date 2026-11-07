@@ -8,6 +8,7 @@ import {
   type SyncOperationDTO,
 } from '../utils/validators';
 import { logger } from '../utils/logger';
+import { moderationStatusFor } from './favor.service';
 import { assertProfileInUserZone, resolveUserZone } from './zoneAccess';
 
 export interface SyncProcessResult {
@@ -260,6 +261,8 @@ export class SyncService {
         location_lng: payload.location_lng ?? null,
         status: 'abierta',
         sync_status: 'enviado',
+        urgency: payload.urgency,
+        moderation_status: moderationStatusFor(payload.urgency),
       })
       .select()
       .single();

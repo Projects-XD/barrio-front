@@ -155,10 +155,13 @@ Esta guía detalla de forma clara y amigable todos los endpoints disponibles en 
   "title": "Ayuda para cargar mueble pesado",
   "description": "Vecinos, requiero una mano para subir un ropero al 2do piso",
   "location_lat": -12.046,
-  "location_lng": -77.042
+  "location_lng": -77.042,
+  "urgency": "normal"
 }
 ```
 > **Nota de Idempotencia:** El `client_id` debe ser un UUID generado en el móvil (`Crypto.randomUUID()`) para evitar duplicados si la red se interrumpe.
+>
+> **Nota de Urgencia:** `urgency` es opcional: `normal` (por defecto), `urgente` o `emergencia`. Los dos últimos quedan con `moderation_status: "pendiente"`, pero el favor se publica igual. Muestra la insignia de urgencia solo si `moderation_status` es `"aprobado"` y `urgency` no es `"normal"`. `moderation_status` lo decide siempre el servidor. Editar título, descripción o tipo de un favor urgente aprobado lo devuelve a `"pendiente"`.
 
 ### 2.3 Postularse o Mostrar Interés en un Favor
 * **Ruta:** `POST /favors/:id/interest`
@@ -169,6 +172,19 @@ Esta guía detalla de forma clara y amigable todos los endpoints disponibles en 
   "message": "Hola vecino, tengo taladro y puedo prestártelo hoy a las 5pm"
 }
 ```
+
+### 2.4 Moderación de Urgencias (solo administradores)
+Requieren `Bearer <token>` de un usuario con `users.is_admin = true`, activo y con zona. Cada admin solo modera su zona. El rol se asigna únicamente por SQL.
+
+* **Ruta:** `GET /admin/favors/pending?limit=20&offset=0`: cola de la zona, los más antiguos primero.
+* **Ruta:** `PATCH /admin/favors/:id/approve`: sin body.
+* **Ruta:** `PATCH /admin/favors/:id/reject`: retira el favor (soft-delete). **Body:**
+```json
+{
+  "reason": "La situación descrita no es una urgencia"
+}
+```
+* **Errores:** `403` si no es admin, si el favor es de otra zona o si es del propio admin; `404` si no existe; `409` si ya no está pendiente.
 
 ---
 
