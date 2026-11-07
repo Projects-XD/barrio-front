@@ -96,7 +96,7 @@ export default function NuevoFavor() {
 
   const irAFavores = () => {
     setResultado(null);
-    router.replace('/(tabs)/favores');
+    router.navigate('/(tabs)/favores');
   };
 
   return (

@@ -24,6 +24,7 @@ import {
   listZones,
   markNotificationRead,
   reportConversationUser,
+  reportFavor,
   sendMessage,
   unblockConversationUser,
   updateConversation,
@@ -139,7 +140,7 @@ function mapPendingFavor(item: OutboxItem, userId: string | null, userName: stri
     syncStatus: item.attempts > 0 ? 'error' : 'pendiente',
     // Las operaciones encoladas antes de existir este campo no lo traen.
     urgency: (p.urgency as FavorUrgency | undefined) ?? 'normal',
-    moderationStatus: 'pendiente',
+    moderationStatus: 'aprobado',
     moderationReason: null,
     canEdit: false,
     isDeactivated: false,
@@ -436,17 +437,15 @@ export function useFavor(id: string) {
 }
 
 export function useReportFavor(favorId: string) {
+  const qc = useQueryClient();
   const userId = useAppStore((s) => s.userId);
   return useMutation({
-    mutationFn: async (reason: string): Promise<void> => {
+    mutationFn: async (reason: string): Promise<{ hidden: boolean }> => {
       if (!userId) throw new Error('Tu sesión no está activa.');
-      const { error } = await supabase
-        .from('favor_reports')
-        .insert({ favor_id: favorId, reporter_id: userId, reason });
-      if (error) {
-        if (error.code === '23505') throw new Error('Ya reportaste este favor.');
-        throw new Error(error.message);
-      }
+      return await reportFavor(favorId, reason);
+    },
+    onSuccess: () => {
+      invalidateFavor(qc, favorId);
     },
   });
 }

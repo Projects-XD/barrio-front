@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
@@ -26,6 +26,12 @@ import { timeAgo } from '@/utils/time';
 
 const tipos = Object.keys(favorTypeLabel) as FavorType[];
 
+const MOTIVOS_REPORTE = [
+  { label: 'Es broma o spam', reason: 'Broma o spam' },
+  { label: 'No es una ayuda real', reason: 'No es una ayuda real' },
+  { label: 'Contenido ofensivo', reason: 'Contenido ofensivo' },
+] as const;
+
 export default function FavorDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
@@ -35,20 +41,6 @@ export default function FavorDetalle() {
   const actualizar = useUpdateFavor(id);
   const eliminar = useDeleteFavor(id);
   const reportar = useReportFavor(id);
-
-  const abrirReporte = () => {
-    const enviar = (reason: string) =>
-      reportar.mutate(reason, {
-        onSuccess: () => Alert.alert('Gracias', 'Revisaremos este favor. Si varios vecinos lo reportan, se oculta.'),
-        onError: (err) => Alert.alert('No se pudo reportar', err.message),
-      });
-    Alert.alert('Reportar favor', 'Elige el motivo:', [
-      { text: 'Es broma o spam', onPress: () => enviar('Broma o spam') },
-      { text: 'No es una ayuda real', onPress: () => enviar('No es una ayuda real') },
-      { text: 'Contenido ofensivo', onPress: () => enviar('Contenido ofensivo') },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  };
   const conversaciones = useConversations(id);
 
   const [editando, setEditando] = useState(false);
@@ -56,6 +48,22 @@ export default function FavorDetalle() {
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [confirmandoBaja, setConfirmandoBaja] = useState(false);
+  const [reportando, setReportando] = useState(false);
+  const [reporteEnviado, setReporteEnviado] = useState<{ hidden: boolean } | null>(null);
+
+  const abrirReporte = () => {
+    reportar.reset();
+    setReporteEnviado(null);
+    setReportando(true);
+  };
+
+  const enviarReporte = (reason: string) => {
+    reportar.mutate(reason, {
+      onSuccess: (res) => {
+        setReporteEnviado(res);
+      },
+    });
+  };
 
   if (isLoading) {
     return (
@@ -286,6 +294,61 @@ export default function FavorDetalle() {
               disabled={eliminar.isPending}
             />
             <AppButton label="Cancelar" variant="secondary" onPress={() => setConfirmandoBaja(false)} />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal de reporte compatible con Web y Móvil */}
+      <Modal visible={reportando} transparent animationType="fade" onRequestClose={() => setReportando(false)}>
+        <Pressable style={styles.overlay} onPress={() => setReportando(false)}>
+          <Pressable onPress={() => {}} style={styles.tarjeta}>
+            {reporteEnviado ? (
+              <>
+                <Text style={[styles.modalTitulo, { color: p.text }]}>Gracias por avisar</Text>
+                <Text style={[styles.modalTexto, { color: p.body }]}>
+                  {reporteEnviado.hidden
+                    ? 'Este favor acumuló suficientes reportes de vecinos y fue ocultado del barrio.'
+                    : 'Registramos tu reporte. Si varios vecinos reportan este favor, se ocultará automáticamente.'}
+                </Text>
+                <AppButton
+                  label="Entendido"
+                  onPress={() => {
+                    const oculto = reporteEnviado.hidden;
+                    setReportando(false);
+                    setReporteEnviado(null);
+                    if (oculto) router.navigate('/(tabs)/favores');
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <Text style={[styles.modalTitulo, { color: p.text }]}>Reportar favor</Text>
+                <Text style={[styles.modalTexto, { color: p.body }]}>
+                  Elige el motivo del reporte. Si varios vecinos lo reportan, se oculta automáticamente.
+                </Text>
+                {reportar.error ? (
+                  <Text accessibilityRole="alert" style={styles.error}>
+                    {(reportar.error as Error).message}
+                  </Text>
+                ) : null}
+                {MOTIVOS_REPORTE.map((m) => (
+                  <AppButton
+                    key={m.reason}
+                    label={m.label}
+                    variant="secondary"
+                    icon="flag-outline"
+                    disabled={reportar.isPending}
+                    onPress={() => enviarReporte(m.reason)}
+                  />
+                ))}
+                <AppButton
+                  label="Cancelar"
+                  variant="link"
+                  disabled={reportar.isPending}
+                  onPress={() => setReportando(false)}
+                />
+              </>
+            )}
           </Pressable>
         </Pressable>
       </Modal>

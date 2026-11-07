@@ -216,6 +216,9 @@ export const deleteFavor = (id: string) => api.delete<BackendFavor>(`/favors/${i
 export const expressInterest = (favorId: string, message?: string) =>
   api.post<{ conversation_id: string }>(`/favors/${favorId}/interest`, { message: message ?? null });
 
+export const reportFavor = (favorId: string, reason: string) =>
+  api.post<{ hidden: boolean }>(`/favors/${favorId}/report`, { reason });
+
 // =====================================================================
 // ============================================================================
 // NOTIFICACIONES

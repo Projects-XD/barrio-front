@@ -288,6 +288,15 @@ export const createFavorInterestSchema = z.object({
 });
 export type CreateFavorInterestDTO = z.infer<typeof createFavorInterestSchema>;
 
+export const reportFavorSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, 'El motivo debe tener al menos 3 caracteres')
+    .max(200, 'El motivo no puede exceder 200 caracteres'),
+});
+export type ReportFavorDTO = z.infer<typeof reportFavorSchema>;
+
 // ============================================================================
 // DTOs PARA REPORTES DE VULNERABILIDAD Y EMERGENCIAS
 // ============================================================================

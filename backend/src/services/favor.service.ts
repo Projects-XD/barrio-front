@@ -3,15 +3,41 @@ import type {
   Database,
   Tables,
   FavorType,
+  ReportReason,
 } from '../types/database.types';
 import { AppError } from '../middlewares/errorHandler';
 import type { CreateFavorDTO, UpdateFavorDTO, CreateFavorInterestDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const DAILY_FAVOR_LIMIT_BASE = 5;
+const DAILY_FAVOR_LIMIT_TRUSTED = 15;
+const TRUSTED_REPUTATION_THRESHOLD = 3;
 
 const isWithinEditWindow = (createdAt: string) =>
   Date.now() - new Date(createdAt).getTime() <= EDIT_WINDOW_MS;
+
+function validateFavorTitleText(rawTitle: string): string {
+  const clean = rawTitle.trim();
+  // Si viene con prefijo "Necesito: " u "Ofrezco: ", validar que el cuerpo real también sea válido
+  const withoutPrefix = clean.replace(/^(?:Necesito|Ofrezco)(?:\s*\([^)]*\))?:\s*/i, '').trim();
+  if (clean.length < 5 || (withoutPrefix.length > 0 && withoutPrefix.length < 3)) {
+    throw new AppError('El título debe tener al menos 5 caracteres.', 400);
+  }
+  if (/(.)\1{4,}/i.test(clean)) {
+    throw new AppError('El título tiene letras repetidas. Escribe algo más claro.', 400);
+  }
+  return clean;
+}
+
+function mapReasonToEnum(reasonText: string): ReportReason {
+  const lower = reasonText.toLowerCase();
+  if (lower.includes('spam') || lower.includes('broma')) return 'spam';
+  if (lower.includes('ofensivo') || lower.includes('inapropiado')) return 'contenido_inapropiado';
+  if (lower.includes('real') || lower.includes('falso')) return 'datos_falsos';
+  if (lower.includes('acoso')) return 'acoso';
+  return 'otro';
+}
 
 export class FavorService {
   /**
@@ -132,10 +158,44 @@ export class FavorService {
       return existing;
     }
 
-    // 2. La zona sale de public.users, nunca del cliente
+    // 2. Validar título, duplicados en las últimas 24 h y límite diario (5 al día, o 15 si tiene >= 3 favores cerrados)
+    const cleanTitle = validateFavorTitleText(dto.title);
+    const since24h = new Date(Date.now() - EDIT_WINDOW_MS).toISOString();
+
+    const [{ data: recentFavors }, { count: closedCount }] = await Promise.all([
+      supabase
+        .from('favors')
+        .select('id, title')
+        .eq('author_id', authorId)
+        .is('deleted_at', null)
+        .gt('created_at', since24h),
+      supabase
+        .from('favors')
+        .select('id', { count: 'exact', head: true })
+        .eq('author_id', authorId)
+        .eq('status', 'cerrada'),
+    ]);
+
+    const recentList = recentFavors ?? [];
+    const hasDuplicateToday = recentList.some(
+      (f) => f.title.trim().toLowerCase() === cleanTitle.toLowerCase()
+    );
+    if (hasDuplicateToday) {
+      throw new AppError('Ya publicaste un favor con ese título hoy.', 400);
+    }
+
+    const reputation = closedCount ?? 0;
+    const dailyLimit =
+      reputation >= TRUSTED_REPUTATION_THRESHOLD ? DAILY_FAVOR_LIMIT_TRUSTED : DAILY_FAVOR_LIMIT_BASE;
+
+    if (recentList.length >= dailyLimit) {
+      throw new AppError(`Llegaste al límite de ${dailyLimit} favores por día.`, 400);
+    }
+
+    // 3. La zona sale de public.users, nunca del cliente
     const zoneId = await resolveUserZone(supabase, authorId);
 
-    // 3. Insertar el nuevo favor
+    // 4. Insertar el nuevo favor aprobado directamente (sin revisión manual de admin)
     const { data, error } = await supabase
       .from('favors')
       .insert({
@@ -143,14 +203,14 @@ export class FavorService {
         client_id: dto.client_id,
         zone_id: zoneId,
         type: dto.type,
-        title: dto.title,
+        title: cleanTitle,
         description: dto.description ?? null,
         location_lat: dto.location_lat ?? null,
         location_lng: dto.location_lng ?? null,
         status: 'abierta',
         sync_status: 'enviado',
         urgency: dto.urgency,
-        moderation_status: 'pendiente', // todo favor nuevo espera aprobación, sin importar su urgencia
+        moderation_status: 'aprobado',
       })
       .select()
       .single();
@@ -294,10 +354,12 @@ export class FavorService {
       throw new AppError('El plazo de 24 horas para editar este favor ya terminó', 403);
     }
 
+    const validatedTitle = dto.title !== undefined ? validateFavorTitleText(dto.title) : undefined;
+
     const { data, error } = await supabase
       .from('favors')
       .update({
-        ...(dto.title !== undefined && { title: dto.title }),
+        ...(validatedTitle !== undefined && { title: validatedTitle }),
         ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.type !== undefined && { type: dto.type }),
         ...(dto.status !== undefined && { status: dto.status }),
@@ -306,13 +368,6 @@ export class FavorService {
           ? { closed_at: new Date().toISOString() }
           : {}),
         ...(editsContent && { edited_at: new Date().toISOString() }),
-        // Se escribe sin mirar el estado leído: una aprobación simultánea no puede cubrir el texto nuevo.
-        ...(editsContent && {
-          moderation_status: 'pendiente' as const,
-          moderated_by: null,
-          moderated_at: null,
-          moderation_reason: null,
-        }),
         updated_at: new Date().toISOString(),
       })
       .eq('id', favorId)
@@ -389,6 +444,107 @@ export class FavorService {
     }
 
     return data;
+  }
+
+  /**
+   * Reporta un favor comunitario por parte de un vecino.
+   * No permite reportar un favor propio ni reportar dos veces el mismo favor.
+   * Al acumular >= 3 puntos de reporte (vecino con >= 3 favores cerrados suma 2 puntos, resto 1),
+   * oculta automáticamente el favor (moderation_status = 'rechazado').
+   */
+  public async reportFavor(
+    supabase: SupabaseClient<Database>,
+    userId: string,
+    favorId: string,
+    reasonText: string
+  ): Promise<{ hidden: boolean }> {
+    const cleanReason = reasonText.trim();
+    if (cleanReason.length < 3 || cleanReason.length > 200) {
+      throw new AppError('El motivo del reporte debe tener entre 3 y 200 caracteres.', 400);
+    }
+
+    const { data: favor, error: favorErr } = await supabase
+      .from('favors')
+      .select('id, author_id, zone_id, moderation_status')
+      .eq('id', favorId)
+      .single();
+
+    if (favorErr || !favor) {
+      throw new AppError('Favor no encontrado.', 404);
+    }
+
+    if (favor.author_id === userId) {
+      throw new AppError('No puedes reportar tu propio favor.', 400);
+    }
+
+    const userZone = await resolveUserZone(supabase, userId);
+    if (favor.zone_id !== userZone) {
+      throw new AppError('Acceso denegado: este favor no pertenece a tu zona.', 403);
+    }
+
+    // Comprobar si el vecino ya reportó este favor en user_reports
+    const { data: existingReport } = await supabase
+      .from('user_reports')
+      .select('id')
+      .eq('target_type', 'favor')
+      .eq('target_id', favorId)
+      .eq('reporter_user_id', userId)
+      .maybeSingle();
+
+    if (existingReport) {
+      throw new AppError('Ya reportaste este favor.', 409);
+    }
+
+    const { error: insertErr } = await supabase.from('user_reports').insert({
+      reporter_user_id: userId,
+      target_type: 'favor',
+      target_id: favorId,
+      reason: mapReasonToEnum(cleanReason),
+      details: cleanReason,
+    });
+
+    if (insertErr) {
+      if (insertErr.code === '23505') {
+        throw new AppError('Ya reportaste este favor.', 409);
+      }
+      throw new AppError(`No se pudo registrar el reporte: ${insertErr.message}`, 400);
+    }
+
+    // Calcular puntos acumulados de reporte para este favor
+    const { data: allReports } = await supabase
+      .from('user_reports')
+      .select('reporter_user_id')
+      .eq('target_type', 'favor')
+      .eq('target_id', favorId);
+
+    const uniqueReporters = Array.from(
+      new Set((allReports ?? []).map((r) => r.reporter_user_id))
+    );
+
+    let totalPoints = 0;
+    for (const reporterId of uniqueReporters) {
+      const { count } = await supabase
+        .from('favors')
+        .select('id', { count: 'exact', head: true })
+        .eq('author_id', reporterId)
+        .eq('status', 'cerrada');
+      totalPoints += (count ?? 0) >= TRUSTED_REPUTATION_THRESHOLD ? 2 : 1;
+    }
+
+    let hidden = favor.moderation_status === 'rechazado';
+    if (totalPoints >= 3 && !hidden) {
+      await supabase
+        .from('favors')
+        .update({
+          moderation_status: 'rechazado',
+          moderation_reason: 'Ocultado por reportes de vecinos',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', favorId);
+      hidden = true;
+    }
+
+    return { hidden };
   }
 }
 
