@@ -12,7 +12,7 @@ export function Screen({ children, scroll = true }: Props) {
       {children}
     </ScrollView>
   ) : (
-    <View style={styles.content}>{children}</View>
+    <View style={[styles.content, styles.fixed]}>{children}</View>
   );
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={[styles.root, { backgroundColor: p.background }]}>
@@ -24,5 +24,7 @@ export function Screen({ children, scroll = true }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   // 120 px abajo: el botón flotante de emergencia no tapa el último elemento.
-  content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 120, flexGrow: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 12, flexGrow: 1 },
+  // Sin scroll propio, el contenido se limita a la pantalla para que las listas internas (FlatList) hagan scroll.
+  fixed: { flex: 1 },
 });

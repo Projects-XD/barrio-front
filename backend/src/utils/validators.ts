@@ -210,6 +210,9 @@ export const listFavorsQuerySchema = z.object({
   zoneId: z.string().uuid('zoneId debe ser un UUID válido').optional(),
   type: favorTypeSchema.optional(),
   status: favorStatusSchema.optional(),
+  // Paginación opcional: sin limit se devuelve la lista completa (compatibilidad con clientes previos).
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
 }).refine((data) => data.zone_id || data.zoneId, {
   message: 'El parámetro zone_id o zoneId es requerido',
   path: ['zone_id'],

@@ -17,7 +17,7 @@ export class FavorService {
   public async listActiveFavors(
     supabase: SupabaseClient<Database>,
     userId: string,
-    params: { zoneId?: string; type?: FavorType }
+    params: { zoneId?: string; type?: FavorType; limit?: number; offset?: number }
   ): Promise<Tables<'favors'>[]> {
     const zoneId = await resolveUserZone(supabase, userId, params.zoneId);
 
@@ -27,10 +27,16 @@ export class FavorService {
       .eq('zone_id', zoneId)
       .in('status', ['abierta', 'en_curso'])
       .is('deleted_at', null)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .order('id'); // desempate estable: la paginación no repite ni omite filas
 
     if (params.type) {
       query = query.eq('type', params.type);
+    }
+
+    if (params.limit !== undefined) {
+      const from = params.offset ?? 0;
+      query = query.range(from, from + params.limit - 1);
     }
 
     const { data, error } = await query;

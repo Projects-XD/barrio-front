@@ -154,10 +154,17 @@ export const upsertProfile = (payload: UpsertProfilePayload) =>
 // FAVORES
 // ============================================================================
 
-export const listFavors = (params: { zoneId: string; type?: FavorType }) => {
+export const listFavors = (params: {
+  zoneId: string;
+  type?: FavorType;
+  limit?: number;
+  offset?: number;
+}) => {
   const query = new URLSearchParams();
   query.set('zone_id', params.zoneId);
   if (params.type) query.set('type', params.type);
+  if (params.limit !== undefined) query.set('limit', String(params.limit));
+  if (params.offset !== undefined) query.set('offset', String(params.offset));
   return api.get<BackendFavor[]>(`/favors?${query.toString()}`);
 };
 
