@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -14,6 +13,7 @@ import { Chip } from '@/components/Chip';
 import { EmergencyButton } from '@/components/EmergencyButton';
 import { ProfessionalCard } from '@/components/ProfessionalCard';
 import { Screen } from '@/components/Screen';
+import { SkeletonOficios } from '@/components/SkeletonOficios';
 import { usePalette } from '@/hooks/usePalette';
 import { useProfiles } from '@/hooks/useData';
 import { oficioLabel } from '@/i18n/labels';
@@ -114,11 +114,9 @@ export default function Oficios() {
         />
       </View>
 
-      {/* Lista de oficios */}
+      {/* Lista de oficios con Skeleton pulsante en estado de carga */}
       {isLoading ? (
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color={p.primary} />
-        </View>
+        <SkeletonOficios count={4} />
       ) : (
         <FlatList
           data={itemsPaginados}
@@ -271,12 +269,6 @@ const styles = StyleSheet.create({
   },
   chipsList: {
     paddingVertical: 2,
-  },
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: spacing.xl,
   },
   emptyWrapper: {
     alignItems: 'center',
