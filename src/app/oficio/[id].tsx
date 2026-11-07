@@ -14,6 +14,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { AppButton } from '@/components/AppButton';
 import { Chip } from '@/components/Chip';
+import { OtroInput } from '@/components/OtroInput';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
@@ -33,6 +34,7 @@ export default function OficioDetalle() {
   const [editando, setEditando] = useState(false);
   const [modoNuevo, setModoNuevo] = useState(false);
   const [categoria, setCategoria] = useState<OficioCategory>('otro');
+  const [otroOficio, setOtroOficio] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [experiencia, setExperiencia] = useState('');
   const vouch = useVouch(id);
@@ -78,6 +80,10 @@ export default function OficioDetalle() {
 
   const guardarEdicion = () => {
     if (!profile) return;
+    if (categoria === 'otro' && otroOficio.trim().length < 3) {
+      Alert.alert('Escribe el oficio', 'Cuando eliges "Otro", escribe qué oficio es.');
+      return;
+    }
     if (modoNuevo && misOficios.some((o) => o.oficio.category === categoria)) {
       Alert.alert('Ya tienes ese oficio', 'Elige otra categoría o edita el oficio que ya tienes.');
       return;
@@ -85,7 +91,9 @@ export default function OficioDetalle() {
     upsert.mutate(
       {
         category: categoria,
-        description: descripcion.trim() || 'Servicios para vecinos de la zona.',
+        description:
+          (categoria === 'otro' ? `Oficio: ${otroOficio.trim()}. ` : '') +
+          (descripcion.trim() || 'Servicios para vecinos de la zona.'),
         yearsExperience: parseInt(experiencia, 10) || 0,
         existingId: modoNuevo ? undefined : profile.id,
       },
@@ -230,6 +238,15 @@ export default function OficioDetalle() {
                   <Chip key={c} label={oficioLabel[c]} selected={categoria === c} onPress={() => setCategoria(c)} />
                 ))}
               </View>
+
+              {categoria === 'otro' ? (
+                <OtroInput
+                  label="Escribe qué oficio es"
+                  value={otroOficio}
+                  onChangeText={setOtroOficio}
+                  placeholder="Ej: Tapicero"
+                />
+              ) : null}
 
               <Text style={styles.campoLabel}>Años de experiencia</Text>
               <TextInput

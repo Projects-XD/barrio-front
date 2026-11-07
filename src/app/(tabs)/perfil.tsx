@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -13,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
+import { OtroInput } from '@/components/OtroInput';
 import { Screen } from '@/components/Screen';
 import { ToggleRow } from '@/components/ToggleRow';
 import { ValidationBadge } from '@/components/ValidationBadge';
@@ -77,11 +79,19 @@ export default function Perfil() {
     setModalVisible(true);
   };
 
+  const [otroOficio, setOtroOficio] = useState('');
+
   const handleSaveProfile = () => {
+    if (selectedCat === 'otro' && otroOficio.trim().length < 3) {
+      Alert.alert('Escribe el oficio', 'Cuando eliges "Otro", escribe qué oficio es.');
+      return;
+    }
     upsertProfile.mutate(
       {
         category: selectedCat,
-        description: descripcion.trim() || 'Servicios para vecinos de la zona.',
+        description:
+          (selectedCat === 'otro' ? `Oficio: ${otroOficio.trim()}. ` : '') +
+          (descripcion.trim() || 'Servicios para vecinos de la zona.'),
         yearsExperience: parseInt(experiencia, 10) || 0,
         existingId: editingId ?? undefined,
       },
@@ -252,6 +262,15 @@ export default function Perfil() {
                   />
                 ))}
               </View>
+
+              {selectedCat === 'otro' ? (
+                <OtroInput
+                  label="Escribe qué oficio es"
+                  value={otroOficio}
+                  onChangeText={setOtroOficio}
+                  placeholder="Ej: Tapicero"
+                />
+              ) : null}
 
               <Text style={[styles.inputLabel, { color: p.text }]}>Años de experiencia</Text>
               <TextInput

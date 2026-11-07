@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
+import { OtroInput } from '@/components/OtroInput';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
@@ -48,6 +49,7 @@ export default function NuevoFavor() {
   const [tipo, setTipo] = useState<FavorType | null>(null);
   const [confirmando, setConfirmando] = useState(false);
   const [texto, setTexto] = useState('');
+  const [otroNombre, setOtroNombre] = useState('');
   const [urgencia, setUrgencia] = useState<FavorUrgency>('normal');
   const [resultado, setResultado] = useState<{ queued: boolean } | null>(null);
   const crear = useCreateFavor();
@@ -55,7 +57,16 @@ export default function NuevoFavor() {
   const publicar = () => {
     if (!tipo || !texto.trim() || crear.isPending) return;
     crear.mutate(
-      { type: tipo, title: texto.trim(), description: null, urgency: urgencia },
+      {
+          type: tipo,
+          // El título lleva el nombre de la opción "Otro" cuando la eliges, o Necesito/Ofrezco en el resto.
+          title: (tipo === 'otros'
+            ? `${otroNombre.trim()}: ${texto.trim()}`
+            : `${ofrecer ? 'Ofrezco: ' : 'Necesito: '}${texto.trim()}`
+          ).slice(0, 120),
+          description: null,
+          urgency: urgencia,
+        },
       { onSuccess: ({ queued }) => setResultado({ queued }) }
     );
   };
@@ -108,7 +119,20 @@ export default function NuevoFavor() {
             })}
           </View>
           <View style={{ marginTop: spacing.md }}>
-            <AppButton label="Siguiente" icon="arrow-forward" onPress={() => setPaso(2)} disabled={!tipo} />
+            {tipo === 'otros' ? (
+            <OtroInput
+              label="Escribe qué tipo de favor es"
+              value={otroNombre}
+              onChangeText={setOtroNombre}
+              placeholder="Ej: Cuidar plantas mientras viajo"
+            />
+          ) : null}
+          <AppButton
+            label="Siguiente"
+            icon="arrow-forward"
+            onPress={() => setPaso(2)}
+            disabled={!tipo || (tipo === 'otros' && otroNombre.trim().length < 3)}
+          />
           </View>
         </>
       )}
