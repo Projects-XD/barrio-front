@@ -187,6 +187,8 @@ export const listFavors = (params: {
 export const getFavorById = (id: string) => api.get<BackendFavor>(`/favors/${id}`);
 
 export interface CreateFavorPayload {
+  location_lat?: number | null;
+  location_lng?: number | null;
   client_id: string;
   zone_id: string;
   type: FavorType;

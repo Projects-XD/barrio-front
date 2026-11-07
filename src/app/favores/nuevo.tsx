@@ -9,7 +9,11 @@ import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
 import { UrgencyBadge } from '@/components/UrgencyBadge';
 import { usePalette } from '@/hooks/usePalette';
-import { useCreateFavor } from '@/hooks/useData';
+import { useCreateFavor, useZones } from '@/hooks/useData';
+import { ToggleRow } from '@/components/ToggleRow';
+import { useAppStore } from '@/store/app-store';
+import { getRealPosition } from '@/utils/location';
+import { roundForReport } from '@/utils/geo';
 import { favorTypeIcon } from '@/i18n/icons';
 import { favorTypeLabel, favorUrgencyLabel } from '@/i18n/labels';
 import type { FavorType, FavorUrgency } from '@/types';
@@ -53,19 +57,38 @@ export default function NuevoFavor() {
   const [urgencia, setUrgencia] = useState<FavorUrgency>('normal');
   const [resultado, setResultado] = useState<{ queued: boolean } | null>(null);
   const crear = useCreateFavor();
+  const [enMapa, setEnMapa] = useState(true);
+  const zoneId = useAppStore((s) => s.zoneId);
+  const { data: zonas = [] } = useZones();
 
-  const publicar = () => {
+  // Ubicación aproximada (110 m) para el mapa del barrio. Sin GPS, usa el centro de la zona.
+  const ubicacionParaMapa = async () => {
+    try {
+      const pos = await getRealPosition();
+      if (pos.status === 'granted') return roundForReport({ lat: pos.lat, lng: pos.lng });
+    } catch {
+      // Sin permiso o sin señal: se usa el centro de la zona.
+    }
+    const zona = zonas.find((z) => z.id === zoneId);
+    return zona && zona.center_lat != null && zona.center_lng != null
+      ? { lat: zona.center_lat, lng: zona.center_lng }
+      : null;
+  };
+
+  const publicar = async () => {
     if (!tipo || !texto.trim() || crear.isPending) return;
+    const ubicacion = enMapa ? await ubicacionParaMapa() : null;
     crear.mutate(
       {
           type: tipo,
           // El título lleva el nombre de la opción "Otro" cuando la eliges, o Necesito/Ofrezco en el resto.
           title: (tipo === 'otros'
-            ? `${otroNombre.trim()}: ${texto.trim()}`
+            ? `${ofrecer ? 'Ofrezco' : 'Necesito'} (${otroNombre.trim()}): ${texto.trim()}`
             : `${ofrecer ? 'Ofrezco: ' : 'Necesito: '}${texto.trim()}`
           ).slice(0, 120),
           description: null,
           urgency: urgencia,
+          location: ubicacion,
         },
       { onSuccess: ({ queued }) => setResultado({ queued }) }
     );
@@ -212,6 +235,7 @@ export default function NuevoFavor() {
           ) : null}
 
           <View style={{ marginTop: spacing.md }}>
+            <ToggleRow label="Mostrar en el mapa del barrio" value={enMapa} onChange={setEnMapa} />
             {crear.isPending ? (
               <View style={styles.loadingWrapper}>
                 <ActivityIndicator size="large" color={p.primary} />
