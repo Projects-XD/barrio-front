@@ -142,6 +142,7 @@ Esta guía detalla de forma clara y amigable todos los endpoints disponibles en 
   "code": 200
 }
 ```
+> **Nota de Moderación:** Solo devuelve favores con `moderation_status: "aprobado"`, más los del propio usuario autenticado en cualquier estado de moderación, para que vea los suyos en revisión.
 
 ### 2.2 Crear Favor Comunitario
 * **Ruta:** `POST /favors`
@@ -161,7 +162,11 @@ Esta guía detalla de forma clara y amigable todos los endpoints disponibles en 
 ```
 > **Nota de Idempotencia:** El `client_id` debe ser un UUID generado en el móvil (`Crypto.randomUUID()`) para evitar duplicados si la red se interrumpe.
 >
-> **Nota de Urgencia:** `urgency` es opcional: `normal` (por defecto), `urgente` o `emergencia`. Los dos últimos quedan con `moderation_status: "pendiente"`, pero el favor se publica igual. Muestra la insignia de urgencia solo si `moderation_status` es `"aprobado"` y `urgency` no es `"normal"`. `moderation_status` lo decide siempre el servidor. Editar título, descripción o tipo de un favor urgente aprobado lo devuelve a `"pendiente"`.
+> **Nota de Moderación:** Todos los favores nuevos y editados requieren aprobación de un administrador antes de ser visibles en el feed público. Todo favor nace con `moderation_status: "pendiente"`, sin importar su `urgency`, también si llega por `POST /sync`. Editar título, descripción o tipo con `PATCH /favors/:id` lo devuelve a `"pendiente"`; cambiar solo el estado o la asignación no. `moderation_status` lo decide siempre el servidor.
+>
+> **Alcance:** La moderación filtra el listado `GET /favors`. `GET /favors/:id` y `POST /favors/:id/interest` no la comprueban: un vecino de la zona que tenga el ID de un favor pendiente puede abrirlo y mostrar interés.
+>
+> **Nota de Urgencia:** `urgency` es opcional: `normal` (por defecto), `urgente` o `emergencia`. No se puede cambiar con `PATCH /favors/:id`. Muestra la insignia de urgencia solo si `moderation_status` es `"aprobado"` y `urgency` no es `"normal"`.
 
 ### 2.3 Postularse o Mostrar Interés en un Favor
 * **Ruta:** `POST /favors/:id/interest`
@@ -173,15 +178,15 @@ Esta guía detalla de forma clara y amigable todos los endpoints disponibles en 
 }
 ```
 
-### 2.4 Moderación de Urgencias (solo administradores)
+### 2.4 Moderación de Favores (solo administradores)
 Requieren `Bearer <token>` de un usuario con `users.is_admin = true`, activo y con zona. Cada admin solo modera su zona. El rol se asigna únicamente por SQL.
 
 * **Ruta:** `GET /admin/favors/pending?limit=20&offset=0`: cola de la zona, los más antiguos primero.
-* **Ruta:** `PATCH /admin/favors/:id/approve`: sin body.
+* **Ruta:** `PATCH /admin/favors/:id/approve`: publica el favor en el feed de su zona. Sin body.
 * **Ruta:** `PATCH /admin/favors/:id/reject`: retira el favor (soft-delete). **Body:**
 ```json
 {
-  "reason": "La situación descrita no es una urgencia"
+  "reason": "La publicación no cumple las normas del barrio"
 }
 ```
 * **Errores:** `403` si no es admin, si el favor es de otra zona o si es del propio admin; `404` si no existe; `409` si ya no está pendiente.

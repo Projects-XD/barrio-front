@@ -24,6 +24,7 @@ backend/
 ├── .env.example               # Plantilla de variables de entorno
 ├── tsconfig.json              # Configuración TypeScript estricta
 ├── package.json               # Dependencias del proyecto
+├── scripts/seed-auth.ts       # Crea las cuentas de demo (npm run seed)
 └── src/
     ├── app.ts                 # Configuración de Express, CORS y middlewares
     ├── server.ts              # Entry point con Graceful Shutdown
@@ -61,7 +62,12 @@ SUPABASE_URL=https://tu-proyecto.supabase.co
 SUPABASE_ANON_KEY=tu_clave_anonima
 SUPABASE_SERVICE_ROLE_KEY=tu_clave_service_role
 CORS_ORIGIN=*
+SEED_PASSWORD_WILMER=elige_una_clave
+SEED_PASSWORD_EDSON=elige_una_clave
+SEED_PASSWORD_ADMIN=elige_una_clave
 ```
+
+Las variables `SEED_PASSWORD_*` solo las usa `npm run seed`. Supabase exige por defecto un mínimo de 6 caracteres.
 
 ### 3. Instalar Dependencias
 
@@ -69,7 +75,36 @@ CORS_ORIGIN=*
 npm install
 ```
 
-### 4. Ejecutar en Modo Desarrollo
+### 4. Preparar la Base de Datos (Seed)
+
+Requiere la [CLI de Supabase](https://supabase.com/docs/guides/cli). Ejecuta los pasos en este orden, desde la raíz del repositorio y sobre un proyecto vacío:
+
+```bash
+# 1. Aplicar las migraciones de supabase/migrations
+supabase login
+supabase link --project-ref <ref-de-tu-proyecto>
+supabase db push
+
+# 2. Crear las cuentas de demo y sus perfiles
+cd backend
+npm run seed
+```
+
+Las cuentas deben crearse después de las migraciones: el seed necesita las tablas y la zona Castilla. La migración `0010` no crea cuentas porque `public.users` depende de `auth.users`, así que en una base limpia no inserta filas.
+
+Cuentas creadas, todas confirmadas y en la zona Castilla:
+
+| Correo | Nombre | Rol | Contraseña |
+| --- | --- | --- | --- |
+| `samirloroamaya24@gmail.com` | Wilmer | Vecino | `SEED_PASSWORD_WILMER` |
+| `edson@gmail.com` | Edson | Vecino | `SEED_PASSWORD_EDSON` |
+| `admin@gmail.com` | Admin | Administrador | `SEED_PASSWORD_ADMIN` |
+
+- Puedes repetir `npm run seed`. Una cuenta que ya existe conserva su contraseña y su ID.
+- Un administrador no puede moderar sus propios favores. Para probar el flujo, publica con Wilmer o Edson y aprueba con Admin.
+- En la app, configura `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY` en el `.env` de la raíz. Si faltan, la app usa el proyecto Supabase por defecto de `src/lib/supabase.ts`.
+
+### 5. Ejecutar en Modo Desarrollo
 
 ```bash
 npm run dev
@@ -77,7 +112,7 @@ npm run dev
 
 El servidor estará escuchando en `http://localhost:3000/api/v1`.
 
-### 5. Compilar y Ejecutar en Producción
+### 6. Compilar y Ejecutar en Producción
 
 ```bash
 npm run build
