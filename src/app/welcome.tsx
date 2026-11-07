@@ -6,6 +6,7 @@ import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
 import { colors, fonts, radius, spacing } from '@/theme';
 
+const logoBarrio = require('../../assets/brand/logo-barrio.png');
 const oficiosImg = require('../../assets/welcome-oficios.jpg');
 const favoresImg = require('../../assets/welcome-favores.jpg');
 const emergenciaImg = require('../../assets/welcome-emergencia.jpg');
@@ -62,6 +63,7 @@ export default function Welcome() {
 
   return (
     <Screen scroll={false}>
+      <Image source={logoBarrio} style={styles.logo} resizeMode="contain" accessibilityLabel="Barrio" />
       <View style={styles.carouselContainer}>
         <View style={{ width: slideWidth, overflow: 'hidden' }}>
           <Animated.View
@@ -113,6 +115,7 @@ export default function Welcome() {
 }
 
 const styles = StyleSheet.create({
+  logo: { width: '70%', height: 80, alignSelf: 'center', marginTop: spacing.sm },
   carouselContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   slideItem: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.sm },
   imageCard: {

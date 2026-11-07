@@ -1,4 +1,4 @@
-import { ActivityIndicator, Alert, Linking, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
@@ -28,6 +28,13 @@ export default function Emergencia() {
 
   return (
     <Screen>
+      <View style={styles.cabecera}>
+        <Image source={iconEmergencia} style={styles.iconoEmergencia} accessibilityLabel="Modo emergencia de Barrio" />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.seccion, { color: p.text, marginTop: 0 }]}>Apoyo en emergencia</Text>
+          <Text style={{ color: p.muted, fontFamily: fonts.regular, fontSize: 15 }}>Vecinos y servicios de tu zona.</Text>
+        </View>
+      </View>
       <AppButton label="Reportar vecino en riesgo" variant="primary" onPress={() => router.push('/reportar')} />
 
       <Text style={[styles.seccion, { color: p.text }]}>Servicios de apoyo</Text>
@@ -99,7 +106,11 @@ export default function Emergencia() {
   );
 }
 
+const iconEmergencia = require('../../assets/brand/icon-emergencia.png');
+
 const styles = StyleSheet.create({
+  cabecera: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.md },
+  iconoEmergencia: { width: 64, height: 64, borderRadius: 14 },
   seccion: { fontSize: 22, fontFamily: fonts.bold, marginTop: spacing.md, marginBottom: spacing.sm },
   nombre: { fontSize: 18, fontFamily: fonts.bold, marginBottom: 2 },
   cuerpo: { fontSize: 16, fontFamily: fonts.regular, lineHeight: 22 },
