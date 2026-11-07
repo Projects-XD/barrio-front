@@ -39,9 +39,9 @@ export class EmergencyService {
 
   /**
    * Endpoint POST /api/emergency/activate
-   * REGLA DE SEGURIDAD: Verifica que req.user.id tenga emergency_role = true en `users`
-   * y que la zona especificada sea la suya (403 si no).
-   * Registra el estado de emergencia 'activa' para la zona especificada.
+   * REGLA DE SEGURIDAD: Verifica que req.user.id tenga emergency_role = true en `users`.
+   * Registra el estado de emergencia 'activa' para la zona real del usuario (se ignora
+   * cualquier zone_id que venga en el body).
    */
   public async activateEmergency(
     supabase: SupabaseClient<Database>,
@@ -49,13 +49,16 @@ export class EmergencyService {
     dto: ActivateEmergencyDTO
   ): Promise<Tables<'emergency_states'>> {
     await this.verifyEmergencyRole(supabase, userId);
-    await resolveUserZone(supabase, userId, dto.zone_id);
+    // resolveUserZone ya no valida el zone_id del body contra la zona real: ahora que siempre
+    // devuelve la zona del usuario, hay que usar ese valor directamente en vez de dto.zone_id
+    // para no activar una emergencia en una zona ajena.
+    const zoneId = await resolveUserZone(supabase, userId);
 
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('emergency_states')
       .insert({
-        zone_id: dto.zone_id,
+        zone_id: zoneId,
         status: 'activa',
         activated_by_user_id: userId,
         reason: dto.reason,
@@ -74,9 +77,9 @@ export class EmergencyService {
 
   /**
    * Endpoint POST /api/emergency/deactivate
-   * REGLA DE SEGURIDAD: Verifica que req.user.id tenga emergency_role = true en `users`
-   * y que la zona especificada sea la suya (403 si no).
-   * Cierra las emergencias activas y registra el estado 'inactiva'.
+   * REGLA DE SEGURIDAD: Verifica que req.user.id tenga emergency_role = true en `users`.
+   * Cierra las emergencias activas de la zona real del usuario y registra el estado 'inactiva'
+   * (se ignora cualquier zone_id que venga en el body).
    */
   public async deactivateEmergency(
     supabase: SupabaseClient<Database>,
@@ -84,7 +87,8 @@ export class EmergencyService {
     dto: DeactivateEmergencyDTO
   ): Promise<Tables<'emergency_states'>> {
     await this.verifyEmergencyRole(supabase, userId);
-    await resolveUserZone(supabase, userId, dto.zone_id);
+    // Mismo motivo que en activateEmergency: se usa la zona real resuelta, no dto.zone_id.
+    const zoneId = await resolveUserZone(supabase, userId);
 
     const now = new Date().toISOString();
 
@@ -96,14 +100,14 @@ export class EmergencyService {
         deactivated_at: now,
         updated_at: now,
       })
-      .eq('zone_id', dto.zone_id)
+      .eq('zone_id', zoneId)
       .eq('status', 'activa');
 
     // 2. Registrar el evento de desactivación
     const { data, error } = await supabase
       .from('emergency_states')
       .insert({
-        zone_id: dto.zone_id,
+        zone_id: zoneId,
         status: 'inactiva',
         activated_by_user_id: userId,
         reason: dto.reason || 'Emergencia finalizada por usuario autorizado',
@@ -178,16 +182,16 @@ export class EmergencyService {
 
   /**
    * Endpoint GET /api/emergency/reports
-   * REGLA DE ZONA: siempre filtra por la zona del usuario; 403 si pidió otra.
+   * REGLA DE ZONA: siempre filtra por la zona real del usuario; cualquier zoneId que mande el
+   * cliente se ignora.
    * REGLA DE PRIVACIDAD: Si en la DB `is_anonymous = true`, el JSON de respuesta
    * NO debe incluir `reporter_user_id` ni datos personales del reportante.
    */
   public async listReports(
     supabase: SupabaseClient<Database>,
-    userId: string,
-    requestedZoneId?: string
+    userId: string
   ): Promise<Record<string, unknown>[]> {
-    const zoneId = await resolveUserZone(supabase, userId, requestedZoneId);
+    const zoneId = await resolveUserZone(supabase, userId);
 
     const { data, error } = await supabase
       .from('vulnerability_reports')

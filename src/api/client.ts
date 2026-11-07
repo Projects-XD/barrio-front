@@ -66,14 +66,26 @@ export async function request<T>(
       const { data } = await supabase.auth.getSession();
       token = data.session?.access_token ?? null;
       if (token && !useAppStore.getState().token && data.session?.user) {
-        // Sincronizar store si Supabase tenía sesión persistida
+        // Sincronizar store si Supabase tenía sesión persistida. user_metadata.zone_id es solo
+        // el sector elegido al registrarse y nunca se actualiza: la zona real que el backend
+        // valida vive en public.users, así que se relee de ahí antes de guardar la sesión (el
+        // mismo chequeo que ya hacen register.tsx/_layout.tsx, repetido aquí porque cualquier
+        // request puede disparar este interceptor antes de que esos flujos terminen).
+        let zoneId = useAppStore.getState().zoneId || '';
+        try {
+          const { data: dbUser } = await supabase
+            .from('users')
+            .select('zone_id')
+            .eq('id', data.session.user.id)
+            .maybeSingle();
+          zoneId = dbUser?.zone_id || data.session.user.user_metadata?.zone_id || zoneId;
+        } catch {
+          zoneId = data.session.user.user_metadata?.zone_id || zoneId;
+        }
         useAppStore.getState().setSession({
           token,
           userId: data.session.user.id,
-          zoneId:
-            data.session.user.user_metadata?.zone_id ||
-            useAppStore.getState().zoneId ||
-            '',
+          zoneId,
           userFullName: data.session.user.user_metadata?.full_name,
           userEmail: data.session.user.email,
         });

@@ -22,7 +22,8 @@ export class ProfileController {
 
   /**
    * GET /api/profiles
-   * Lista perfiles profesionales filtrados por zone_id y opcionalmente oficio_id.
+   * Lista perfiles profesionales de la zona real del usuario (resuelta en el backend;
+   * cualquier zoneId que mande el cliente se ignora), opcionalmente por oficio_id o category.
    */
   public async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -30,17 +31,11 @@ export class ProfileController {
         throw new AppError('Usuario no autenticado', 401);
       }
 
-      const zoneId = (req.query.zone_id || req.query.zoneId) as string;
       const oficioId = (req.query.oficio_id || req.query.oficioId) as string | undefined;
       const category = req.query.category as OficioCategory | undefined;
 
-      if (!zoneId) {
-        throw new AppError('El parámetro zone_id es requerido', 400);
-      }
-
       const supabase = getSupabaseClient(req);
       const profiles = await profileService.listProfiles(supabase, req.user.id, {
-        zoneId,
         oficioId,
         category,
       });

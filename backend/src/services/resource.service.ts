@@ -11,9 +11,9 @@ export class ResourceService {
   public async listResources(
     supabase: SupabaseClient<Database>,
     userId: string,
-    params: { zoneId?: string; kind?: string }
+    params: { kind?: string }
   ): Promise<Tables<'critical_resources'>[]> {
-    const zoneId = await resolveUserZone(supabase, userId, params.zoneId);
+    const zoneId = await resolveUserZone(supabase, userId);
 
     let query = supabase
       .from('critical_resources')

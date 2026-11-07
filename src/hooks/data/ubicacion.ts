@@ -112,7 +112,10 @@ export function useSaveMyLocation() {
       if (!userId) throw new Error('Tu sesión no está activa.');
       const cleanAddress = input.address.trim() || (await reverseGeocodeCoords(input));
 
-      // 1. Guardar en Supabase Auth user_metadata (persiste en BD aunque no tenga oficios aún)
+      // 1. Guardar en Supabase Auth user_metadata (persiste en BD aunque no tenga oficios aún).
+      // No se toca zone_id aquí: la zona del vecino la asigna siempre el backend (trigger
+      // handle_new_user, migraciones 0024/0025), nunca el cliente, para no reabrir el mismo
+      // 403 "zona no es la tuya" que ya se corrigió en zoneAccess.ts/_layout.tsx/register.tsx.
       const { error: authErr } = await supabase.auth.updateUser({
         data: {
           location_lat: input.lat,
@@ -150,6 +153,8 @@ export function useSaveMyLocation() {
       qc.setQueryData(['mySavedLocation', userId, zoneId], saved);
       qc.invalidateQueries({ queryKey: ['mySavedLocation'] });
       qc.invalidateQueries({ queryKey: ['profiles'] });
+      qc.invalidateQueries({ queryKey: ['favores'] });
+      qc.invalidateQueries({ queryKey: ['zones'] });
     },
   });
 }

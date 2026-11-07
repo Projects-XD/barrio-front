@@ -4,8 +4,11 @@ import { AppError } from '../middlewares/errorHandler';
 
 /**
  * Devuelve la zona del usuario según public.users, la única fuente confiable:
- * la metadata de Auth la puede editar el propio usuario.
- * Responde 403 si no tiene zona o si pidió una zona distinta a la suya.
+ * la metadata de Auth la puede editar el propio usuario, y cualquier zoneId que mande el
+ * cliente (query param, body) tampoco es confiable (puede quedar desactualizado, ej. el sector
+ * de registro tras una reasignación de zonas). Por eso esta función ya no acepta ni mira ningún
+ * zoneId del cliente: solo usa el userId del token verificado para leer la zona real.
+ * Responde 403 si el usuario no tiene zona asignada.
  */
 // La zona de un vecino casi no cambia y se pide en cada peticion (el chat consulta cada 4 s).
 // Se guarda en memoria unos segundos para no repetir la misma consulta a public.users.
@@ -18,8 +21,7 @@ export function clearZoneCache(): void {
 
 export async function resolveUserZone(
   supabase: SupabaseClient<Database>,
-  userId: string,
-  requestedZoneId?: string | null
+  userId: string
 ): Promise<string> {
   const cached = zoneCache.get(userId);
   let zoneId: string | null = cached && cached.expiresAt > Date.now() ? cached.zoneId : null;
@@ -38,10 +40,6 @@ export async function resolveUserZone(
 
     zoneId = user.zone_id;
     zoneCache.set(userId, { zoneId, expiresAt: Date.now() + ZONE_TTL_MS });
-  }
-
-  if (requestedZoneId && requestedZoneId !== zoneId) {
-    throw new AppError('Acceso denegado: la zona solicitada no es la tuya', 403);
   }
 
   return zoneId;
