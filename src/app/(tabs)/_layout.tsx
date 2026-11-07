@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { View } from 'react-native';
+import { EmergencyFab } from '@/components/EmergencyFab';
 import { usePalette } from '@/hooks/usePalette';
 import { colors, fonts } from '@/theme';
 
 export default function TabsLayout() {
   const p = usePalette();
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -74,5 +77,7 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    <EmergencyFab />
+    </View>
   );
 }
