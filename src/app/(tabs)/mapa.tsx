@@ -27,9 +27,11 @@ export default function MapaBarrio() {
       ? { lat: zona.center_lat, lng: zona.center_lng }
       : CASTILLA_CENTER;
 
+  // Solo favores activos: los cerrados (cumplidos) o cancelados no aparecen en el mapa.
   // Favores sin ubicación se dibujan en el centro de la zona.
   const points: BarrioPoint[] = favores
     .filter((f) => f.syncStatus === 'enviado')
+    .filter((f) => f.status === 'abierta' || f.status === 'en_curso')
     .map((f) => ({
       id: f.id,
       lat: f.location?.lat ?? center.lat,
