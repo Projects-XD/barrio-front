@@ -21,6 +21,7 @@ export class AppError extends Error {
 
 /**
  * Middleware global de manejo de excepciones con observabilidad estructurada.
+ * Imprime el error completo, la ruta fallida y el req.body en la terminal.
  * Garantiza respuestas JSON homogéneas:
  * { success: false, error: "Mensaje", code: number }
  */
@@ -58,7 +59,22 @@ export const errorHandler: ErrorRequestHandler = (
     sanitizedBody = copy;
   }
 
-  // Registro del error en logs utilizando el nuevo sistema de observabilidad
+  // LOG ESTRUCTURADO EN CONSOLA (Terminal del Backend)
+  console.error('\n🚨 ================= [BACKEND ERROR LOG] =================');
+  console.error(`📅 Timestamp:    ${new Date().toISOString()}`);
+  console.error(`🛣️  Ruta fallida: ${req.method} ${req.originalUrl}`);
+  console.error(`📊 Código HTTP:  ${statusCode}`);
+  console.error(`💬 Mensaje:      ${message}`);
+  console.error(`📦 req.body:     ${JSON.stringify(sanitizedBody, null, 2)}`);
+  if (req.query && Object.keys(req.query).length > 0) {
+    console.error(`🔍 req.query:    ${JSON.stringify(req.query, null, 2)}`);
+  }
+  if (err.stack) {
+    console.error(`📚 Error Stack:  \n${err.stack}`);
+  }
+  console.error('=========================================================\n');
+
+  // Registro adicional en logger de Winston
   logger.error(`Error HTTP ${statusCode} en ${req.method} ${req.originalUrl}: ${message}`, {
     method: req.method,
     route: req.originalUrl,

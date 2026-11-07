@@ -5,15 +5,18 @@ import favorRoutes from './favor.routes';
 import emergencyRoutes from './emergency.routes';
 import vulnerabilityRoutes from './vulnerability.routes';
 import resourceRoutes from './resource.routes';
+import syncRoutes from './sync.routes';
 
 const apiRouter = Router();
 
-// Módulo "Día a Día" y Rutas de la API Barrio
+// Módulo "Día a Día", "Emergencias" y Sincronización Offline de la API Barrio
 apiRouter.use('/health', healthRoutes);
 apiRouter.use('/profiles', profileRoutes);
 apiRouter.use('/favors', favorRoutes);
 apiRouter.use('/emergency', emergencyRoutes);
 apiRouter.use('/reports', vulnerabilityRoutes);
 apiRouter.use('/resources', resourceRoutes);
+apiRouter.use('/sync', syncRoutes);
 
 export default apiRouter;
+

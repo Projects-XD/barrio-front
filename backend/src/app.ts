@@ -2,9 +2,11 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env';
 import apiRouter from './routes';
 import { errorHandler, AppError } from './middlewares/errorHandler';
+import { swaggerSpec } from './config/swagger';
 
 /**
  * Crea y configura la instancia de la aplicación Express.
@@ -13,13 +15,26 @@ export function createApp(): Application {
   const app: Application = express();
 
   // 1. Middlewares de seguridad y parsing
-  app.use(helmet());
+  // En desarrollo desactivamos CSP estricto para permitir la renderización de la UI de Swagger
   app.use(
-    cors({
-      origin: env.CORS_ORIGIN,
-      credentials: true,
+    helmet({
+      contentSecurityPolicy: env.NODE_ENV === 'production',
+      crossOriginResourcePolicy: false,
     })
   );
+
+  // Configuración de CORS permisiva para desarrollo y soporte móvil/web
+  const corsOptions: cors.CorsOptions = {
+    origin: env.NODE_ENV === 'production' ? env.CORS_ORIGIN : '*',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  };
+
+  app.use(cors(corsOptions));
+  // Habilitar preflight requests para todas las rutas
+  app.options('*', cors(corsOptions));
+
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
@@ -28,7 +43,13 @@ export function createApp(): Application {
     app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
   }
 
-  // 3. Rutas de la API
+  // 3. Documentación OpenAPI / Swagger
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customSiteTitle: 'Barrio API Docs',
+    customCss: '.swagger-ui .topbar { display: none }',
+  }));
+
+  // 4. Rutas de la API (soportando /api y /api/v1)
   app.use('/api/v1', apiRouter);
   app.use('/api', apiRouter);
 
@@ -38,16 +59,17 @@ export function createApp(): Application {
       name: 'Barrio Backend API',
       version: '1.0.0',
       status: 'online',
-      documentation: '/api/v1/health',
+      documentation: '/api/docs',
+      health: '/api/v1/health',
     });
   });
 
-  // 4. Manejo de rutas no encontradas (404)
+  // 5. Manejo de rutas no encontradas (404)
   app.use((req: Request, _res: Response, next: NextFunction) => {
     next(new AppError(`Ruta no encontrada: ${req.method} ${req.originalUrl}`, 404));
   });
 
-  // 5. Middleware global de manejo de excepciones (debe ir al final)
+  // 6. Middleware global de manejo de excepciones (debe ir al final)
   app.use(errorHandler);
 
   return app;

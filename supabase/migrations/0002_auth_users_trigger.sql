@@ -16,16 +16,16 @@ DECLARE
   v_full_name TEXT;
   v_zone_id UUID;
   v_raw_zone TEXT;
-  v_default_zone_id UUID;
 BEGIN
-  -- Extraer nombre completo con fallback a la primera parte del correo o 'Vecino'
+  -- Extraer nombre completo de raw_user_meta_data con fallback al alias del email o 'Vecino'
   v_full_name := COALESCE(
     NULLIF(TRIM(NEW.raw_user_meta_data->>'full_name'), ''),
     NULLIF(TRIM(split_part(NEW.email, '@', 1)), ''),
     'Vecino'
   );
 
-  -- Extraer zone_id de la metadata
+  -- Extraer zone_id de raw_user_meta_data
+  -- REGLA: Si zone_id no viene o no es un UUID válido, se asigna NULL para no bloquear el registro
   v_raw_zone := NULLIF(TRIM(NEW.raw_user_meta_data->>'zone_id'), '');
   
   IF v_raw_zone IS NOT NULL THEN
@@ -34,12 +34,8 @@ BEGIN
     EXCEPTION WHEN OTHERS THEN
       v_zone_id := NULL;
     END;
-  END IF;
-
-  -- Si zone_id no es válido o es nulo, asignar por defecto la primera zona activa
-  IF v_zone_id IS NULL THEN
-    SELECT id INTO v_default_zone_id FROM public.zones ORDER BY name LIMIT 1;
-    v_zone_id := v_default_zone_id;
+  ELSE
+    v_zone_id := NULL;
   END IF;
 
   -- Insertar en public.users con ON CONFLICT DO UPDATE para idempotencia
@@ -71,8 +67,8 @@ BEGIN
 
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
-  -- Registrar advertencia en logs de PostgreSQL sin bloquear la creación de la cuenta en auth.users
-  RAISE WARNING 'Error en public.handle_new_user() para el usuario %: %', NEW.id, SQLERRM;
+  -- En caso de advertencia o excepción imprevista, loguear sin bloquear la creación de auth.users
+  RAISE WARNING 'Aviso en public.handle_new_user() para el usuario %: %', NEW.id, SQLERRM;
   RETURN NEW;
 END;
 $$;

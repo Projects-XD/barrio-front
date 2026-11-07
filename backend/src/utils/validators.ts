@@ -260,6 +260,30 @@ export const toggleEmergencyStateSchema = z.object({
 });
 export type ToggleEmergencyStateDTO = z.infer<typeof toggleEmergencyStateSchema>;
 
+export const activateEmergencySchema = z.object({
+  zone_id: z.string().uuid('zone_id debe ser un UUID válido'),
+  reason: z.string().min(3, 'Se requiere un motivo explicativo para activar la emergencia'),
+});
+export type ActivateEmergencyDTO = z.infer<typeof activateEmergencySchema>;
+
+export const deactivateEmergencySchema = z.object({
+  zone_id: z.string().uuid('zone_id debe ser un UUID válido'),
+  reason: z.string().optional(),
+});
+export type DeactivateEmergencyDTO = z.infer<typeof deactivateEmergencySchema>;
+
+export const createEmergencyReportSchema = z.object({
+  zone_id: z.string().uuid('zone_id debe ser un UUID válido').nullable().optional(),
+  lat: latitudeSchema.nullable().optional(),
+  lng: longitudeSchema.nullable().optional(),
+  approx_lat: latitudeSchema.nullable().optional(),
+  approx_lng: longitudeSchema.nullable().optional(),
+  description: z.string().min(5, 'La descripción debe tener al menos 5 caracteres'),
+  needs: z.array(z.string()).default([]),
+  is_anonymous: z.boolean().default(false),
+});
+export type CreateEmergencyReportDTO = z.infer<typeof createEmergencyReportSchema>;
+
 // ============================================================================
 // DTOs PARA MODERACIÓN Y SINCRONIZACIÓN
 // ============================================================================
@@ -284,3 +308,12 @@ export const syncOperationSchema = z.object({
   payload: z.record(z.unknown()),
 });
 export type SyncOperationDTO = z.infer<typeof syncOperationSchema>;
+
+export const syncBatchSchema = z.union([
+  z.array(syncOperationSchema),
+  z.object({
+    operations: z.array(syncOperationSchema),
+  }),
+]);
+export type SyncBatchDTO = z.infer<typeof syncBatchSchema>;
+
