@@ -26,8 +26,8 @@ import { colors, fonts, radius, spacing } from '@/theme';
 
 const categorias = Object.keys(oficioLabel) as OficioCategory[];
 
-// Pon en false antes de presentar para ocultar los interruptores de prueba.
-const SHOW_DEMO_TOOLS = __DEV__;
+// Oculto para la demo final. Pon en __DEV__ para recuperar los interruptores de prueba.
+const SHOW_DEMO_TOOLS = false;
 
 export default function Perfil() {
   const p = usePalette();

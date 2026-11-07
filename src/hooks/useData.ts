@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { ApiError } from '@/api/client';
+import { api, ApiError } from '@/api/client';
 import {
   approveFavor,
   blockConversationUser,
@@ -450,22 +450,14 @@ export function useDeleteFavor(id: string) {
 // =====================================================================// ADMINISTRACIÓN
 // =====================================================================
 // public.users tiene RLS sin políticas, así que el cliente no puede leer is_admin, y la metadata
-// del JWT la edita el propio usuario. Se pregunta a la ruta protegida: 403 significa que no es admin.
+// del JWT la edita el propio usuario. Por eso lo responde el backend.
 export function useIsAdmin() {
   const userId = useAppStore((s) => s.userId);
   return useQuery({
     queryKey: ['isAdmin', userId],
     enabled: Boolean(userId),
     staleTime: 5 * 60_000,
-    queryFn: async () => {
-      try {
-        await listPendingFavors(1);
-        return true;
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 403) return false;
-        throw error;
-      }
-    },
+    queryFn: async () => (await api.get<{ is_admin: boolean }>('/admin/me')).is_admin,
   });
 }
 
