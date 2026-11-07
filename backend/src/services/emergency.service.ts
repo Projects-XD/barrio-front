@@ -220,10 +220,10 @@ export class EmergencyService {
   public async getEmergencyState(
     supabase: SupabaseClient<Database>,
     zoneId: string
-  ): Promise<Tables<'emergency_states'> | null> {
+  ): Promise<Pick<Tables<'emergency_states'>, 'id' | 'zone_id' | 'status' | 'reason' | 'activated_at' | 'deactivated_at'> | null> {
     const { data, error } = await supabase
       .from('emergency_states')
-      .select('*')
+      .select('id, zone_id, status, reason, activated_at, deactivated_at')
       .eq('zone_id', zoneId)
       .order('activated_at', { ascending: false })
       .limit(1)

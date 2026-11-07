@@ -87,15 +87,16 @@ export class ConversationService {
     userId: string,
     conversationId: string
   ): Promise<ConversationView> {
-    await this.getAsParticipant(supabase, userId, conversationId);
-
     const { data, error } = await supabase
       .from('conversations')
       .select(CONVERSATION_SELECT)
       .eq('id', conversationId)
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
+      throw new AppError(`Error al consultar la conversación: ${error.message}`, 400);
+    }
+    if (!data || (data.author_id !== userId && data.responder_id !== userId)) {
       throw new AppError('Conversación no encontrada', 404);
     }
 

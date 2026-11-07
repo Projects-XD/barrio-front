@@ -121,7 +121,8 @@ export class ProfileService {
     const zoneId = await resolveUserZone(supabase, userId, params.zoneId);
 
     // Con !inner el filtro por oficios.category descarta perfiles; sin él solo deja oficio en null.
-    const oficioEmbed = params.category ? 'oficio:oficios!inner(*)' : 'oficio:oficios(*)';
+    const oficioColumns = 'id, category, name, is_active';
+    const oficioEmbed = params.category ? `oficio:oficios!inner(${oficioColumns})` : `oficio:oficios(${oficioColumns})`;
 
     let query = supabase
       .from('professional_profiles')
