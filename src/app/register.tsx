@@ -37,7 +37,7 @@ export default function Register() {
         style={[styles.input, { borderColor: p.border }]}
       />
 
-      <Text style={[styles.label, { color: p.text }]}>Centro poblado de Castilla</Text>
+      <Text style={[styles.label, { color: p.text }]}>Centro poblado</Text>
       <View style={styles.chips}>
         {zonas.map((z) => (
           <Chip key={z} label={z} selected={zona === z} onPress={() => setZona(z)} />
