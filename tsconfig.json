@@ -1,10 +1,20 @@
 {
-    "extends":  "expo/tsconfig.base",
-    "compilerOptions":  {
-                            "paths":  {
-                                          "@/*":  [
-                                                      "./src/*"
-                                                  ]
-                                      }
-                        }
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "backend"
+  ]
 }
