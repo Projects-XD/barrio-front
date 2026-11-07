@@ -196,6 +196,12 @@ export default function Perfil() {
 
       <View style={{ marginTop: spacing.md }}>
         <AppButton
+          label="Marcar mi ubicación"
+          variant="secondary"
+          onPress={() => router.push('/ubicacion')}
+        />
+
+        <AppButton
           label="Ver tutorial de la app"
           variant="secondary"
           onPress={() => router.push('/welcome')}
