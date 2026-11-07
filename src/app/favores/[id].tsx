@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
@@ -10,7 +10,14 @@ import { Screen } from '@/components/Screen';
 import { StatusBanner } from '@/components/StatusBanner';
 import { UrgencyBadge } from '@/components/UrgencyBadge';
 import { usePalette } from '@/hooks/usePalette';
-import { useConversations, useDeleteFavor, useExpressInterest, useFavor, useUpdateFavor } from '@/hooks/useData';
+import {
+  useConversations,
+  useDeleteFavor,
+  useExpressInterest,
+  useFavor,
+  useReportFavor,
+  useUpdateFavor,
+} from '@/hooks/useData';
 import { favorStatusLabel, favorTypeBackground, favorTypeLabel } from '@/i18n/labels';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -27,6 +34,21 @@ export default function FavorDetalle() {
   const interes = useExpressInterest(id);
   const actualizar = useUpdateFavor(id);
   const eliminar = useDeleteFavor(id);
+  const reportar = useReportFavor(id);
+
+  const abrirReporte = () => {
+    const enviar = (reason: string) =>
+      reportar.mutate(reason, {
+        onSuccess: () => Alert.alert('Gracias', 'Revisaremos este favor. Si varios vecinos lo reportan, se oculta.'),
+        onError: (err) => Alert.alert('No se pudo reportar', err.message),
+      });
+    Alert.alert('Reportar favor', 'Elige el motivo:', [
+      { text: 'Es broma o spam', onPress: () => enviar('Broma o spam') },
+      { text: 'No es una ayuda real', onPress: () => enviar('No es una ayuda real') },
+      { text: 'Contenido ofensivo', onPress: () => enviar('Contenido ofensivo') },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
   const conversaciones = useConversations(id);
 
   const [editando, setEditando] = useState(false);
@@ -182,6 +204,13 @@ export default function FavorDetalle() {
         <Text style={[styles.nota, { color: p.muted }]}>Este favor ya está cerrado.</Text>
       )}
 
+      {!esMio ? (
+        <Pressable accessibilityRole="button" onPress={abrirReporte} style={styles.reportar}>
+          <Ionicons name="flag-outline" size={15} color={p.muted} />
+          <Text style={[styles.reportarTexto, { color: p.muted }]}>Reportar este favor</Text>
+        </Pressable>
+      ) : null}
+
       <Modal visible={editando} transparent animationType="slide" onRequestClose={() => setEditando(false)}>
         <Pressable style={styles.hoja} onPress={() => setEditando(false)}>
           {/* Pressable vacío: los toques dentro de la tarjeta no llegan al fondo que cierra el modal. */}
@@ -265,6 +294,8 @@ export default function FavorDetalle() {
 }
 
 const styles = StyleSheet.create({
+  reportar: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center', marginTop: spacing.lg, padding: spacing.sm },
+  reportarTexto: { fontFamily: fonts.medium, fontSize: 14, textDecorationLine: 'underline' },
   tipo: { fontFamily: fonts.semiBold, fontSize: 14 },
   titulo: { fontFamily: fonts.bold, fontSize: 22, marginTop: 4 },
   descripcion: { fontFamily: fonts.regular, fontSize: 16, color: colors.texto, marginTop: spacing.sm, lineHeight: 22 },

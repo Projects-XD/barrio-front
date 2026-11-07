@@ -435,6 +435,22 @@ export function useFavor(id: string) {
   });
 }
 
+export function useReportFavor(favorId: string) {
+  const userId = useAppStore((s) => s.userId);
+  return useMutation({
+    mutationFn: async (reason: string): Promise<void> => {
+      if (!userId) throw new Error('Tu sesión no está activa.');
+      const { error } = await supabase
+        .from('favor_reports')
+        .insert({ favor_id: favorId, reporter_id: userId, reason });
+      if (error) {
+        if (error.code === '23505') throw new Error('Ya reportaste este favor.');
+        throw new Error(error.message);
+      }
+    },
+  });
+}
+
 export function useExpressInterest(id: string) {
   const qc = useQueryClient();
   return useMutation({
