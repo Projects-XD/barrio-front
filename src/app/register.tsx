@@ -72,17 +72,8 @@ export default function Register() {
           </View>
         </View>
 
-        <View style={styles.footer}>
-          <Text style={[styles.privacyNote, { color: p.muted }]}>
-            Tu dirección exacta nunca será compartida públicamente.
-          </Text>
-
-          <AppButton
-            label="Entrar al barrio"
-            variant="accent"
-            onPress={submit}
-            disabled={!canSubmit}
-          />
+        <View style={{ marginTop: spacing.lg }}>
+          <AppButton label="Entrar al barrio" variant="accent" onPress={submit} disabled={!canSubmit} />
         </View>
       </View>
     </Screen>
@@ -131,14 +122,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: 2,
-  },
-  footer: {
-    marginTop: spacing.md,
-  },
-  privacyNote: {
-    fontSize: 13,
-    fontFamily: fonts.regular,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
   },
 });
