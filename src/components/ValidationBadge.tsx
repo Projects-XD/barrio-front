@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme';
+import { fonts, colors } from '@/theme';
 
 type Props = { validatedCount: number; threshold?: number };
 
@@ -22,6 +22,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  validadoText: { color: '#1F4D38', fontSize: 14, fontWeight: '600' },
-  pendiente: { color: colors.gris, fontSize: 15 },
+  validadoText: { color: '#1F4D38', fontSize: 14, fontFamily: fonts.semibold },
+  pendiente: { color: colors.gris, fontFamily: fonts.regular, fontSize: 15 },
 });

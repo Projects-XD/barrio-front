@@ -6,7 +6,7 @@ import { FavorCard } from '@/components/FavorCard';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
 import { useFavors } from '@/hooks/useData';
-import { spacing } from '@/theme';
+import { fonts, spacing } from '@/theme';
 
 export default function Favores() {
   const p = usePalette();
@@ -36,6 +36,6 @@ export default function Favores() {
 }
 
 const styles = StyleSheet.create({
-  titulo: { fontSize: 28, fontWeight: '700', marginTop: 8 },
-  sub: { fontSize: 16, marginBottom: spacing.md },
+  titulo: { fontSize: 28, fontFamily: fonts.bold, marginTop: 8 },
+  sub: { fontFamily: fonts.regular, fontSize: 16, marginBottom: spacing.md },
 });

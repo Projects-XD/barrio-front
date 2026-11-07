@@ -1,3 +1,4 @@
+import { fonts } from '@/theme';
 import { StyleSheet, Switch, Text, View } from 'react-native';
 import { usePalette } from '@/hooks/usePalette';
 
@@ -20,5 +21,5 @@ export function ToggleRow({ label, value, onChange }: Props) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 56, gap: 12 },
-  label: { fontSize: 18, flex: 1 },
+  label: { fontFamily: fonts.regular, fontSize: 18, flex: 1 },
 });

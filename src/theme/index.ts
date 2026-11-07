@@ -1,14 +1,21 @@
 export const colors = {
-  crema: '#FAF7F2',
-  carbon: '#2B2B2B',
-  verde: '#2E6B4F',
-  ambar: '#E0A030',
-  rojo: '#B8442F',
+  azul: '#132E66',
+  naranja: '#EA982B',
   blanco: '#FFFFFF',
+  carbon: '#2B2B2B',
   gris: '#6B6B6B',
-  bordeSuave: '#CFC8BB',
+  rojo: '#B8442F',
+  crema: '#DFE1E5',
+  bordeSuave: '#DFE1E5',
   verdeSuave: '#DFEEE6',
   ambarSuave: '#FBEED3',
+};
+
+export const fonts = {
+  regular: 'InstrumentSans_400Regular',
+  medium: 'InstrumentSans_500Medium',
+  semibold: 'InstrumentSans_600SemiBold',
+  bold: 'InstrumentSans_700Bold',
 };
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };
@@ -18,9 +25,11 @@ export const touch = { min: 48 };
 
 export function getPalette(emergency: boolean) {
   return {
-    primary: emergency ? colors.rojo : colors.verde,
-    background: colors.crema,
-    surface: colors.blanco,
+    primary: emergency ? colors.rojo : colors.azul,
+    cta: emergency ? colors.rojo : colors.naranja,
+    ctaText: emergency ? colors.blanco : colors.carbon,
+    background: colors.blanco,
+    surface: colors.crema,
     text: colors.carbon,
     muted: colors.gris,
     border: colors.bordeSuave,

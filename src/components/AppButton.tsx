@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { usePalette } from '@/hooks/usePalette';
-import { colors, radius, touch } from '@/theme';
+import { fonts, colors, radius, touch } from '@/theme';
 
 type Props = {
   label: string;
@@ -22,7 +22,7 @@ export function AppButton({ label, onPress, variant = 'primary', disabled = fals
       disabled={disabled}
       style={({ pressed }) => [
         styles.base,
-        isPrimary && { backgroundColor: p.primary },
+        isPrimary && { backgroundColor: p.cta },
         variant === 'secondary' && { backgroundColor: colors.blanco, borderWidth: 2, borderColor: p.border },
         isLink && styles.link,
         disabled && styles.disabled,
@@ -32,7 +32,7 @@ export function AppButton({ label, onPress, variant = 'primary', disabled = fals
       <Text
         style={[
           styles.label,
-          { color: isPrimary ? colors.blanco : p.primary },
+          { color: isPrimary ? p.ctaText : p.primary },
           isLink && styles.linkLabel,
         ]}
       >
@@ -54,6 +54,6 @@ const styles = StyleSheet.create({
   },
   link: { backgroundColor: 'transparent' },
   disabled: { opacity: 0.45 },
-  label: { fontSize: 18, fontWeight: '600' },
+  label: { fontSize: 18, fontFamily: fonts.semibold },
   linkLabel: { textDecorationLine: 'underline' },
 });

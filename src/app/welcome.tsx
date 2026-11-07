@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
-import { colors, radius, spacing } from '@/theme';
+import { fonts, colors, radius, spacing } from '@/theme';
 
 const slides = [
   { titulo: 'Encuentra oficios de confianza', texto: 'Oficios validados por tus vecinos de la misma zona.' },
@@ -24,7 +24,7 @@ export default function Welcome() {
     <Screen scroll={false}>
       <View style={styles.slide}>
         <View style={styles.ilustra}>
-          <Text style={{ color: p.muted, fontSize: 18 }}>Ilustración</Text>
+          <Text style={{ color: p.muted, fontFamily: fonts.regular, fontSize: 18 }}>Ilustración</Text>
         </View>
         <Text style={[styles.titulo, { color: p.text }]}>{slide.titulo}</Text>
         <Text style={[styles.texto, { color: p.muted }]}>{slide.texto}</Text>
@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.lg,
   },
-  titulo: { fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: spacing.sm },
-  texto: { fontSize: 18, textAlign: 'center' },
+  titulo: { fontSize: 28, fontFamily: fonts.bold, textAlign: 'center', marginBottom: spacing.sm },
+  texto: { fontFamily: fonts.regular, fontSize: 18, textAlign: 'center' },
   dots: { flexDirection: 'row', gap: 8, marginVertical: spacing.lg },
   dot: { width: 10, height: 10, borderRadius: 5 },
 });

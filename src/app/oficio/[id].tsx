@@ -8,7 +8,7 @@ import { ValidationBadge } from '@/components/ValidationBadge';
 import { usePalette } from '@/hooks/usePalette';
 import { useProfile, useVouch } from '@/hooks/useData';
 import { oficioLabel } from '@/i18n/labels';
-import { spacing } from '@/theme';
+import { fonts, spacing } from '@/theme';
 
 export default function OficioDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -37,7 +37,7 @@ export default function OficioDetalle() {
       <Stack.Screen options={{ title: profile.user.fullName }} />
       <Card>
         <Text style={[styles.nombre, { color: p.text }]}>{profile.user.fullName}</Text>
-        <Text style={{ color: p.muted, fontSize: 16 }}>
+        <Text style={{ color: p.muted, fontFamily: fonts.regular, fontSize: 16 }}>
           {`${oficioLabel[profile.oficio.category]}${profile.yearsExperience ? ` · ${profile.yearsExperience} años de experiencia` : ''}`}
         </Text>
         <Text style={[styles.descripcion, { color: p.text }]}>{profile.description}</Text>
@@ -55,6 +55,6 @@ export default function OficioDetalle() {
 }
 
 const styles = StyleSheet.create({
-  nombre: { fontSize: 22, fontWeight: '700', marginBottom: 4 },
-  descripcion: { fontSize: 18, marginVertical: spacing.sm, lineHeight: 26 },
+  nombre: { fontSize: 22, fontFamily: fonts.bold, marginBottom: 4 },
+  descripcion: { fontFamily: fonts.regular, fontSize: 18, marginVertical: spacing.sm, lineHeight: 26 },
 });

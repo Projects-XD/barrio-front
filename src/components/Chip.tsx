@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { usePalette } from '@/hooks/usePalette';
-import { colors, radius } from '@/theme';
+import { fonts, colors, radius } from '@/theme';
 
 type Props = { label: string; selected: boolean; onPress: () => void };
 
@@ -32,5 +32,5 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     justifyContent: 'center',
   },
-  text: { fontSize: 16, fontWeight: '600' },
+  text: { fontSize: 16, fontFamily: fonts.semibold },
 });

@@ -1,4 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  InstrumentSans_400Regular,
+  InstrumentSans_500Medium,
+  InstrumentSans_600SemiBold,
+  InstrumentSans_700Bold,
+  useFonts,
+} from '@expo-google-fonts/instrument-sans';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -8,6 +15,15 @@ const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const p = usePalette();
+  const [fontsLoaded] = useFonts({
+    InstrumentSans_400Regular,
+    InstrumentSans_500Medium,
+    InstrumentSans_600SemiBold,
+    InstrumentSans_700Bold,
+  });
+
+  if (!fontsLoaded) return null;
+
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>

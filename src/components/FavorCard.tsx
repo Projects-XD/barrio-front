@@ -1,3 +1,4 @@
+import { fonts } from '@/theme';
 import { StyleSheet, Text } from 'react-native';
 import type { Favor } from '@/types';
 import { favorStatusLabel, favorTypeBackground, favorTypeLabel, syncStatusLabel } from '@/i18n/labels';
@@ -20,7 +21,7 @@ export function FavorCard({ favor, onPress }: Props) {
 }
 
 const styles = StyleSheet.create({
-  type: { fontSize: 14, fontWeight: '600' },
-  title: { fontSize: 18, fontWeight: '700', marginTop: 4 },
-  status: { fontSize: 15, fontWeight: '600', marginTop: 8 },
+  type: { fontSize: 14, fontFamily: fonts.semibold },
+  title: { fontSize: 18, fontFamily: fonts.bold, marginTop: 4 },
+  status: { fontSize: 15, fontFamily: fonts.semibold, marginTop: 8 },
 });

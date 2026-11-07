@@ -1,3 +1,4 @@
+import { fonts } from '@/theme';
 import { StyleSheet, Text, View } from 'react-native';
 import type { ProfessionalProfile } from '@/types';
 import { oficioLabel } from '@/i18n/labels';
@@ -37,8 +38,8 @@ export function ProfessionalCard({ profile, onPress }: Props) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  initials: { fontWeight: '700', fontSize: 16 },
+  initials: { fontFamily: fonts.bold, fontSize: 16 },
   info: { flex: 1 },
-  name: { fontSize: 18, fontWeight: '700' },
+  name: { fontSize: 18, fontFamily: fonts.bold },
   badge: { marginTop: 6 },
 });

@@ -5,7 +5,7 @@ import { Screen } from '@/components/Screen';
 import { ToggleRow } from '@/components/ToggleRow';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
-import { spacing } from '@/theme';
+import { fonts, spacing } from '@/theme';
 
 export default function Perfil() {
   const p = usePalette();
@@ -20,7 +20,7 @@ export default function Perfil() {
 
       <Card>
         <Text style={[styles.nombre, { color: p.text }]}>Tu nombre</Text>
-        <Text style={{ color: p.muted, fontSize: 16 }}>Zona: Centro</Text>
+        <Text style={{ color: p.muted, fontFamily: fonts.regular, fontSize: 16 }}>Zona: Centro</Text>
       </Card>
 
       <Card>
@@ -39,8 +39,8 @@ export default function Perfil() {
 }
 
 const styles = StyleSheet.create({
-  titulo: { fontSize: 28, fontWeight: '700', marginTop: 8, marginBottom: spacing.md },
-  nombre: { fontSize: 18, fontWeight: '700' },
-  resumen: { fontSize: 18 },
+  titulo: { fontSize: 28, fontFamily: fonts.bold, marginTop: 8, marginBottom: spacing.md },
+  nombre: { fontSize: 18, fontFamily: fonts.bold },
+  resumen: { fontFamily: fonts.regular, fontSize: 18 },
   separador: { height: 1, backgroundColor: '#E3DDD0', marginVertical: 4 },
 });

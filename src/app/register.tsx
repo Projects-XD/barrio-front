@@ -6,7 +6,7 @@ import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
-import { colors, radius, spacing } from '@/theme';
+import { fonts, colors, radius, spacing } from '@/theme';
 import { ZONE_ID } from '@/data/mock';
 
 const zonas = ['Centro', 'Los Álamos', 'La Plaza', 'Villa Norte'];
@@ -52,15 +52,15 @@ export default function Register() {
 }
 
 const styles = StyleSheet.create({
-  titulo: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
-  sub: { fontSize: 16, marginBottom: spacing.md },
-  label: { fontSize: 16, fontWeight: '600', marginTop: spacing.md, marginBottom: 6 },
+  titulo: { fontSize: 28, fontFamily: fonts.bold, marginBottom: 8 },
+  sub: { fontFamily: fonts.regular, fontSize: 16, marginBottom: spacing.md },
+  label: { fontSize: 16, fontFamily: fonts.semibold, marginTop: spacing.md, marginBottom: 6 },
   input: {
     minHeight: 48,
     borderWidth: 1,
     borderRadius: radius.md,
     paddingHorizontal: 12,
-    fontSize: 18,
+    fontFamily: fonts.regular, fontSize: 18,
     backgroundColor: colors.blanco,
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap' },

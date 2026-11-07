@@ -1,3 +1,4 @@
+import { fonts } from '@/theme';
 import { StyleSheet, Text } from 'react-native';
 import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
@@ -43,7 +44,7 @@ export default function Inicio() {
 }
 
 const styles = StyleSheet.create({
-  titulo: { fontSize: 28, fontWeight: '700', marginTop: 8, marginBottom: 6 },
-  sub: { fontSize: 16, marginBottom: 14 },
-  seccion: { fontSize: 22, fontWeight: '700', marginTop: 18, marginBottom: 10 },
+  titulo: { fontSize: 28, fontFamily: fonts.bold, marginTop: 8, marginBottom: 6 },
+  sub: { fontFamily: fonts.regular, fontSize: 16, marginBottom: 14 },
+  seccion: { fontSize: 22, fontFamily: fonts.bold, marginTop: 18, marginBottom: 10 },
 });

@@ -8,7 +8,7 @@ import { usePalette } from '@/hooks/usePalette';
 import { useCreateFavor } from '@/hooks/useData';
 import { favorTypeBackground, favorTypeLabel } from '@/i18n/labels';
 import type { FavorType } from '@/types';
-import { colors, radius, spacing } from '@/theme';
+import { fonts, colors, radius, spacing } from '@/theme';
 
 const tipos = Object.keys(favorTypeLabel) as FavorType[];
 
@@ -66,7 +66,7 @@ export default function NuevoFavor() {
         <>
           <Text style={[styles.titulo, { color: p.text }]}>Confirma</Text>
           <Card backgroundColor={favorTypeBackground[tipo]}>
-            <Text style={{ color: p.muted, fontSize: 14 }}>{favorTypeLabel[tipo]}</Text>
+            <Text style={{ color: p.muted, fontFamily: fonts.regular, fontSize: 14 }}>{favorTypeLabel[tipo]}</Text>
             <Text style={[styles.opcion, { color: p.text }]}>{texto.trim()}</Text>
           </Card>
           <AppButton label="Publicar" onPress={publicar} disabled={crear.isPending} />
@@ -80,14 +80,14 @@ export default function NuevoFavor() {
 const styles = StyleSheet.create({
   progreso: { flexDirection: 'row', gap: 8, marginBottom: spacing.lg, marginTop: spacing.sm },
   barra: { flex: 1, height: 8, borderRadius: 4 },
-  titulo: { fontSize: 24, fontWeight: '700', marginBottom: spacing.md },
-  opcion: { fontSize: 18, fontWeight: '600' },
+  titulo: { fontSize: 24, fontFamily: fonts.bold, marginBottom: spacing.md },
+  opcion: { fontSize: 18, fontFamily: fonts.semibold },
   input: {
     minHeight: 120,
     borderWidth: 1,
     borderRadius: radius.md,
     padding: 12,
-    fontSize: 18,
+    fontFamily: fonts.regular, fontSize: 18,
     backgroundColor: colors.blanco,
     textAlignVertical: 'top',
     marginBottom: spacing.md,
