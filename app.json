@@ -25,7 +25,13 @@
       "expo-router",
       "expo-secure-store",
       "expo-font",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Usamos tu ubicación solo para detectar tu zona al registrarte. No guardamos tu ubicación exacta."
+        }
+      ]
     ]
   }
 }

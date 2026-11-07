@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import * as Location from 'expo-location';
 import { AppButton } from '@/components/AppButton';
 import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
@@ -43,6 +44,7 @@ export default function Register() {
   const [zonaSeleccionada, setZonaSeleccionada] = useState<ZoneOption>(DEFAULT_ZONES[0]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [locStatus, setLocStatus] = useState<'idle' | 'loading' | 'found' | 'notfound' | 'denied'>('idle');
 
   // Cargar lista de zonas directamente desde Supabase si están disponibles
   useEffect(() => {
@@ -62,6 +64,36 @@ export default function Register() {
     }
     loadZones();
   }, []);
+
+  const normalizeText = (text: string) =>
+    text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  const detectZone = async () => {
+    setLocStatus('loading');
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocStatus('denied');
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const [place] = await Location.reverseGeocodeAsync({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+      const haystack = normalizeText([place?.district, place?.subregion, place?.city, place?.name].filter(Boolean).join(' '));
+      const match = zonas.find((z) => haystack.includes(normalizeText(z.name)));
+      if (match) {
+        setZonaSeleccionada(match);
+        setLocStatus('found');
+      } else {
+        setLocStatus('notfound');
+      }
+    } catch (err: any) {
+      logger.warn('AUTH_REGISTER', 'No se pudo detectar la ubicacion', err);
+      setLocStatus('notfound');
+    }
+  };
 
   const isValidEmail = (text: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text.trim());
 
@@ -333,6 +365,21 @@ export default function Register() {
           {mode === 'register' ? (
             <>
               <Text style={[styles.label, { color: p.text }]}>Tu zona o barrio</Text>
+              <AppButton
+                label={locStatus === 'loading' ? 'Buscando tu ubicaciÃ³n...' : 'Usar mi ubicaciÃ³n'}
+                variant="secondary"
+                onPress={detectZone}
+                disabled={locStatus === 'loading'}
+              />
+              {locStatus === 'found' ? (
+                <Text style={[styles.privacyNote, { color: p.primary }]}>Detectamos tu zona: {zonaSeleccionada.name}. Tu ubicaciÃ³n exacta no se guarda.</Text>
+              ) : null}
+              {locStatus === 'denied' ? (
+                <Text style={[styles.privacyNote, { color: p.muted }]}>Sin permiso de ubicaciÃ³n. Elige tu zona abajo.</Text>
+              ) : null}
+              {locStatus === 'notfound' ? (
+                <Text style={[styles.privacyNote, { color: p.muted }]}>No pudimos detectar tu zona. Elige tu zona abajo.</Text>
+              ) : null}
               <View style={styles.chips}>
                 {zonas.map((z) => (
                   <Chip
