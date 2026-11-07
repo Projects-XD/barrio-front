@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, usePathname } from 'expo-router';
 import { ChatFab } from '@/components/ChatFab';
+import { useFavorRealtime } from '@/hooks/useFavorRealtime';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEmergencyState } from '@/hooks/useData';
@@ -23,6 +24,7 @@ export default function TabsLayout() {
   const p = usePalette();
   const insets = useSafeAreaInsets();
   const { data: emergency } = useEmergencyState();
+  useFavorRealtime();
   const pathname = usePathname();
   const enPerfil = pathname.endsWith('/perfil');
 
