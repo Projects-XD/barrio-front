@@ -2,13 +2,14 @@ import { getDb } from './db';
 
 export const MAX_ATTEMPTS = 5;
 
-export type OutboxOperation = 'create_favor';
+export type OutboxOperation = 'create_favor' | 'create_vulnerability_report';
 
 export type OutboxItem = {
   clientId: string;
   operation: OutboxOperation;
-  payload: unknown;
+  payload: Record<string, unknown>;
   attempts: number;
+  createdAt: string;
 };
 
 type OutboxRow = {
@@ -16,12 +17,13 @@ type OutboxRow = {
   operation: OutboxOperation;
   payload: string;
   attempts: number;
+  created_at: string;
 };
 
-export async function enqueue(clientId: string, operation: OutboxOperation, payload: unknown) {
+export async function enqueue(clientId: string, operation: OutboxOperation, payload: Record<string, unknown>) {
   const db = await getDb();
   await db.runAsync(
-    'INSERT INTO outbox (client_id, operation, payload, created_at) VALUES (?, ?, ?, ?)',
+    'INSERT OR IGNORE INTO outbox (client_id, operation, payload, created_at) VALUES (?, ?, ?, ?)',
     clientId,
     operation,
     JSON.stringify(payload),
@@ -29,21 +31,29 @@ export async function enqueue(clientId: string, operation: OutboxOperation, payl
   );
 }
 
-export async function listPending(): Promise<OutboxItem[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<OutboxRow>(
-    `SELECT client_id, operation, payload, attempts
-       FROM outbox
-      WHERE status != 'enviado' AND attempts < ?
-      ORDER BY created_at ASC`,
-    MAX_ATTEMPTS,
-  );
-  return rows.map((r) => ({
-    clientId: r.client_id,
-    operation: r.operation,
-    payload: JSON.parse(r.payload),
-    attempts: r.attempts,
-  }));
+// Si SQLite no está disponible (por ejemplo en web), se trata como cola vacía.
+export async function listPending(operation?: OutboxOperation): Promise<OutboxItem[]> {
+  try {
+    const db = await getDb();
+    const rows = await db.getAllAsync<OutboxRow>(
+      `SELECT client_id, operation, payload, attempts, created_at
+         FROM outbox
+        WHERE status != 'enviado' AND attempts < ?
+        ORDER BY created_at ASC`,
+      MAX_ATTEMPTS,
+    );
+    return rows
+      .filter((r) => !operation || r.operation === operation)
+      .map((r) => ({
+        clientId: r.client_id,
+        operation: r.operation,
+        payload: JSON.parse(r.payload) as Record<string, unknown>,
+        attempts: r.attempts,
+        createdAt: r.created_at,
+      }));
+  } catch {
+    return [];
+  }
 }
 
 export async function markSent(clientId: string) {

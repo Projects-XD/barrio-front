@@ -23,15 +23,17 @@ export default function NuevoFavor() {
     if (!tipo || !texto.trim() || crear.isPending) return;
 
     try {
-      await crear.mutateAsync({
+      const { queued } = await crear.mutateAsync({
         type: tipo,
         title: texto.trim(),
         description: null,
       });
 
       Alert.alert(
-        '¡Favor Publicado!',
-        'Tu publicación ya está disponible en el muro de favores de tu barrio.',
+        queued ? 'Guardado sin conexión' : '¡Favor publicado!',
+        queued
+          ? 'Tu favor se guardó en el teléfono y se publicará solo cuando vuelva la conexión.'
+          : 'Tu publicación ya está disponible en el muro de favores de tu barrio.',
         [{ text: 'Entendido', onPress: () => router.back() }]
       );
     } catch (err: any) {
@@ -131,7 +133,7 @@ export default function NuevoFavor() {
               <View style={styles.loadingWrapper}>
                 <ActivityIndicator size="large" color={p.primary} />
                 <Text style={[styles.loadingText, { color: p.muted }]}>
-                  Publicando favor con clave de idempotencia...
+                  Publicando tu favor...
                 </Text>
               </View>
             ) : (

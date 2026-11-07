@@ -37,6 +37,7 @@ const router = Router();
  */
 router.get(
   '/',
+  requireAuth,
   validate(listFavorsQuerySchema, 'query'),
   (req, res, next) => favorController.list(req, res, next)
 );
@@ -115,7 +116,7 @@ router.post(
  *       404:
  *         description: Favor no encontrado
  */
-router.get('/:id', (req, res, next) => favorController.getById(req, res, next));
+router.get('/:id', requireAuth, (req, res, next) => favorController.getById(req, res, next));
 
 /**
  * @openapi

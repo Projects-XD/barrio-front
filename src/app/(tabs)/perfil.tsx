@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -19,7 +20,7 @@ import { ValidationBadge } from '@/components/ValidationBadge';
 import { supabase } from '@/lib/supabase';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
-import { useMyProfile, useUpsertMyProfile } from '@/hooks/useData';
+import { useFavors, useMyProfile, useUpsertMyProfile } from '@/hooks/useData';
 import { oficioLabel } from '@/i18n/labels';
 import type { OficioCategory } from '@/types';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -28,15 +29,19 @@ const categorias = Object.keys(oficioLabel) as OficioCategory[];
 
 export default function Perfil() {
   const p = usePalette();
-  const emergency = useAppStore((s) => s.emergencyActive);
-  const setEmergency = useAppStore((s) => s.setEmergency);
+  const simulatedEmergency = useAppStore((s) => s.simulatedEmergency);
+  const serverEmergency = useAppStore((s) => s.serverEmergency);
+  const setSimulatedEmergency = useAppStore((s) => s.setSimulatedEmergency);
   const isOnline = useAppStore((s) => s.isOnline);
   const setOnline = useAppStore((s) => s.setOnline);
   const clearSession = useAppStore((s) => s.clearSession);
-  const userFullName = useAppStore((s) => s.userFullName) || 'Alexander García';
+  const userId = useAppStore((s) => s.userId);
+  const userFullName = useAppStore((s) => s.userFullName) || 'Vecino';
   const userEmail = useAppStore((s) => s.userEmail);
 
   const { data: myProfile } = useMyProfile();
+  const { data: favors = [] } = useFavors();
+  const misFavores = favors.filter((f) => f.authorId === userId).length;
   const upsertProfile = useUpsertMyProfile();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -69,11 +74,13 @@ export default function Perfil() {
     upsertProfile.mutate(
       {
         category: selectedCat,
-        description: descripcion.trim() || 'Servicios profesionales para vecinos de la zona.',
-        yearsExperience: parseInt(experiencia, 10) || 1,
+        description: descripcion.trim() || 'Servicios para vecinos de la zona.',
+        yearsExperience: parseInt(experiencia, 10) || 0,
+        existingId: myProfile?.id,
       },
       {
         onSuccess: () => setModalVisible(false),
+        onError: (err) => Alert.alert('No se pudo guardar tu oficio', err.message),
       }
     );
   };
@@ -166,14 +173,14 @@ export default function Perfil() {
         <View style={styles.metricasRow}>
           <View style={styles.metrica}>
             <Text style={[styles.metricaValor, { color: colors.naranja }]}>
-              {myProfile ? myProfile.validatedCount : 3}
+              {myProfile?.validatedCount ?? 0}
             </Text>
             <Text style={styles.metricaLabel}>Vistos buenos</Text>
           </View>
           <View style={styles.metricaDivider} />
           <View style={styles.metrica}>
-            <Text style={[styles.metricaValor, { color: colors.azul }]}>2</Text>
-            <Text style={styles.metricaLabel}>Favores dados</Text>
+            <Text style={[styles.metricaValor, { color: colors.azul }]}>{misFavores}</Text>
+            <Text style={styles.metricaLabel}>Favores activos</Text>
           </View>
         </View>
       </Card>
@@ -182,10 +189,15 @@ export default function Perfil() {
       <Text style={[styles.seccionLabel, { color: p.text }]}>Simulaciones del Reto (Hackathon)</Text>
       <Card>
         <ToggleRow
-          label="Modo emergencia activo"
-          value={emergency}
-          onChange={setEmergency}
+          label="Simular modo emergencia"
+          value={simulatedEmergency}
+          onChange={setSimulatedEmergency}
         />
+        {serverEmergency ? (
+          <Text style={[styles.sinOficioTexto, { color: colors.rojo }]}>
+            Tu zona está en emergencia real según el sistema.
+          </Text>
+        ) : null}
         <View style={styles.separador} />
         <ToggleRow
           label="Simular modo sin conexión"
@@ -221,7 +233,8 @@ export default function Perfil() {
         onRequestClose={() => setModalVisible(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
-          <View style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
+          {/* Pressable vacío: los toques dentro de la tarjeta no llegan al fondo que cierra el modal. */}
+          <Pressable onPress={() => {}} style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.modalTitle, { color: p.text }]}>
                 {myProfile ? 'Editar mi Oficio' : 'Ofrecer Oficio en el Barrio'}
@@ -280,7 +293,7 @@ export default function Perfil() {
                 />
               </View>
             </ScrollView>
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </Screen>

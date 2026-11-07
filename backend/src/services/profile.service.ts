@@ -92,9 +92,12 @@ export class ProfileService {
     supabase: SupabaseClient<Database>,
     params: { zoneId: string; oficioId?: string; category?: OficioCategory }
   ): Promise<Tables<'professional_profiles'>[]> {
+    // Con !inner el filtro por oficios.category descarta perfiles; sin él solo deja oficio en null.
+    const oficioEmbed = params.category ? 'oficio:oficios!inner(*)' : 'oficio:oficios(*)';
+
     let query = supabase
       .from('professional_profiles')
-      .select('*, user:users!professional_profiles_user_id_fkey(id, full_name, avatar_url, zone_id), oficio:oficios(*)')
+      .select(`*, user:users!professional_profiles_user_id_fkey(id, full_name, avatar_url, zone_id), ${oficioEmbed}`)
       .eq('zone_id', params.zoneId)
       .eq('is_visible', true)
       .order('is_validated', { ascending: false })

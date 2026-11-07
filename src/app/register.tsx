@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,7 @@ import * as Location from 'expo-location';
 import { AppButton } from '@/components/AppButton';
 import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
+import { useZones } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
@@ -24,8 +25,6 @@ interface ZoneOption {
   name: string;
 }
 
-const DEFAULT_ZONES: ZoneOption[] = [];
-
 export default function Register() {
   const p = usePalette();
   const setSession = useAppStore((s) => s.setSession);
@@ -34,30 +33,13 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
-  const [zonas, setZonas] = useState<ZoneOption[]>(DEFAULT_ZONES);
+  // Las zonas vienen del backend (/zones): con RLS activo, la clave anon no puede leer la tabla.
+  const zonesQuery = useZones();
+  const zonas: ZoneOption[] = zonesQuery.data ?? [];
   const [zonaSeleccionada, setZonaSeleccionada] = useState<ZoneOption | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [locStatus, setLocStatus] = useState<'idle' | 'loading' | 'found' | 'notfound' | 'denied'>('idle');
-
-  // Cargar lista de zonas directamente desde Supabase si están disponibles
-  useEffect(() => {
-    async function loadZones() {
-      try {
-        const { data, error } = await supabase.from('zones').select('id, name').order('name');
-        if (error) {
-          logger.warn('AUTH_REGISTER', `No se pudieron cargar zonas de Supabase: ${error.message}`);
-        } else if (data && data.length > 0) {
-          setZonas(data as ZoneOption[]);
-          setZonaSeleccionada(null);
-          logger.debug('AUTH_REGISTER', `Zonas cargadas desde Supabase (${data.length})`);
-        }
-      } catch (err: any) {
-        logger.warn('AUTH_REGISTER', 'Excepción cargando zonas, usando fallback estático', err);
-      }
-    }
-    loadZones();
-  }, []);
 
   const normalizeText = (text: string) =>
     text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -385,6 +367,17 @@ export default function Register() {
                   />
                 ))}
               </View>
+              {zonesQuery.isLoading ? (
+                <Text style={[styles.privacyNote, { color: p.muted }]}>Cargando zonas...</Text>
+              ) : null}
+              {zonesQuery.isError ? (
+                <>
+                  <Text style={[styles.privacyNote, { color: colors.rojo }]}>
+                    No pudimos cargar las zonas. Revisa que el servidor esté encendido.
+                  </Text>
+                  <AppButton label="Reintentar" variant="link" onPress={() => zonesQuery.refetch()} />
+                </>
+              ) : null}
             </>
           ) : null}
         </View>

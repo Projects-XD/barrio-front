@@ -60,19 +60,13 @@ export default function OficioDetalle() {
     );
   }
 
-  const handleCall = () => {
-    setShowContactModal(false);
-    Linking.openURL('tel:+51987654321').catch(() => {
-      Alert.alert('Contacto telefónico', 'Teléfono: +51 987 654 321');
-    });
-  };
-
+  // Los perfiles aún no guardan teléfono: se abre WhatsApp con el mensaje listo para elegir el contacto.
   const handleWhatsApp = () => {
     setShowContactModal(false);
     const msg = encodeURIComponent(
       `Hola ${profile.user.fullName}, vi tu perfil de ${oficioLabel[profile.oficio.category]} en la app Barrio.`
     );
-    Linking.openURL(`https://wa.me/51987654321?text=${msg}`).catch(() => {
+    Linking.openURL(`https://wa.me/?text=${msg}`).catch(() => {
       Alert.alert('WhatsApp', 'No se pudo abrir WhatsApp.');
     });
   };
@@ -158,20 +152,15 @@ export default function OficioDetalle() {
         onRequestClose={() => setShowContactModal(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setShowContactModal(false)}>
-          <View style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>Contactar a {profile.user.fullName}</Text>
             <Text style={[styles.modalSub, { color: p.muted }]}>
-              Coordina el servicio directamente con tu vecino de Castilla:
+              Abre WhatsApp con un mensaje listo y elige el contacto de tu vecino.
             </Text>
 
             <View style={styles.modalButtons}>
               <AppButton
-                label="Llamar por teléfono"
-                variant="primary"
-                onPress={handleCall}
-              />
-              <AppButton
-                label="Enviar WhatsApp"
+                label="Enviar mensaje por WhatsApp"
                 variant="accent"
                 onPress={handleWhatsApp}
               />
@@ -181,7 +170,7 @@ export default function OficioDetalle() {
                 onPress={() => setShowContactModal(false)}
               />
             </View>
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </Screen>

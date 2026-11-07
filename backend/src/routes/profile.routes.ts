@@ -48,6 +48,7 @@ router.get('/oficios', (req, res, next) => profileController.listOficios(req, re
  */
 router.get(
   '/',
+  requireAuth,
   validate(listProfilesQuerySchema, 'query'),
   (req, res, next) => profileController.list(req, res, next)
 );
@@ -114,7 +115,7 @@ router.post(
  *       404:
  *         description: Perfil no encontrado
  */
-router.get('/:id', (req, res, next) => profileController.getById(req, res, next));
+router.get('/:id', requireAuth, (req, res, next) => profileController.getById(req, res, next));
 
 /**
  * @openapi

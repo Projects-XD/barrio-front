@@ -1,16 +1,30 @@
 import { api } from './client';
 import type {
-  CriticalResource,
-  EmergencyState,
   FavorType,
   OficioCategory,
-  SupportService,
-  VulnerabilityReport,
+  ResourceKind,
+  ResourceType,
+  ServiceType,
 } from '@/types';
 
 // ============================================================================
-// TIPOS DE RESPUESTA DIRECTA DEL BACKEND (con claves snake_case de Postgres)
+// TIPOS DE RESPUESTA DEL BACKEND (claves snake_case de Postgres)
 // ============================================================================
+
+export interface BackendZone {
+  id: string;
+  name: string;
+  city: string;
+  center_lat: number | null;
+  center_lng: number | null;
+}
+
+export interface BackendOficio {
+  id: string;
+  category: OficioCategory;
+  name: string;
+  is_active?: boolean;
+}
 
 export interface BackendProfile {
   id: string;
@@ -30,13 +44,8 @@ export interface BackendProfile {
     full_name: string;
     avatar_url: string | null;
     zone_id: string | null;
-  };
-  oficio: {
-    id: string;
-    category: OficioCategory;
-    name: string;
-    is_active?: boolean;
-  };
+  } | null;
+  oficio: BackendOficio | null;
 }
 
 export interface BackendFavor {
@@ -56,60 +65,107 @@ export interface BackendFavor {
     id: string;
     full_name: string;
     avatar_url: string | null;
-  };
+  } | null;
+  interests?: { id: string; user_id: string }[];
+}
+
+export interface BackendEmergencyState {
+  status: 'activa' | 'inactiva';
+  reason: string | null;
+  activated_at: string | null;
+}
+
+export interface BackendService {
+  id: string;
+  name: string;
+  type: ServiceType;
+  phone: string | null;
+  address_summary: string | null;
+  hours: string | null;
+  is_verified: boolean;
+}
+
+export interface BackendReport {
+  id: string;
+  zone_id: string | null;
+  approx_lat: number | null;
+  approx_lng: number | null;
+  description: string;
+  needs: string[];
+  status: 'activo' | 'resuelto' | 'oculto';
+  is_anonymous: boolean;
+  created_at: string;
+  resolved_at: string | null;
+  reporter?: { id: string; full_name: string } | null;
+}
+
+export interface BackendResource {
+  id: string;
+  kind: ResourceKind;
+  resource: ResourceType;
+  quantity: number | null;
+  notes: string | null;
+  status: 'abierto' | 'cubierto' | 'cancelado';
+  user?: { id: string; full_name: string } | null;
 }
 
 // ============================================================================
-// ENDPOINTS OFICIOS (Módulo Día a Día)
+// ZONAS (pública, la usa el registro)
 // ============================================================================
 
-export interface ListProfilesParams {
-  zoneId: string;
-  oficioId?: string;
-  category?: OficioCategory;
-}
+export const listZones = () => api.get<BackendZone[]>('/zones');
 
-export const listProfiles = (params: ListProfilesParams) => {
+// ============================================================================
+// OFICIOS Y PERFILES
+// ============================================================================
+
+export const listOficios = () => api.get<BackendOficio[]>('/profiles/oficios');
+
+export const listProfiles = (params: { zoneId: string; category?: OficioCategory }) => {
   const query = new URLSearchParams();
   query.set('zone_id', params.zoneId);
-  if (params.oficioId) query.set('oficio_id', params.oficioId);
   if (params.category) query.set('category', params.category);
-
   return api.get<BackendProfile[]>(`/profiles?${query.toString()}`);
 };
 
-export const getProfileById = (id: string) =>
-  api.get<BackendProfile>(`/profiles/${id}`);
+export const getProfileById = (id: string) => api.get<BackendProfile>(`/profiles/${id}`);
+
+export const getVouchStatus = (id: string) =>
+  api.get<{ hasVouched: boolean }>(`/profiles/${id}/vouch/status`);
 
 export const vouchProfile = (profileId: string) =>
   api.post<{ profile: BackendProfile; vouch: unknown }>(`/profiles/${profileId}/vouch`);
 
-export const removeVouch = (profileId: string) =>
-  api.delete<{ profile: BackendProfile }>(`/profiles/${profileId}/vouch`);
-
-// ============================================================================
-// ENDPOINTS FAVORES (Módulo Día a Día)
-// ============================================================================
-
-export interface ListFavorsParams {
-  zoneId: string;
-  type?: FavorType;
+export interface UpsertProfilePayload {
+  // Con id, el backend actualiza ese perfil (incluido el oficio) en lugar de crear otro.
+  id?: string;
+  oficio_id: string;
+  zone_id: string;
+  description: string | null;
+  years_experience: number | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
 }
 
-export const listFavors = (params: ListFavorsParams) => {
+export const upsertProfile = (payload: UpsertProfilePayload) =>
+  api.post<BackendProfile>('/profiles', payload);
+
+// ============================================================================
+// FAVORES
+// ============================================================================
+
+export const listFavors = (params: { zoneId: string; type?: FavorType }) => {
   const query = new URLSearchParams();
   query.set('zone_id', params.zoneId);
   if (params.type) query.set('type', params.type);
-
   return api.get<BackendFavor[]>(`/favors?${query.toString()}`);
 };
 
-export const getFavorById = (id: string) =>
-  api.get<BackendFavor>(`/favors/${id}`);
+export const getFavorById = (id: string) => api.get<BackendFavor>(`/favors/${id}`);
 
 export interface CreateFavorPayload {
   client_id: string;
-  zone_id?: string | null;
+  zone_id: string;
   type: FavorType;
   title: string;
   description?: string | null;
@@ -118,18 +174,54 @@ export interface CreateFavorPayload {
 export const createFavor = (payload: CreateFavorPayload) =>
   api.post<BackendFavor>('/favors', payload);
 
+export const expressInterest = (favorId: string, message?: string) =>
+  api.post<unknown>(`/favors/${favorId}/interest`, { message: message ?? null });
+
 // ============================================================================
-// OTROS ENDPOINTS (Mantenidos para compatibilidad con vistas secundarias)
+// EMERGENCIA
 // ============================================================================
 
 export const getEmergencyState = (zoneId: string) =>
-  api.get<EmergencyState>(`/emergency?zoneId=${zoneId}`);
+  api.get<BackendEmergencyState>(`/emergency?zone_id=${zoneId}`);
 
 export const listServices = (zoneId: string) =>
-  api.get<SupportService[]>(`/services?zoneId=${zoneId}`);
+  api.get<BackendService[]>(`/emergency/services?zone_id=${zoneId}`);
 
 export const listReports = (zoneId: string) =>
-  api.get<VulnerabilityReport[]>(`/reports?zoneId=${zoneId}`);
+  api.get<BackendReport[]>(`/emergency/reports?zone_id=${zoneId}`);
+
+export interface CreateReportPayload {
+  zone_id: string;
+  lat?: number | null;
+  lng?: number | null;
+  description: string;
+  needs: ResourceType[];
+  is_anonymous: boolean;
+}
+
+export const createReport = (payload: CreateReportPayload) =>
+  api.post<BackendReport>('/emergency/reports', payload);
 
 export const listResources = (zoneId: string) =>
-  api.get<CriticalResource[]>(`/resources?zoneId=${zoneId}`);
+  api.get<BackendResource[]>(`/resources?zoneId=${zoneId}`);
+
+// ============================================================================
+// SINCRONIZACIÓN OFFLINE
+// ============================================================================
+
+export interface SyncOperation {
+  client_id: string;
+  operation: 'create_favor' | 'create_vulnerability_report';
+  payload: Record<string, unknown>;
+}
+
+export interface SyncResult {
+  client_id: string;
+  operation: string;
+  status: 'enviado' | 'error';
+  ignored?: boolean;
+  error?: string;
+}
+
+export const sendSyncBatch = (operations: SyncOperation[]) =>
+  api.post<{ total: number; processed: number; results: SyncResult[] }>('/sync', operations);

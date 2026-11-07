@@ -7,7 +7,7 @@ import { StatusBanner } from '@/components/StatusBanner';
 import { usePalette } from '@/hooks/usePalette';
 import { useFavors } from '@/hooks/useData';
 import type { IconName } from '@/i18n/icons';
-import { useAppStore } from '@/store/app-store';
+import { selectEmergencyActive, useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 type Action = { label: string; icon: IconName; onPress: () => void };
@@ -31,7 +31,8 @@ function QuickAction({ label, icon, onPress }: Action) {
 
 export default function Inicio() {
   const p = usePalette();
-  const emergency = useAppStore((s) => s.emergencyActive);
+  const emergency = useAppStore(selectEmergencyActive);
+  const firstName = useAppStore((s) => s.userFullName)?.trim().split(' ')[0];
   const offline = !useAppStore((s) => s.isOnline);
   const { data: favors = [] } = useFavors();
 
@@ -54,7 +55,7 @@ export default function Inicio() {
 
       <View style={[styles.hero, { backgroundColor: p.primary }]}>
         <Text style={styles.heroKicker}>{emergency ? 'Modo emergencia' : 'Tu barrio hoy'}</Text>
-        <Text style={styles.heroTitle}>Hola, vecino</Text>
+        <Text style={styles.heroTitle}>Hola, {firstName || 'vecino'}</Text>
         <Text style={styles.heroText}>
           {emergency
             ? 'Revisa los apoyos disponibles cerca de ti.'
@@ -79,7 +80,11 @@ export default function Inicio() {
 
       <Text style={[styles.seccion, { color: p.text }]}>Publicaciones recientes</Text>
       {favors.slice(0, 3).map((f) => (
-        <FavorCard key={f.id} favor={f} />
+        <FavorCard
+          key={f.id}
+          favor={f}
+          onPress={f.syncStatus === 'enviado' ? () => router.push(`/favores/${f.id}`) : undefined}
+        />
       ))}
     </Screen>
   );

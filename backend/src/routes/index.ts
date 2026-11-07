@@ -6,6 +6,7 @@ import emergencyRoutes from './emergency.routes';
 import vulnerabilityRoutes from './vulnerability.routes';
 import resourceRoutes from './resource.routes';
 import syncRoutes from './sync.routes';
+import zoneRoutes from './zone.routes';
 
 const apiRouter = Router();
 
@@ -17,6 +18,7 @@ apiRouter.use('/emergency', emergencyRoutes);
 apiRouter.use('/reports', vulnerabilityRoutes);
 apiRouter.use('/resources', resourceRoutes);
 apiRouter.use('/sync', syncRoutes);
+apiRouter.use('/zones', zoneRoutes);
 
 export default apiRouter;
 

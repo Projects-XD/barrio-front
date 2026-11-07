@@ -257,6 +257,11 @@ export class EmergencyService {
     supabase: SupabaseClient<Database>,
     zoneId: string
   ): Promise<Tables<'support_services'>[]> {
+    // zoneId va interpolado en el filtro .or(); validar que sea un UUID evita inyectar filtros.
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(zoneId)) {
+      throw new AppError('zone_id debe ser un UUID válido', 400);
+    }
+
     const { data, error } = await supabase
       .from('support_services')
       .select('*')

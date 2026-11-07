@@ -37,7 +37,12 @@ export default function Favores() {
           keyExtractor={(item) => item.id}
           refreshing={isRefetching}
           onRefresh={refetch}
-          renderItem={({ item }) => <FavorCard favor={item} />}
+          renderItem={({ item }) => (
+            <FavorCard
+              favor={item}
+              onPress={item.syncStatus === 'enviado' ? () => router.push(`/favores/${item.id}`) : undefined}
+            />
+          )}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <EmptyState

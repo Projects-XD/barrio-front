@@ -14,11 +14,18 @@ type AppState = {
   zoneId: string | null;
   userFullName: string | null;
   userEmail: string | null;
-  emergencyActive: boolean;
+  // true cuando ya se intentó restaurar la sesión guardada; evita redirigir antes de tiempo.
+  hydrated: boolean;
+  // Estado real de la zona según el backend.
+  serverEmergency: boolean;
+  // Interruptor de Perfil para simular la emergencia en la demo.
+  simulatedEmergency: boolean;
   isOnline: boolean;
   setSession: (session: UserSession) => void;
   clearSession: () => void;
-  setEmergency: (active: boolean) => void;
+  setHydrated: () => void;
+  setServerEmergency: (active: boolean) => void;
+  setSimulatedEmergency: (active: boolean) => void;
   setOnline: (online: boolean) => void;
 };
 
@@ -28,7 +35,9 @@ export const useAppStore = create<AppState>((set) => ({
   zoneId: null,
   userFullName: null,
   userEmail: null,
-  emergencyActive: false,
+  hydrated: false,
+  serverEmergency: false,
+  simulatedEmergency: false,
   isOnline: true,
   setSession: ({ token, userId, zoneId, userFullName = null, userEmail = null }) =>
     set({ token, userId, zoneId, userFullName, userEmail }),
@@ -39,7 +48,12 @@ export const useAppStore = create<AppState>((set) => ({
       zoneId: null,
       userFullName: null,
       userEmail: null,
+      serverEmergency: false,
     }),
-  setEmergency: (active) => set({ emergencyActive: active }),
+  setHydrated: () => set({ hydrated: true }),
+  setServerEmergency: (active) => set({ serverEmergency: active }),
+  setSimulatedEmergency: (active) => set({ simulatedEmergency: active }),
   setOnline: (online) => set({ isOnline: online }),
 }));
+
+export const selectEmergencyActive = (s: AppState) => s.serverEmergency || s.simulatedEmergency;

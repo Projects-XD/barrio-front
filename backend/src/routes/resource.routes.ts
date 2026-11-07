@@ -5,7 +5,7 @@ import { validate, createCriticalResourceSchema } from '../utils/validators';
 
 const router = Router();
 
-router.get('/', (req, res, next) => resourceController.list(req, res, next));
+router.get('/', requireAuth, (req, res, next) => resourceController.list(req, res, next));
 router.post(
   '/',
   requireAuth,

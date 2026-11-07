@@ -29,7 +29,7 @@ const router = Router();
  *       200:
  *         description: Estado actual de la emergencia (activa/inactiva)
  */
-router.get('/', (req, res, next) => emergencyController.getState(req, res, next));
+router.get('/', requireAuth, (req, res, next) => emergencyController.getState(req, res, next));
 
 /**
  * @openapi
@@ -49,7 +49,7 @@ router.get('/', (req, res, next) => emergencyController.getState(req, res, next)
  *       200:
  *         description: Lista de servicios de soporte
  */
-router.get('/services', (req, res, next) => emergencyController.listServices(req, res, next));
+router.get('/services', requireAuth, (req, res, next) => emergencyController.listServices(req, res, next));
 
 /**
  * @openapi
@@ -188,7 +188,7 @@ router.post(
  *       200:
  *         description: Lista de reportes de vulnerabilidad anonimizados según corresponda
  */
-router.get('/reports', (req, res, next) => emergencyController.listReports(req, res, next));
+router.get('/reports', requireAuth, (req, res, next) => emergencyController.listReports(req, res, next));
 
 // Ruta legacy para toggle general
 router.post(

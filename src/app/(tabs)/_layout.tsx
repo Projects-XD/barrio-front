@@ -1,12 +1,21 @@
+import { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { EmergencyFab } from '@/components/EmergencyFab';
+import { useEmergencyState } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
+import { useAppStore } from '@/store/app-store';
 import { colors, fonts } from '@/theme';
 
 export default function TabsLayout() {
   const p = usePalette();
+  const { data: emergency } = useEmergencyState();
+
+  useEffect(() => {
+    if (emergency) useAppStore.getState().setServerEmergency(emergency.status === 'activa');
+  }, [emergency]);
+
   return (
     <View style={{ flex: 1 }}>
     <Tabs

@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { MapPicker, type MapPickerHandle } from '@/components/MapPicker';
 import { Screen } from '@/components/Screen';
+import { useMyProfile, useUpsertMyProfile } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import { fonts, radius, spacing } from '@/theme';
 import { CASTILLA_CENTER, type Coords, roundForReport } from '@/utils/geo';
@@ -22,6 +23,8 @@ export default function Ubicacion() {
   const [coords, setCoords] = useState<Coords>(CASTILLA_CENTER);
   const [direccion, setDireccion] = useState('');
   const [buscando, setBuscando] = useState(false);
+  const { data: myProfile } = useMyProfile();
+  const upsert = useUpsertMyProfile();
 
   const autocompletar = async (c: Coords) => {
     try {
@@ -58,13 +61,32 @@ export default function Ubicacion() {
     }
   };
 
+  // La ubicación exacta solo se guarda en el perfil del oficio; los reportes usan la redondeada.
   const guardar = () => {
-    // Ubicación exacta: solo para el perfil del oficio.
-    // Para reportes de emergencia se usa roundForReport(coords).
-    Alert.alert(
-      'Ubicación guardada',
-      `Dirección: ${direccion || 'sin dirección'}\nExacta (solo tu perfil): ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}\nPara reportes: ${roundForReport(coords).lat}, ${roundForReport(coords).lng}`,
-      [{ text: 'OK', onPress: () => router.back() }],
+    if (!myProfile) {
+      Alert.alert(
+        'Primero registra tu oficio',
+        'La ubicación se guarda en tu perfil de oficio. Créalo desde Perfil y vuelve aquí.',
+      );
+      return;
+    }
+    upsert.mutate(
+      {
+        category: myProfile.oficio.category,
+        description: myProfile.description,
+        yearsExperience: myProfile.yearsExperience ?? 0,
+        existingId: myProfile.id,
+        location: coords,
+      },
+      {
+        onSuccess: () =>
+          Alert.alert(
+            'Ubicación guardada',
+            `${direccion || 'Punto marcado en el mapa'}\nPara reportes se usa una posición aproximada (${roundForReport(coords).lat}, ${roundForReport(coords).lng}).`,
+            [{ text: 'OK', onPress: () => router.back() }],
+          ),
+        onError: (err) => Alert.alert('No se pudo guardar la ubicación', err.message),
+      },
     );
   };
 
@@ -97,7 +119,11 @@ export default function Ubicacion() {
         Se completa sola al mover el mapa. Puedes editarla.
       </Text>
 
-      <AppButton label="Guardar ubicación" onPress={guardar} />
+      <AppButton
+        label={upsert.isPending ? 'Guardando...' : 'Guardar ubicación'}
+        onPress={guardar}
+        disabled={upsert.isPending}
+      />
     </Screen>
   );
 }
