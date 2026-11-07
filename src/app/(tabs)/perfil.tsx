@@ -20,7 +20,7 @@ export default function Perfil() {
 
       <Card>
         <Text style={[styles.nombre, { color: p.text }]}>Tu nombre</Text>
-        <Text style={{ color: p.muted, fontFamily: fonts.regular, fontSize: 16 }}>Zona: Piura Centro</Text>
+        <Text style={{ color: p.muted, fontFamily: fonts.regular, fontSize: 16 }}>Zona: Castilla</Text>
       </Card>
 
       <Card>

@@ -1,6 +1,6 @@
 import type { CriticalResource, Favor, ProfessionalProfile, SupportService, VulnerabilityReport } from '@/types';
 
-export const ZONE_ID = 'piura-centro';
+export const ZONE_ID = 'castilla';
 
 export const profilesMock: ProfessionalProfile[] = [
   {
@@ -106,4 +106,4 @@ export const resourcesMock: CriticalResource[] = [
   { id: 'c2', kind: 'pedido', resource: 'agua', quantity: 20, notes: 'Litros para familia', status: 'abierto', distanceKm: 0.7 },
 ];
 
-export const zoneMock = { id: ZONE_ID, name: 'Piura Centro', city: 'Piura' };
+export const zoneMock = { id: ZONE_ID, name: 'Castilla', city: 'Piura', centerLat: -5.19, centerLng: -80.63 };
