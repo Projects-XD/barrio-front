@@ -142,8 +142,9 @@ export default function Emergencia() {
       )}
 
       <Modal visible={menuReporte !== null} transparent animationType="fade" onRequestClose={() => setMenuReporte(null)}>
-        <Pressable accessibilityRole="button" style={styles.overlay} onPress={() => setMenuReporte(null)}>
-          <Pressable onPress={() => {}} style={styles.menuCard}>
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuReporte(null)} />
+          <View style={styles.menuCard}>
             <Text style={[styles.nombre, { color: p.text, marginBottom: spacing.xs }]}>Opciones del reporte</Text>
             <Pressable
               accessibilityRole="button"
@@ -158,8 +159,8 @@ export default function Emergencia() {
               <Text style={[styles.menuRowText, { color: p.text }]}>Difundir en WhatsApp del barrio</Text>
             </Pressable>
             <AppButton label="Cancelar" variant="secondary" onPress={() => setMenuReporte(null)} />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </Screen>
   );

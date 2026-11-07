@@ -272,8 +272,9 @@ export default function OficioDetalle() {
 
       {/* Formulario para editar mi oficio sin salir de esta pantalla */}
       <Modal visible={editando} transparent animationType="fade" onRequestClose={() => setEditando(false)}>
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setEditando(false)}>
-          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco, maxHeight: '88%' }]}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setEditando(false)} />
+          <View style={[styles.modalContent, { backgroundColor: colors.blanco, maxHeight: '88%' }]}>
             <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: colors.azul, flex: 1, textAlign: 'left', marginBottom: 0 }]}>
                 {modoNuevo ? 'Agregar otro oficio' : 'Editar mi oficio'}
@@ -344,8 +345,8 @@ export default function OficioDetalle() {
                 />
               </View>
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal de opciones de contacto vecinal */}
@@ -355,8 +356,9 @@ export default function OficioDetalle() {
         animationType="fade"
         onRequestClose={() => setShowContactModal(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setShowContactModal(false)}>
-          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowContactModal(false)} />
+          <View style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>Contactar a {profile.user.fullName}</Text>
             <Text style={[styles.modalSubtitle, { color: p.muted }]}>
               Coordina el servicio de forma directa y transparente con tu vecino.
@@ -375,8 +377,8 @@ export default function OficioDetalle() {
                 onPress={() => setShowContactModal(false)}
               />
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Menú contextual (⋮) de opciones del oficio */}
@@ -386,8 +388,9 @@ export default function OficioDetalle() {
         animationType="fade"
         onRequestClose={() => setMenuOpciones(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setMenuOpciones(false)}>
-          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuOpciones(false)} />
+          <View style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>{oficioLabel[profile.oficio.category]}</Text>
             <Text style={[styles.modalSubtitle, { color: p.muted }]}>
               {esMio ? 'Opciones de tu oficio' : 'Opciones del oficio'}
@@ -439,8 +442,8 @@ export default function OficioDetalle() {
             <View style={{ marginTop: spacing.xs }}>
               <AppButton label="Cancelar" variant="secondary" onPress={() => setMenuOpciones(false)} />
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal para confirmar eliminación de oficio */}
@@ -450,8 +453,9 @@ export default function OficioDetalle() {
         animationType="fade"
         onRequestClose={() => setConfirmandoBaja(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setConfirmandoBaja(false)}>
-          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setConfirmandoBaja(false)} />
+          <View style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>¿Eliminar este oficio?</Text>
             <Text style={[styles.modalSubtitle, { color: p.muted }]}>
               Se quitará {oficioLabel[profile.oficio.category]} de tu perfil y del directorio del barrio.
@@ -476,8 +480,8 @@ export default function OficioDetalle() {
                 onPress={() => setConfirmandoBaja(false)}
               />
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal de éxito tras guardar oficio */}
@@ -490,15 +494,15 @@ export default function OficioDetalle() {
           router.navigate('/(tabs)/perfil');
         }}
       >
-        <Pressable
-          accessibilityRole="button"
-          style={styles.modalOverlay}
-          onPress={() => {
-            setModalExito(false);
-            router.navigate('/(tabs)/perfil');
-          }}
-        >
-          <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => {
+              setModalExito(false);
+              router.navigate('/(tabs)/perfil');
+            }}
+          />
+          <View style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>¡Oficio guardado!</Text>
             <Text style={[styles.modalSubtitle, { color: p.muted }]}>
               Los datos de tu oficio se actualizaron correctamente en el barrio.
@@ -512,8 +516,8 @@ export default function OficioDetalle() {
                 router.navigate('/(tabs)/perfil');
               }}
             />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </Screen>
   );

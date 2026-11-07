@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { listProfiles, upsertProfile } from '@/api/endpoints';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
+import { distanceKm } from '@/utils/location';
 import { FRESH_SLOW_MS } from './shared';
 import { profilesQuery } from './oficios';
 
@@ -112,27 +113,59 @@ export function useSaveMyLocation() {
       if (!userId) throw new Error('Tu sesión no está activa.');
       const cleanAddress = input.address.trim() || (await reverseGeocodeCoords(input));
 
-      // 1. Guardar en Supabase Auth user_metadata (persiste en BD aunque no tenga oficios aún)
+      // 1. Determinar si las nuevas coordenadas corresponden a otra zona de Castilla
+      let newZoneId = zoneId;
+      try {
+        const { data: zonesData } = await supabase.from('zones').select('id, center_lat, center_lng');
+        const conCoords = (zonesData ?? []).filter(
+          (z: { center_lat?: number | null; center_lng?: number | null }) =>
+            z.center_lat != null && z.center_lng != null,
+        );
+        if (conCoords.length > 0) {
+          const closest = conCoords.reduce<{ id: string; km: number } | null>(
+            (mejor, z: { id: string; center_lat: number; center_lng: number }) => {
+              const km = distanceKm(input.lat, input.lng, z.center_lat, z.center_lng);
+              return !mejor || km < mejor.km ? { id: z.id, km } : mejor;
+            },
+            null,
+          );
+          if (closest) {
+            newZoneId = closest.id;
+          }
+        }
+      } catch {
+        // Si no se pueden consultar las zonas, se preserva el zoneId actual
+      }
+
+      // 2. Guardar en Supabase Auth user_metadata (persiste en BD aunque no tenga oficios aún)
       const { error: authErr } = await supabase.auth.updateUser({
         data: {
           location_lat: input.lat,
           location_lng: input.lng,
           location_address: cleanAddress,
+          zone_id: newZoneId,
         },
       });
       if (authErr) throw new Error(authErr.message);
 
-      // 2. Si tiene oficios registrados en su zona, actualizar también sus coordenadas en professional_profiles
-      // La ubicación ya quedó guardada en Auth; los oficios son un extra que no debe bloquear el guardado.
-      if (zoneId) {
+      // 3. Actualizar la tabla public.users para coherencia relacional
+      try {
+        await supabase.from('users').update({ zone_id: newZoneId }).eq('id', userId);
+      } catch {
+        // Continuar si la política RLS restringe el update directo
+      }
+
+      // 4. Si tiene oficios registrados, actualizar también sus coordenadas en professional_profiles
+      const effectiveZoneId = newZoneId || zoneId;
+      if (effectiveZoneId) {
         try {
-          const profiles = await listProfiles({ zoneId });
+          const profiles = await listProfiles({ zoneId: effectiveZoneId });
           const mine = profiles.filter((p) => p.user_id === userId);
           for (const prof of mine) {
             await upsertProfile({
               id: prof.id,
               oficio_id: prof.oficio_id,
-              zone_id: zoneId,
+              zone_id: effectiveZoneId,
               description: prof.description,
               years_experience: prof.years_experience,
               location_lat: input.lat,
@@ -140,16 +173,24 @@ export function useSaveMyLocation() {
             });
           }
         } catch {
-          // Sin oficios visibles (o zona no válida): se conserva la ubicación en Auth.
+          // Sin oficios visibles: se conserva la ubicación en Auth
         }
+      }
+
+      // 5. Actualizar store global si cambió la zona
+      if (newZoneId && newZoneId !== zoneId) {
+        useAppStore.setState({ zoneId: newZoneId });
       }
 
       return { lat: input.lat, lng: input.lng, address: cleanAddress };
     },
     onSuccess: (saved) => {
-      qc.setQueryData(['mySavedLocation', userId, zoneId], saved);
+      const currentZoneId = useAppStore.getState().zoneId;
+      qc.setQueryData(['mySavedLocation', userId, currentZoneId], saved);
       qc.invalidateQueries({ queryKey: ['mySavedLocation'] });
       qc.invalidateQueries({ queryKey: ['profiles'] });
+      qc.invalidateQueries({ queryKey: ['favores'] });
+      qc.invalidateQueries({ queryKey: ['zones'] });
     },
   });
 }

@@ -290,8 +290,9 @@ export default function NuevoFavor() {
       )}
 
       <Modal visible={confirmando} transparent animationType="fade" onRequestClose={() => setConfirmando(false)}>
-        <Pressable accessibilityRole="button" style={styles.overlay} onPress={() => setConfirmando(false)}>
-          <Pressable onPress={() => {}} style={styles.tarjeta}>
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setConfirmando(false)} />
+          <View style={styles.tarjeta}>
             <View style={[styles.modalIcono, { backgroundColor: p.highlight }]}>
               <Ionicons name="paper-plane" size={28} color={p.text} />
             </View>
@@ -311,8 +312,8 @@ export default function NuevoFavor() {
               }}
             />
             <AppButton label="Revisar otra vez" variant="secondary" onPress={() => setConfirmando(false)} />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal y no Alert.alert, que en web (react-native-web) no hace nada. */}

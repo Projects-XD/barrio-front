@@ -19,6 +19,7 @@ import { MapPicker, type MapPickerHandle } from '@/components/MapPicker';
 import { Screen } from '@/components/Screen';
 import { useZones } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
+import { queryClient } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -206,9 +207,15 @@ export default function Register() {
         router.replace('/(tabs)/inicio');
       } else {
         // 2. Registro de nuevo usuario contra Supabase Auth
+        const regLat = ubicacionRegistro?.lat ?? zonaSeleccionada?.center_lat ?? CASTILLA_CENTER.lat;
+        const regLng = ubicacionRegistro?.lng ?? zonaSeleccionada?.center_lng ?? CASTILLA_CENTER.lng;
+        const regAddress =
+          zonaSeleccionada?.name ? `${zonaSeleccionada.name}, Castilla` : 'Castilla, Piura';
+
         logger.info('AUTH_REGISTER', `Iniciando registro para: ${cleanEmail}`, {
           nombre: nombre.trim(),
           zone_id: zonaSeleccionada?.id,
+          location: { lat: regLat, lng: regLng, address: regAddress },
         });
 
         const { data, error } = await supabase.auth.signUp({
@@ -217,7 +224,9 @@ export default function Register() {
           options: {
             data: {
               full_name: nombre.trim(),
-              ...(ubicacionRegistro ? { location_lat: ubicacionRegistro.lat, location_lng: ubicacionRegistro.lng } : {}),
+              location_lat: regLat,
+              location_lng: regLng,
+              location_address: regAddress,
               zone_id: zonaSeleccionada?.id,
             },
           },
@@ -257,6 +266,14 @@ export default function Register() {
             userFullName: nombre.trim(),
             userEmail: cleanEmail,
           });
+
+          // Pre-calentar cache de ubicación guardada con la posición registrada
+          queryClient.setQueryData(['mySavedLocation', data.user.id, zonaSeleccionada?.id ?? ''], {
+            lat: regLat,
+            lng: regLng,
+            address: regAddress,
+          });
+          queryClient.invalidateQueries({ queryKey: ['mySavedLocation'] });
 
           logger.info('AUTH_REGISTER', `Registro completado y sesión establecida para ${cleanEmail}`);
           router.replace('/(tabs)/inicio');

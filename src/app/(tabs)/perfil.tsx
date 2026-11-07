@@ -6,6 +6,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -511,8 +512,9 @@ export default function Perfil() {
         animationType="fade"
         onRequestClose={() => setMenuOficio(null)}
       >
-        <Pressable accessibilityRole="button" style={styles.centerOverlay} onPress={() => setMenuOficio(null)}>
-          <Pressable onPress={() => {}} style={styles.contextSheet}>
+        <View style={styles.centerOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuOficio(null)} />
+          <View style={styles.contextSheet}>
             <View style={styles.contextSheetHeader}>
               <View style={[styles.oficioCatIcon, { backgroundColor: p.highlight }]}>
                 <Ionicons
@@ -571,8 +573,8 @@ export default function Perfil() {
             <View style={{ marginTop: spacing.xs }}>
               <AppButton label="Cancelar" variant="secondary" onPress={() => setMenuOficio(null)} />
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal para registrar o editar oficio */}
@@ -582,8 +584,9 @@ export default function Perfil() {
         animationType="slide"
         onRequestClose={() => setModalVisible(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
-          <Pressable onPress={() => {}} style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalVisible(false)} />
+          <View style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
             <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: p.text, flex: 1, marginBottom: 0 }]}>
                 {editingId ? 'Editar mi oficio' : 'Agregar otro oficio'}
@@ -669,8 +672,8 @@ export default function Perfil() {
                 />
               </View>
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal de confirmación para eliminar oficio */}
@@ -680,8 +683,9 @@ export default function Perfil() {
         animationType="fade"
         onRequestClose={() => setConfirmDeleteOficio(null)}
       >
-        <Pressable accessibilityRole="button" style={styles.centerOverlay} onPress={() => setConfirmDeleteOficio(null)}>
-          <Pressable onPress={() => {}} style={styles.centerDialog}>
+        <View style={styles.centerOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setConfirmDeleteOficio(null)} />
+          <View style={styles.centerDialog}>
             <View style={[styles.dialogIconWrap, { backgroundColor: colors.rojoSuave }]}>
               <Ionicons name="trash-outline" size={28} color={colors.rojo} />
             </View>
@@ -709,8 +713,8 @@ export default function Perfil() {
               disabled={deleteProfile.isPending}
               onPress={() => setConfirmDeleteOficio(null)}
             />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal de éxito al guardar/publicar oficio */}
@@ -720,16 +724,17 @@ export default function Perfil() {
         animationType="fade"
         onRequestClose={() => setExitoOficioMsg(null)}
       >
-        <Pressable accessibilityRole="button" style={styles.centerOverlay} onPress={() => setExitoOficioMsg(null)}>
-          <Pressable onPress={() => {}} style={styles.centerDialog}>
+        <View style={styles.centerOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setExitoOficioMsg(null)} />
+          <View style={styles.centerDialog}>
             <View style={[styles.dialogIconWrap, { backgroundColor: p.highlight }]}>
               <Ionicons name="checkmark-circle" size={32} color={colors.verdeExito} />
             </View>
             <Text style={[styles.dialogTitle, { color: p.text }]}>¡Oficio guardado!</Text>
             <Text style={[styles.dialogBody, { color: p.body }]}>{exitoOficioMsg}</Text>
             <AppButton label="Listo" icon="checkmark" onPress={() => setExitoOficioMsg(null)} />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </Screen>
   );
