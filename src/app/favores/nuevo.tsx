@@ -30,6 +30,8 @@ export default function NuevoFavor() {
         description: null,
       });
 
+      // Navegar de inmediato: en web Alert no ejecuta sus botones, así que no depende de ellos.
+      router.replace('/(tabs)/favores');
       Alert.alert(
         queued ? 'Guardado sin conexión' : '¡Favor publicado!',
         queued
