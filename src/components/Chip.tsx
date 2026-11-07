@@ -13,21 +13,12 @@ export function Chip({ label, selected, onPress }: Props) {
       onPress={onPress}
       style={[
         styles.chip,
-        {
-          borderColor: selected ? p.primary : p.border,
-          backgroundColor: selected ? p.primary : colors.blanco,
-        },
+        selected
+          ? { backgroundColor: p.highlight, borderColor: p.cta }
+          : { backgroundColor: colors.blanco, borderColor: p.border },
       ]}
     >
-      <Text
-        style={[
-          styles.text,
-          {
-            color: selected ? colors.blanco : p.text,
-            fontFamily: selected ? fonts.semiBold : fonts.medium,
-          },
-        ]}
-      >
+      <Text style={[styles.text, { color: p.text, fontFamily: selected ? fonts.bold : fonts.medium }]}>
         {label}
       </Text>
     </Pressable>
@@ -36,7 +27,7 @@ export function Chip({ label, selected, onPress }: Props) {
 
 const styles = StyleSheet.create({
   chip: {
-    minHeight: 40,
+    minHeight: 42,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: radius.pill,

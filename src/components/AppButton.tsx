@@ -1,20 +1,27 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePalette } from '@/hooks/usePalette';
+import type { IconName } from '@/i18n/icons';
 import { colors, fonts, radius, touch } from '@/theme';
 
 type Props = {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'accent' | 'link';
+  // primary y accent son la misma acción principal (naranja); se mantienen ambos por compatibilidad.
+  variant?: 'primary' | 'secondary' | 'accent' | 'link' | 'danger';
   disabled?: boolean;
+  icon?: IconName;
 };
 
-export function AppButton({ label, onPress, variant = 'primary', disabled = false }: Props) {
+export function AppButton({ label, onPress, variant = 'primary', disabled = false, icon }: Props) {
   const p = usePalette();
-  const isPrimary = variant === 'primary';
-  const isAccent = variant === 'accent';
+  const isMain = variant === 'primary' || variant === 'accent';
   const isSecondary = variant === 'secondary';
+  const isDanger = variant === 'danger';
   const isLink = variant === 'link';
+
+  const bg = isMain ? p.cta : isSecondary ? colors.azulSuave : isDanger ? colors.rojo : 'transparent';
+  const fg = isMain ? p.ctaText : isDanger ? colors.blanco : p.primary;
 
   return (
     <Pressable
@@ -25,36 +32,23 @@ export function AppButton({ label, onPress, variant = 'primary', disabled = fals
       disabled={disabled}
       style={({ pressed }) => [
         styles.base,
-        isPrimary && { backgroundColor: p.primary },
-        isAccent && { backgroundColor: p.cta },
-        isSecondary && {
-          backgroundColor: colors.blanco,
-          borderWidth: 1.5,
-          borderColor: p.border,
-        },
+        { backgroundColor: bg },
         isLink && styles.link,
         disabled && styles.disabled,
-        pressed && !disabled && { opacity: 0.85, transform: [{ scale: 0.99 }] },
+        pressed && !disabled && { opacity: 0.88, transform: [{ scale: 0.985 }] },
       ]}
     >
-      <Text
-        style={[
-          styles.label,
-          isPrimary && { color: colors.blanco },
-          isAccent && { color: p.ctaText },
-          isSecondary && { color: p.primary },
-          isLink && [styles.linkLabel, { color: p.primary }],
-        ]}
-      >
-        {label}
-      </Text>
+      <View style={styles.row}>
+        {icon ? <Ionicons name={icon} size={20} color={fg} /> : null}
+        <Text style={[styles.label, { color: fg }, isLink && styles.linkLabel]}>{label}</Text>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: touch.min,
+    minHeight: touch.min + 6,
     borderRadius: radius.md,
     paddingVertical: 14,
     paddingHorizontal: 20,
@@ -62,8 +56,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 10,
   },
-  link: { backgroundColor: 'transparent', minHeight: 40 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  link: { minHeight: 44, paddingVertical: 8 },
   disabled: { opacity: 0.45 },
-  label: { fontSize: 17, fontFamily: fonts.semiBold, letterSpacing: 0.2 },
-  linkLabel: { textDecorationLine: 'underline' },
+  label: { fontSize: 17, fontFamily: fonts.bold, letterSpacing: 0.1 },
+  linkLabel: { fontFamily: fonts.semiBold, textDecorationLine: 'underline' },
 });

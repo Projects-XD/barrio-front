@@ -1,17 +1,21 @@
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fonts } from '@/theme';
+import { colors, fonts, radius } from '@/theme';
 
 type Props = { validatedCount: number; threshold?: number };
 
+// Verde con escudo = validado por vecinos. Gris = aún le faltan vistos buenos.
 export function ValidationBadge({ validatedCount, threshold = 2 }: Props) {
-  const isValidated = validatedCount >= threshold;
-
+  const ok = validatedCount >= threshold;
   return (
-    <View style={[styles.badge, isValidated ? styles.validado : styles.pendiente]}>
-      <Text style={[styles.badgeText, isValidated ? styles.validadoText : styles.pendienteText]}>
-        {isValidated
-          ? `${validatedCount} avales vecinales`
-          : `${validatedCount} de ${threshold} avales`}
+    <View style={[styles.badge, { backgroundColor: ok ? colors.verdeExitoSuave : colors.naranjaClaro }]}>
+      <Ionicons
+        name={ok ? 'shield-checkmark' : 'shield-outline'}
+        size={15}
+        color={ok ? colors.verdeExito : colors.gris}
+      />
+      <Text style={[styles.text, { color: ok ? colors.verdeExito : colors.gris }]}>
+        {ok ? `Validado por ${validatedCount} vecinos` : `${validatedCount} de ${threshold} vistos buenos`}
       </Text>
     </View>
   );
@@ -19,29 +23,13 @@ export function ValidationBadge({ validatedCount, threshold = 2 }: Props) {
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: 9,
-    paddingVertical: 3.5,
-    borderRadius: 6,
-    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
     alignSelf: 'flex-start',
   },
-  validado: {
-    backgroundColor: '#EEF5FD',
-    borderColor: '#D0E3F8',
-  },
-  pendiente: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
-  },
-  badgeText: {
-    fontSize: 12,
-  },
-  validadoText: {
-    color: colors.azul,
-    fontFamily: fonts.semiBold,
-  },
-  pendienteText: {
-    color: '#64748B',
-    fontFamily: fonts.medium,
-  },
+  text: { fontSize: 14, fontFamily: fonts.semiBold },
 });

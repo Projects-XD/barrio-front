@@ -108,6 +108,7 @@ export default function Oficios() {
           ListEmptyComponent={
             <View style={styles.emptyWrapper}>
               <EmptyState
+                icon={isError ? 'cloud-offline-outline' : 'construct-outline'}
                 title={isError ? 'Error al cargar' : 'Sin resultados'}
                 message={
                   isError
@@ -155,17 +156,17 @@ const styles = StyleSheet.create({
   shieldPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F1FC',
+    backgroundColor: colors.verdeExitoSuave,
     borderRadius: radius.pill,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderWidth: 1,
-    borderColor: '#C8DEF8',
+    borderColor: colors.verdeExitoSuave,
   },
   shieldText: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: fonts.semiBold,
-    color: colors.azul,
+    color: colors.verdeExito,
   },
   subtitulo: {
     fontSize: 14,

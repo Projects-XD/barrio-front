@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
 import { useReports, useResources, useServices } from '@/hooks/useData';
+import type { IconName } from '@/i18n/icons';
 import { resourceLabel, serviceLabel } from '@/i18n/labels';
 import { fonts, spacing } from '@/theme';
 
@@ -13,11 +14,19 @@ function llamar(phone: string) {
   Linking.openURL(`tel:${phone}`).catch(() => Alert.alert('No se pudo llamar', `Marca manualmente: ${phone}`));
 }
 
-function Estado({ loading, error, vacio }: { loading: boolean; error: unknown; vacio: { title: string; message: string } }) {
+function Estado({
+  loading,
+  error,
+  vacio,
+}: {
+  loading: boolean;
+  error: unknown;
+  vacio: { title: string; message: string; icon: IconName };
+}) {
   const p = usePalette();
   if (loading) return <ActivityIndicator color={p.primary} style={{ marginVertical: spacing.md }} />;
-  if (error) return <EmptyState title="No se pudo cargar" message={(error as Error).message} />;
-  return <EmptyState title={vacio.title} message={vacio.message} />;
+  if (error) return <EmptyState icon="cloud-offline-outline" title="No se pudo cargar" message={(error as Error).message} />;
+  return <EmptyState icon={vacio.icon} title={vacio.title} message={vacio.message} />;
 }
 
 export default function Emergencia() {
@@ -31,11 +40,16 @@ export default function Emergencia() {
       <View style={styles.cabecera}>
         <Image source={iconEmergencia} style={styles.iconoEmergencia} accessibilityLabel="Modo emergencia de Barrio" />
         <View style={{ flex: 1 }}>
-          <Text style={[styles.seccion, { color: p.text, marginTop: 0 }]}>Apoyo en emergencia</Text>
+          <Text style={[styles.seccion, { color: p.text, marginTop: 0 }]}>Ayuda cerca de ti</Text>
           <Text style={{ color: p.muted, fontFamily: fonts.regular, fontSize: 15 }}>Vecinos y servicios de tu zona.</Text>
         </View>
       </View>
-      <AppButton label="Reportar vecino en riesgo" variant="primary" onPress={() => router.push('/reportar')} />
+      <AppButton
+        label="Reportar vecino en riesgo"
+        variant="danger"
+        icon="alert-circle-outline"
+        onPress={() => router.push('/reportar')}
+      />
 
       <Text style={[styles.seccion, { color: p.text }]}>Servicios de apoyo</Text>
       {servicios.data?.length ? (
@@ -54,7 +68,7 @@ export default function Emergencia() {
         <Estado
           loading={servicios.isLoading}
           error={servicios.error}
-          vacio={{ title: 'Sin servicios', message: 'Aún no hay servicios registrados para tu zona.' }}
+          vacio={{ icon: 'medkit-outline', title: 'Sin servicios', message: 'Aún no hay servicios registrados para tu zona.' }}
         />
       )}
 
@@ -78,7 +92,7 @@ export default function Emergencia() {
         <Estado
           loading={reportes.isLoading}
           error={reportes.error}
-          vacio={{ title: 'Sin reportes', message: 'Nadie ha reportado vecinos en riesgo en tu zona.' }}
+          vacio={{ icon: 'people-outline', title: 'Sin reportes', message: 'Nadie ha reportado vecinos en riesgo en tu zona.' }}
         />
       )}
 
@@ -99,7 +113,7 @@ export default function Emergencia() {
         <Estado
           loading={recursos.isLoading}
           error={recursos.error}
-          vacio={{ title: 'Sin recursos', message: 'Todavía no hay pedidos ni ofertas de recursos.' }}
+          vacio={{ icon: 'water-outline', title: 'Sin recursos', message: 'Todavía no hay pedidos ni ofertas de recursos.' }}
         />
       )}
     </Screen>

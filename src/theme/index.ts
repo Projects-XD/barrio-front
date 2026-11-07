@@ -1,22 +1,30 @@
+// Paleta "Barrio cálido": azul marino y naranja del logo sobre neutros cálidos.
+// Azul marino = marca y títulos. Naranja = la única acción principal. Verde = validado. Rojo = solo emergencia.
 export const colors = {
-  // Paleta oficial 60-30-10:
-  azul: '#132E66',       // 60% Primario (marca, navegación, títulos)
-  naranja: '#EA982B',    // 10% Acción / Acento (CTA principal, botones de acción)
-  grisBorde: '#DFE1E5',  // 30% Neutral / Secundario (bordes, separadores)
-  rojo: '#B8442F',       // Solo en modo emergencia
-  blanco: '#FFFFFF',     // Superficie limpia (tarjetas, modales)
-  fondo: '#F8F9FA',      // Fondo de pantallas
-  carbon: '#132E66',     // Texto de títulos / fuerte
-  texto: '#1E293B',      // Texto de párrafos y lectura
-  gris: '#64748B',       // Texto atenuado / secundario
+  azul: '#132E66',
+  azulMedio: '#2B4A8C',
+  azulSuave: '#EAF0FA',
+  naranja: '#EA982B',
+  naranjaSuave: '#FDEFD9',
+  naranjaClaro: '#FFF7EC',
+  verdeExito: '#2E7D5B',
+  verdeExitoSuave: '#E5F3EC',
+  rojo: '#B8442F',
+  rojoSuave: '#FBEAE6',
+  blanco: '#FFFFFF',
+  fondo: '#FBF7F1',
+  texto: '#2A3550',
+  gris: '#5E6B82',
+  grisBorde: '#EAE3D8',
 
-  // Compatibilidad con ambos módulos:
-  crema: '#DFE1E5',
+  // Claves existentes que usan otras pantallas; apuntan a la paleta nueva.
+  carbon: '#132E66',
+  crema: '#FFF7EC',
   verde: '#132E66',
   ambar: '#EA982B',
-  bordeSuave: '#DFE1E5',
-  verdeSuave: '#E0ECFB',
-  ambarSuave: '#FEF3C7',
+  bordeSuave: '#EAE3D8',
+  verdeSuave: '#FDEFD9',
+  ambarSuave: '#FDEFD9',
 };
 
 export const fonts = {
@@ -28,24 +36,37 @@ export const fonts = {
 };
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };
-export const radius = { sm: 8, md: 12, lg: 16, pill: 999 };
-export const typography = { base: 18, pequeno: 15, subtitulo: 20, titulo: 28 };
+export const radius = { sm: 10, md: 16, lg: 20, xl: 28, pill: 999 };
+export const typography = { base: 16, pequeno: 14, subtitulo: 20, titulo: 28 };
 export const touch = { min: 48 };
+
+// Sombra suave teñida de azul: da profundidad sin verse pesada.
+export const shadow = {
+  shadowColor: '#132E66',
+  shadowOpacity: 0.08,
+  shadowRadius: 14,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 3,
+};
 
 export function getPalette(emergency: boolean) {
   return {
     primary: emergency ? colors.rojo : colors.azul,
     accent: colors.naranja,
-    cta: emergency ? colors.rojo : colors.azul,
-    // Blanco sobre naranja da 2.3:1; azul marino sobre naranja da 5.6:1 (WCAG AA).
-    ctaText: colors.blanco,
+    // Botón de acción: naranja con texto azul marino (5.6:1). En emergencia, rojo con texto blanco (5.4:1).
+    cta: emergency ? colors.rojo : colors.naranja,
+    ctaText: emergency ? colors.blanco : colors.azul,
     background: colors.fondo,
     surface: colors.blanco,
-    text: emergency ? colors.rojo : colors.carbon,
+    text: colors.azul,
     body: colors.texto,
     muted: colors.gris,
     border: colors.grisBorde,
-    badge: colors.verdeSuave,
+    highlight: emergency ? colors.rojoSuave : colors.naranjaSuave,
+    info: colors.azulSuave,
+    badge: colors.azulSuave,
+    success: colors.verdeExito,
+    successSoft: colors.verdeExitoSuave,
     emergency: colors.rojo,
   };
 }

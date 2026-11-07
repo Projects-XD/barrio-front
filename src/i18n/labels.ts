@@ -51,10 +51,10 @@ export const serviceLabel: Record<ServiceType, string> = {
 };
 
 export const favorTypeBackground: Record<FavorType, string> = {
-  herramienta: '#F4F6FA',
-  ayuda_temporal: '#F4F6FA',
-  donacion_materiales: '#F4F6FA',
-  intercambio_habilidades: '#F4F6FA',
-  movilidad_solidaria: '#F4F6FA',
-  otros: '#F4F6FA',
+  herramienta: '#FFF7EC',
+  ayuda_temporal: '#FFF7EC',
+  donacion_materiales: '#FFF7EC',
+  intercambio_habilidades: '#FFF7EC',
+  movilidad_solidaria: '#FFF7EC',
+  otros: '#FFF7EC',
 };

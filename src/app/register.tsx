@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Image,
   Alert,
   Pressable,
   StyleSheet,
@@ -245,6 +246,7 @@ export default function Register() {
     <Screen scroll={true}>
       <View style={styles.container}>
         <View style={styles.header}>
+          <Image source={iconApp} style={styles.marca} accessibilityLabel="Barrio" />
           <Text style={[styles.titulo, { color: p.text }]}>
             {mode === 'login' ? 'Bienvenido a Barrio' : 'Únete a tu Barrio'}
           </Text>
@@ -423,7 +425,10 @@ export default function Register() {
   );
 }
 
+const iconApp = require('../../assets/brand/icon-app.png');
+
 const styles = StyleSheet.create({
+  marca: { width: 64, height: 64, borderRadius: 18, marginBottom: spacing.md },
   container: {
     flex: 1,
     paddingVertical: spacing.sm,

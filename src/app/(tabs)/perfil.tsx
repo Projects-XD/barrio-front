@@ -175,7 +175,7 @@ export default function Perfil() {
       <Card>
         <View style={styles.metricasRow}>
           <View style={styles.metrica}>
-            <Text style={[styles.metricaValor, { color: colors.naranja }]}>
+            <Text style={[styles.metricaValor, { color: colors.verdeExito }]}>
               {myProfile?.validatedCount ?? 0}
             </Text>
             <Text style={styles.metricaLabel}>Vistos buenos</Text>
@@ -331,12 +331,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   oficioNombre: { fontSize: 18, fontFamily: fonts.bold },
-  oficioExp: { fontSize: 13, fontFamily: fonts.medium, marginTop: 2 },
+  oficioExp: { fontSize: 14, fontFamily: fonts.medium, marginTop: 2 },
   oficioDesc: { fontSize: 14, fontFamily: fonts.regular, lineHeight: 20, marginVertical: spacing.xs },
   sinOficioRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   sinOficioIcono: { fontSize: 32 },
   sinOficioTitulo: { fontSize: 16, fontFamily: fonts.semiBold, marginBottom: 2 },
-  sinOficioTexto: { fontSize: 13, fontFamily: fonts.regular, lineHeight: 18 },
+  sinOficioTexto: { fontSize: 14, fontFamily: fonts.regular, lineHeight: 20 },
   metricasRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingVertical: 4 },
   metrica: { alignItems: 'center' },
   metricaValor: { fontSize: 26, fontFamily: fonts.bold, marginBottom: 2 },

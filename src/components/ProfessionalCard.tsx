@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, View } from 'react-native';
 import type { ProfessionalProfile } from '@/types';
 import { oficioLabel } from '@/i18n/labels';
 import { usePalette } from '@/hooks/usePalette';
@@ -9,112 +9,69 @@ import { ValidationBadge } from './ValidationBadge';
 
 type Props = { profile: ProfessionalProfile; onPress: () => void };
 
+function initialsOf(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
 export function ProfessionalCard({ profile, onPress }: Props) {
   const p = usePalette();
 
   return (
     <Card onPress={onPress}>
-      <View style={styles.container}>
-        {/* Cabecera: Nombre y Oficio destacados directamente sin avatar */}
-        <View style={styles.headerRow}>
-          <View style={styles.headerInfo}>
-            <Text style={[styles.name, { color: p.text }]}>{profile.user.fullName}</Text>
-            <Text style={styles.oficio}>{oficioLabel[profile.oficio.category]}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+      <View style={styles.headerRow}>
+        <View style={[styles.avatar, { backgroundColor: colors.azul }]}>
+          <Text style={styles.avatarText}>{initialsOf(profile.user.fullName) || 'V'}</Text>
         </View>
-
-        {/* Descripción del servicio */}
-        {profile.description ? (
-          <Text numberOfLines={2} style={styles.desc}>
-            {profile.description}
+        <View style={styles.headerInfo}>
+          <Text style={[styles.name, { color: p.text }]} numberOfLines={1}>
+            {profile.user.fullName}
           </Text>
-        ) : null}
-
-        {/* Fila inferior: Avales minimalistas a la izquierda, distancia y experiencia con presencia a la derecha */}
-        <View style={styles.footerRow}>
-          <ValidationBadge validatedCount={profile.validatedCount} />
-
-          <View style={styles.metricsRow}>
-            {profile.distanceKm !== undefined ? (
-              <View style={styles.metricBadge}>
-                <Ionicons name="location-outline" size={13} color={colors.azul} />
-                <Text style={styles.metricText}>{profile.distanceKm} km</Text>
-              </View>
-            ) : null}
-
-            {profile.yearsExperience ? (
-              <View style={styles.metricBadge}>
-                <Ionicons name="briefcase-outline" size={13} color={colors.azul} />
-                <Text style={styles.metricText}>{profile.yearsExperience} años exp.</Text>
-              </View>
-            ) : null}
-          </View>
+          <Text style={[styles.oficio, { color: p.muted }]}>{oficioLabel[profile.oficio.category]}</Text>
         </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.gris} />
+      </View>
+
+      {profile.description ? (
+        <Text numberOfLines={2} style={[styles.desc, { color: p.body }]}>
+          {profile.description}
+        </Text>
+      ) : null}
+
+      <View style={styles.footerRow}>
+        <ValidationBadge validatedCount={profile.validatedCount} />
+        {profile.yearsExperience ? (
+          <View style={styles.metric}>
+            <Ionicons name="briefcase-outline" size={15} color={colors.gris} />
+            <Text style={[styles.metricText, { color: p.muted }]}>{profile.yearsExperience} años</Text>
+          </View>
+        ) : null}
       </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: 10,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  headerInfo: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  name: {
-    fontSize: 17.5,
-    fontFamily: fonts.bold,
-    letterSpacing: -0.2,
-  },
-  oficio: {
-    fontSize: 14,
-    fontFamily: fonts.semiBold,
-    color: colors.azul,
-    marginTop: 2,
-  },
-  desc: {
-    fontSize: 13.5,
-    fontFamily: fonts.regular,
-    color: '#475569',
-    lineHeight: 18.5,
-  },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: colors.blanco, fontFamily: fonts.bold, fontSize: 17 },
+  headerInfo: { flex: 1 },
+  name: { fontSize: 18, fontFamily: fonts.bold },
+  oficio: { fontSize: 15, fontFamily: fonts.medium, marginTop: 1 },
+  desc: { fontSize: 15, fontFamily: fonts.regular, lineHeight: 21, marginTop: 12 },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
     flexWrap: 'wrap',
     gap: 8,
+    marginTop: 14,
   },
-  metricsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  metricBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  metricText: {
-    fontSize: 14,
-    fontFamily: fonts.medium,
-    color: '#334155',
-  },
+  metric: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metricText: { fontSize: 14, fontFamily: fonts.medium },
 });

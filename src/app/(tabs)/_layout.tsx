@@ -1,12 +1,22 @@
 import { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { EmergencyFab } from '@/components/EmergencyFab';
 import { useEmergencyState } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
+import type { IconName } from '@/i18n/icons';
 import { useAppStore } from '@/store/app-store';
-import { colors, fonts } from '@/theme';
+import { colors, fonts, radius } from '@/theme';
+
+function TabIcon({ focused, on, off }: { focused: boolean; on: IconName; off: IconName }) {
+  const p = usePalette();
+  return (
+    <View style={[styles.iconPill, focused && { backgroundColor: p.highlight }]}>
+      <Ionicons name={focused ? on : off} size={23} color={focused ? p.text : colors.gris} />
+    </View>
+  );
+}
 
 export default function TabsLayout() {
   const p = usePalette();
@@ -18,75 +28,62 @@ export default function TabsLayout() {
 
   return (
     <View style={{ flex: 1 }}>
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: p.primary,
-        tabBarInactiveTintColor: colors.gris,
-        tabBarStyle: {
-          backgroundColor: colors.blanco,
-          borderTopColor: colors.bordeSuave,
-          height: 68,
-          paddingTop: 6,
-          paddingBottom: 8,
-        },
-        tabBarLabelStyle: { fontFamily: fonts.semiBold, fontSize: 12 },
-      }}
-    >
-      <Tabs.Screen
-        name="inicio"
-        options={{
-          title: 'Inicio',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons
-              name={focused ? 'home' : 'home-outline'}
-              size={24}
-              color={focused ? p.primary : colors.gris}
-            />
-          ),
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: p.text,
+          tabBarInactiveTintColor: colors.gris,
+          tabBarStyle: styles.bar,
+          tabBarLabelStyle: styles.label,
         }}
-      />
-      <Tabs.Screen
-        name="oficios"
-        options={{
-          title: 'Oficios',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons
-              name={focused ? 'construct' : 'construct-outline'}
-              size={24}
-              color={focused ? p.primary : colors.gris}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="favores"
-        options={{
-          title: 'Favores',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons
-              name={focused ? 'gift' : 'gift-outline'}
-              size={24}
-              color={focused ? p.primary : colors.gris}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="perfil"
-        options={{
-          title: 'Perfil',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons
-              name={focused ? 'person' : 'person-outline'}
-              size={24}
-              color={focused ? p.primary : colors.gris}
-            />
-          ),
-        }}
-      />
-    </Tabs>
-    <EmergencyFab />
+      >
+        <Tabs.Screen
+          name="inicio"
+          options={{
+            title: 'Inicio',
+            tabBarIcon: ({ focused }) => <TabIcon focused={focused} on="home" off="home-outline" />,
+          }}
+        />
+        <Tabs.Screen
+          name="oficios"
+          options={{
+            title: 'Oficios',
+            tabBarIcon: ({ focused }) => <TabIcon focused={focused} on="construct" off="construct-outline" />,
+          }}
+        />
+        <Tabs.Screen
+          name="favores"
+          options={{
+            title: 'Favores',
+            tabBarIcon: ({ focused }) => <TabIcon focused={focused} on="heart" off="heart-outline" />,
+          }}
+        />
+        <Tabs.Screen
+          name="perfil"
+          options={{
+            title: 'Perfil',
+            tabBarIcon: ({ focused }) => <TabIcon focused={focused} on="person" off="person-outline" />,
+          }}
+        />
+      </Tabs>
+      <EmergencyFab />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  bar: {
+    backgroundColor: colors.blanco,
+    borderTopWidth: 0,
+    height: 76,
+    paddingTop: 8,
+    paddingBottom: 10,
+    shadowColor: '#132E66',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 12,
+  },
+  label: { fontFamily: fonts.semiBold, fontSize: 13, marginTop: 2 },
+  iconPill: { paddingHorizontal: 16, paddingVertical: 4, borderRadius: radius.pill },
+});

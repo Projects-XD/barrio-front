@@ -141,5 +141,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlignVertical: 'top',
   },
-  hint: { fontFamily: fonts.regular, fontSize: 13, marginTop: 6, marginBottom: spacing.md },
+  hint: { fontFamily: fonts.regular, fontSize: 14, marginTop: 6, marginBottom: spacing.md },
 });
