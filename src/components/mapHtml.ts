@@ -117,7 +117,7 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
       if (window.ReactNativeWebView) {
         window.ReactNativeWebView.postMessage(s);
       } else if (window.parent && window.parent !== window) {
-        window.parent.postMessage(msg, '*');
+        window.parent.postMessage(s, '*');
       }
     }
 
