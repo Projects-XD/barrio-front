@@ -267,6 +267,8 @@ export interface BackendConversation {
   closed_at: string | null;
   last_message_at: string | null;
   created_at: string;
+  // Solo viene en el detalle: indica si quien consulta bloqueó al otro vecino.
+  blocked_by_me?: boolean;
   favor: { id: string; title: string } | null;
   author: BackendChatUser | null;
   responder: BackendChatUser | null;
@@ -299,6 +301,9 @@ export const sendMessage = (conversationId: string, body: string) =>
 
 export const blockConversationUser = (conversationId: string) =>
   api.post<{ blocked_user_id: string }>(`/conversations/${conversationId}/block`);
+
+export const unblockConversationUser = (conversationId: string) =>
+  api.delete<{ unblocked_user_id: string }>(`/conversations/${conversationId}/block`);
 
 export const reportConversationUser = (conversationId: string, reason: ReportReason, details?: string) =>
   api.post<unknown>(`/conversations/${conversationId}/report`, { reason, details: details ?? null });

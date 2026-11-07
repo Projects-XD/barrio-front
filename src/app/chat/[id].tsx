@@ -24,6 +24,7 @@ import {
   useMessages,
   useReportConversationUser,
   useSendMessage,
+  useUnblockConversationUser,
   useUpdateConversation,
 } from '@/hooks/useData';
 import type { BackendMessage, ReportReason } from '@/api/endpoints';
@@ -73,6 +74,7 @@ export default function Chat() {
   const send = useSendMessage(id);
   const update = useUpdateConversation(id);
   const block = useBlockConversationUser(id);
+  const unblock = useUnblockConversationUser(id);
   const report = useReportConversationUser(id);
 
   const [text, setText] = useState('');
@@ -91,6 +93,8 @@ export default function Chat() {
   const otherName = other?.full_name ?? 'Vecino';
   const muted = conv ? (iAmAuthor ? conv.author_muted : conv.responder_muted) : false;
   const closed = Boolean(conv?.closed_at);
+  // Solo quien bloqueó ve la opción de desbloquear; el bloqueado no se entera.
+  const blockedByMe = Boolean(conv?.blocked_by_me);
   const canWrite = isOnline && !closed;
 
   const closePanel = () => {
@@ -175,7 +179,11 @@ export default function Chat() {
           Sin conexión: el chat no está disponible hasta que vuelvas a tener internet.
         </Text>
       ) : null}
-      {closed ? (
+      {blockedByMe ? (
+        <Text style={[styles.banner, { backgroundColor: colors.rojoSuave, color: colors.texto }]}>
+          Bloqueaste a {otherName}. Puedes desbloquearlo desde el menú de opciones.
+        </Text>
+      ) : closed ? (
         <Text style={[styles.banner, { backgroundColor: colors.grisBorde, color: colors.texto }]}>
           Esta conversación está cerrada.
         </Text>
@@ -269,12 +277,22 @@ export default function Chat() {
                     setPanel('reportar');
                   }}
                 />
-                <AppButton
-                  label={`Bloquear a ${otherName}`}
-                  variant="danger"
-                  icon="ban-outline"
-                  onPress={() => setPanel('bloquear')}
-                />
+                {blockedByMe ? (
+                  <AppButton
+                    label={unblock.isPending ? 'Desbloqueando...' : `Desbloquear a ${otherName}`}
+                    variant="secondary"
+                    icon="lock-open-outline"
+                    onPress={() => run(() => unblock.mutateAsync())}
+                    disabled={unblock.isPending}
+                  />
+                ) : (
+                  <AppButton
+                    label={`Bloquear a ${otherName}`}
+                    variant="danger"
+                    icon="ban-outline"
+                    onPress={() => setPanel('bloquear')}
+                  />
+                )}
                 {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
                 <AppButton label="Cancelar" variant="link" onPress={closePanel} />
               </>

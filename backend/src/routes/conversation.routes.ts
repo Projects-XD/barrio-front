@@ -212,6 +212,34 @@ router.post(
 
 /**
  * @openapi
+ * /conversations/{id}/block:
+ *   delete:
+ *     summary: Desbloquear al otro vecino
+ *     description: Solo quita el bloqueo que pusiste tú y reabre las conversaciones entre ambos.
+ *     tags:
+ *       - Chat
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Vecino desbloqueado
+ */
+router.delete(
+  '/:id/block',
+  requireAuth,
+  validate(uuidParamSchema, 'params'),
+  (req, res, next) => conversationController.unblock(req, res, next)
+);
+
+/**
+ * @openapi
  * /conversations/{id}/report:
  *   post:
  *     summary: Reportar al otro vecino para moderación

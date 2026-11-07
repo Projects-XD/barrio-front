@@ -17,6 +17,8 @@ export type ConversationView = Tables<'conversations'> & {
   favor: { id: string; title: string } | null;
   author: UserLite | null;
   responder: UserLite | null;
+  // Solo lo calcula getConversation: indica si quien consulta bloqueó al otro vecino.
+  blocked_by_me?: boolean;
 };
 
 const CONVERSATION_SELECT =
@@ -96,7 +98,19 @@ export class ConversationService {
     if (error || !data) {
       throw new AppError('Conversación no encontrada', 404);
     }
-    return data as unknown as ConversationView;
+
+    const { data: block, error: blockError } = await supabase
+      .from('user_blocks')
+      .select('id')
+      .eq('blocker_id', userId)
+      .eq('blocked_id', this.otherUserId(data, userId))
+      .maybeSingle();
+
+    if (blockError) {
+      throw new AppError(`Error al validar bloqueos: ${blockError.message}`, 400);
+    }
+
+    return { ...(data as unknown as ConversationView), blocked_by_me: Boolean(block) };
   }
 
   /**
@@ -318,6 +332,45 @@ export class ConversationService {
     }
 
     return { blocked_user_id: otherId };
+  }
+
+  /**
+   * Quita el bloqueo que el propio usuario puso al otro vecino y reabre las conversaciones entre ambos.
+   * Solo desbloquea quien bloqueó: borra únicamente el bloqueo propio. Es idempotente.
+   */
+  public async unblockOtherUser(
+    supabase: Client,
+    userId: string,
+    conversationId: string
+  ): Promise<{ unblocked_user_id: string }> {
+    const conversation = await this.getAsParticipant(supabase, userId, conversationId);
+    const otherId = this.otherUserId(conversation, userId);
+
+    const { error } = await supabase
+      .from('user_blocks')
+      .delete()
+      .eq('blocker_id', userId)
+      .eq('blocked_id', otherId);
+
+    if (error) {
+      throw new AppError(`Error al desbloquear al vecino: ${error.message}`, 400);
+    }
+
+    // Si el otro vecino también te había bloqueado, las conversaciones siguen impedidas por su bloqueo
+    // (sendMessage lo valida), aunque aquí se reabran.
+    const { error: reopenError } = await supabase
+      .from('conversations')
+      .update({ closed_at: null })
+      .not('closed_at', 'is', null)
+      .or(
+        `and(author_id.eq.${userId},responder_id.eq.${otherId}),and(author_id.eq.${otherId},responder_id.eq.${userId})`
+      );
+
+    if (reopenError) {
+      throw new AppError(`Error al reabrir las conversaciones: ${reopenError.message}`, 400);
+    }
+
+    return { unblocked_user_id: otherId };
   }
 
   /**
