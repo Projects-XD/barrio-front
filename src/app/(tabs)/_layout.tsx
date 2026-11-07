@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { EmergencyFab } from '@/components/EmergencyFab';
-import { useEmergencyState } from '@/hooks/useData';
+import { useEmergencyState, useUnreadNotificationCount } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import type { IconName } from '@/i18n/icons';
 import { useAppStore } from '@/store/app-store';
@@ -21,6 +21,7 @@ function TabIcon({ focused, on, off }: { focused: boolean; on: IconName; off: Ic
 export default function TabsLayout() {
   const p = usePalette();
   const { data: emergency } = useEmergencyState();
+  const { data: unread } = useUnreadNotificationCount();
 
   useEffect(() => {
     if (emergency) useAppStore.getState().setServerEmergency(emergency.status === 'activa');
@@ -59,6 +60,17 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="avisos"
+          options={{
+            title: 'Avisos',
+            tabBarBadge: unread && unread > 0 ? (unread > 9 ? '9+' : unread) : undefined,
+            tabBarBadgeStyle: styles.badge,
+            tabBarIcon: ({ focused }) => (
+              <TabIcon focused={focused} on="notifications" off="notifications-outline" />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="perfil"
           options={{
             title: 'Perfil',
@@ -85,5 +97,6 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   label: { fontFamily: fonts.semiBold, fontSize: 13, marginTop: 2 },
+  badge: { backgroundColor: colors.naranja, color: colors.azul, fontFamily: fonts.bold, fontSize: 11 },
   iconPill: { paddingHorizontal: 16, paddingVertical: 4, borderRadius: radius.pill },
 });

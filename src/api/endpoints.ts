@@ -9,8 +9,10 @@ import type {
   ServiceType,
 } from '@/types';
 
+// =====================================================================
 // ============================================================================
 // TIPOS DE RESPUESTA DEL BACKEND (claves snake_case de Postgres)
+// =====================================================================
 // ============================================================================
 
 export interface BackendZone {
@@ -117,14 +119,18 @@ export interface BackendResource {
   user?: { id: string; full_name: string } | null;
 }
 
+// =====================================================================
 // ============================================================================
 // ZONAS (pública, la usa el registro)
+// =====================================================================
 // ============================================================================
 
 export const listZones = () => api.get<BackendZone[]>('/zones');
 
+// =====================================================================
 // ============================================================================
 // OFICIOS Y PERFILES
+// =====================================================================
 // ============================================================================
 
 export const listOficios = () => api.get<BackendOficio[]>('/profiles/oficios');
@@ -158,8 +164,10 @@ export interface UpsertProfilePayload {
 export const upsertProfile = (payload: UpsertProfilePayload) =>
   api.post<BackendProfile>('/profiles', payload);
 
+// =====================================================================
 // ============================================================================
 // FAVORES
+// =====================================================================
 // ============================================================================
 
 export const listFavors = (params: {
@@ -202,11 +210,102 @@ export const updateFavor = (id: string, payload: UpdateFavorPayload) =>
 
 export const deleteFavor = (id: string) => api.delete<BackendFavor>(`/favors/${id}`);
 
+// El backend abre la conversación con el autor al responder y devuelve su id.
 export const expressInterest = (favorId: string, message?: string) =>
-  api.post<unknown>(`/favors/${favorId}/interest`, { message: message ?? null });
+  api.post<{ conversation_id: string }>(`/favors/${favorId}/interest`, { message: message ?? null });
+
+// =====================================================================
+// ============================================================================
+// NOTIFICACIONES
+// =====================================================================
+// ============================================================================
+
+export type BackendNotificationType =
+  | 'visto_bueno_recibido'
+  | 'interes_en_favor'
+  | 'reporte_actualizado'
+  | 'emergencia_activada'
+  | 'sistema'
+  | 'nuevo_mensaje';
+
+export interface BackendNotification {
+  id: string;
+  user_id: string;
+  type: BackendNotificationType;
+  // Depende del tipo: interes_en_favor trae favor_id, favor_title, conversation_id, responder_name.
+  payload: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+}
+
+export const listNotifications = (limit = 30, offset = 0) =>
+  api.get<BackendNotification[]>(`/notifications?limit=${limit}&offset=${offset}`);
+
+export const getUnreadNotificationCount = () =>
+  api.get<{ count: number }>('/notifications/unread-count');
+
+export const markNotificationRead = (id: string) =>
+  api.patch<BackendNotification>(`/notifications/${id}/read`);
+
+// ============================================================================
+// CHAT
+// ============================================================================
+
+export interface BackendChatUser {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+}
+
+export interface BackendConversation {
+  id: string;
+  favor_id: string;
+  author_id: string;
+  responder_id: string;
+  author_muted: boolean;
+  responder_muted: boolean;
+  closed_at: string | null;
+  last_message_at: string | null;
+  created_at: string;
+  favor: { id: string; title: string } | null;
+  author: BackendChatUser | null;
+  responder: BackendChatUser | null;
+}
+
+export interface BackendMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+}
+
+export type ReportReason = 'spam' | 'contenido_inapropiado' | 'datos_falsos' | 'acoso' | 'otro';
+
+export const listConversations = (favorId?: string) =>
+  api.get<BackendConversation[]>(`/conversations${favorId ? `?favor_id=${favorId}` : ''}`);
+
+export const getConversation = (id: string) => api.get<BackendConversation>(`/conversations/${id}`);
+
+export const updateConversation = (id: string, changes: { muted?: boolean; closed?: true }) =>
+  api.patch<BackendConversation>(`/conversations/${id}`, changes);
+
+export const listMessages = (conversationId: string) =>
+  api.get<BackendMessage[]>(`/conversations/${conversationId}/messages`);
+
+export const sendMessage = (conversationId: string, body: string) =>
+  api.post<BackendMessage>(`/conversations/${conversationId}/messages`, { body });
+
+export const blockConversationUser = (conversationId: string) =>
+  api.post<{ blocked_user_id: string }>(`/conversations/${conversationId}/block`);
+
+export const reportConversationUser = (conversationId: string, reason: ReportReason, details?: string) =>
+  api.post<unknown>(`/conversations/${conversationId}/report`, { reason, details: details ?? null });
 
 // ============================================================================
 // ADMINISTRACIÓN
+// =====================================================================
 // ============================================================================
 
 // limit y offset explícitos: el handler hace Number(req.query.limit).
@@ -218,8 +317,10 @@ export const approveFavor = (id: string) => api.patch<BackendFavor>(`/admin/favo
 export const rejectFavor = (id: string, reason: string) =>
   api.patch<BackendFavor>(`/admin/favors/${id}/reject`, { reason });
 
+// =====================================================================
 // ============================================================================
 // EMERGENCIA
+// =====================================================================
 // ============================================================================
 
 export const getEmergencyState = (zoneId: string) =>
@@ -246,8 +347,10 @@ export const createReport = (payload: CreateReportPayload) =>
 export const listResources = (zoneId: string) =>
   api.get<BackendResource[]>(`/resources?zoneId=${zoneId}`);
 
+// =====================================================================
 // ============================================================================
 // SINCRONIZACIÓN OFFLINE
+// =====================================================================
 // ============================================================================
 
 export interface SyncOperation {

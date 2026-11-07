@@ -189,7 +189,7 @@ export class FavorService {
     userId: string,
     favorId: string,
     dto: CreateFavorInterestDTO
-  ): Promise<Tables<'favor_interests'>> {
+  ): Promise<Tables<'favor_interests'> & { conversation_id: string }> {
     // 1. Validar existencia y estado del favor
     const { data: favor, error: favorError } = await supabase
       .from('favors')
@@ -213,16 +213,24 @@ export class FavorService {
       throw new AppError('El autor del favor no puede manifestar interés en su propia publicación', 400);
     }
 
-    // 2. Insertar registro de interés
-    const { data, error } = await supabase
-      .from('favor_interests')
-      .insert({
-        favor_id: favorId,
-        user_id: userId,
-        message: dto.message ?? null,
-      })
-      .select('*, user:users(id, full_name, avatar_url)')
-      .single();
+    // Si el autor bloqueó a este vecino no puede responder; no se revela el bloqueo.
+    const { data: block } = await supabase
+      .from('user_blocks')
+      .select('id')
+      .eq('blocker_id', favor.author_id)
+      .eq('blocked_id', userId)
+      .maybeSingle();
+
+    if (block) {
+      throw new AppError('No puedes responder a este favor', 403);
+    }
+
+    // 2. Registrar interés, abrir la conversación y avisar al autor en una sola transacción
+    const { data: result, error } = await supabase.rpc('fn_respond_to_favor', {
+      p_favor_id: favorId,
+      p_user_id: userId,
+      p_message: dto.message ?? null,
+    });
 
     if (error) {
       if (error.code === '23505') {
@@ -231,7 +239,25 @@ export class FavorService {
       throw new AppError(`Error al registrar interés en el favor: ${error.message}`, 400);
     }
 
-    return data as unknown as Tables<'favor_interests'>;
+    const created = result?.[0];
+    if (!created) {
+      throw new AppError('Error al registrar interés en el favor', 500);
+    }
+
+    const { data, error: fetchError } = await supabase
+      .from('favor_interests')
+      .select('*, user:users(id, full_name, avatar_url)')
+      .eq('id', created.interest_id)
+      .single();
+
+    if (fetchError || !data) {
+      throw new AppError('Error al registrar interés en el favor', 500);
+    }
+
+    return {
+      ...(data as unknown as Tables<'favor_interests'>),
+      conversation_id: created.conversation_id,
+    };
   }
 
   /**

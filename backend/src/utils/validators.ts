@@ -223,6 +223,57 @@ export const listFavorsQuerySchema = z.object({
 });
 export type ListFavorsQueryDTO = z.infer<typeof listFavorsQuerySchema>;
 
+export const uuidParamSchema = z.object({
+  id: z.string().uuid('id debe ser un UUID válido'),
+});
+
+export const listConversationsQuerySchema = z.object({
+  favor_id: z.string().uuid('favor_id debe ser un UUID válido').optional(),
+});
+export type ListConversationsQueryDTO = z.infer<typeof listConversationsQuerySchema>;
+
+// Siempre se devuelven los últimos mensajes en orden cronológico; el chat los consulta cada pocos segundos.
+export const listMessagesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+export type ListMessagesQueryDTO = z.infer<typeof listMessagesQuerySchema>;
+
+export const sendMessageSchema = z.object({
+  body: z
+    .string()
+    .trim()
+    .min(1, 'El mensaje no puede estar vacío')
+    .max(1000, 'El mensaje no puede exceder 1000 caracteres'),
+});
+export type SendMessageDTO = z.infer<typeof sendMessageSchema>;
+
+export const updateConversationSchema = z
+  .object({
+    muted: z.boolean().optional(),
+    closed: z.literal(true).optional(),
+  })
+  .refine((data) => data.muted !== undefined || data.closed !== undefined, {
+    message: 'Indica muted o closed',
+  });
+export type UpdateConversationDTO = z.infer<typeof updateConversationSchema>;
+
+export const reportConversationUserSchema = z.object({
+  reason: reportReasonSchema,
+  details: z.string().trim().max(500, 'Los detalles no pueden exceder 500 caracteres').nullable().optional(),
+});
+export type ReportConversationUserDTO = z.infer<typeof reportConversationUserSchema>;
+
+export const listNotificationsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+  offset: z.coerce.number().int().min(0).default(0),
+  unread: z.enum(['true', 'false']).optional(),
+});
+export type ListNotificationsQueryDTO = z.infer<typeof listNotificationsQuerySchema>;
+
+export const notificationIdParamSchema = z.object({
+  id: z.string().uuid('id debe ser un UUID válido'),
+});
+
 export const updateFavorSchema = z.object({
   title: z.string().min(3).max(120).optional(),
   description: z.string().nullable().optional(),

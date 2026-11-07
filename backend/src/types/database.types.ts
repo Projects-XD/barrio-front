@@ -60,7 +60,8 @@ export type NotificationType =
   | 'interes_en_favor'
   | 'reporte_actualizado'
   | 'emergencia_activada'
-  | 'sistema';
+  | 'sistema'
+  | 'nuevo_mensaje';
 
 export interface Database {
   public: {
@@ -794,6 +795,148 @@ export interface Database {
         ];
       };
 
+      conversations: {
+        Row: {
+          id: string;
+          favor_id: string;
+          author_id: string;
+          responder_id: string;
+          author_muted: boolean;
+          responder_muted: boolean;
+          closed_at: string | null;
+          last_message_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          favor_id: string;
+          author_id: string;
+          responder_id: string;
+          author_muted?: boolean;
+          responder_muted?: boolean;
+          closed_at?: string | null;
+          last_message_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          favor_id?: string;
+          author_id?: string;
+          responder_id?: string;
+          author_muted?: boolean;
+          responder_muted?: boolean;
+          closed_at?: string | null;
+          last_message_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'conversations_favor_id_fkey';
+            columns: ['favor_id'];
+            isOneToOne: false;
+            referencedRelation: 'favors';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'conversations_author_id_fkey';
+            columns: ['author_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'conversations_responder_id_fkey';
+            columns: ['responder_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+
+      messages: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          sender_id: string;
+          body: string;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          conversation_id: string;
+          sender_id: string;
+          body: string;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          conversation_id?: string;
+          sender_id?: string;
+          body?: string;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'messages_conversation_id_fkey';
+            columns: ['conversation_id'];
+            isOneToOne: false;
+            referencedRelation: 'conversations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'messages_sender_id_fkey';
+            columns: ['sender_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+
+      user_blocks: {
+        Row: {
+          id: string;
+          blocker_id: string;
+          blocked_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          blocker_id: string;
+          blocked_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          blocker_id?: string;
+          blocked_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_blocks_blocker_id_fkey';
+            columns: ['blocker_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_blocks_blocked_id_fkey';
+            columns: ['blocked_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+
       user_reports: {
         Row: {
           id: string;
@@ -994,6 +1137,14 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
+      fn_respond_to_favor: {
+        Args: {
+          p_favor_id: string;
+          p_user_id: string;
+          p_message: string | null;
+        };
+        Returns: { interest_id: string; conversation_id: string }[];
+      };
       fn_is_voucher_not_profile_owner: {
         Args: {
           p_profile_id: string;
