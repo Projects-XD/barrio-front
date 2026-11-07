@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { FavorCard } from '@/components/FavorCard';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
-import { useFavors } from '@/hooks/useData';
+import { useFavorsPage } from '@/hooks/useData';
 import { favorTypeLabel } from '@/i18n/labels';
 import type { FavorType } from '@/types';
 import { fonts, spacing } from '@/theme';
@@ -17,7 +17,14 @@ const tipos = Object.keys(favorTypeLabel) as FavorType[];
 export default function Favores() {
   const p = usePalette();
   const [tipo, setTipo] = useState<FavorType | undefined>(undefined);
-  const { data, isLoading, isError, error, refetch, isRefetching } = useFavors(tipo);
+  const [pagina, setPagina] = useState(0);
+  const { data, isLoading, isError, error, refetch, isRefetching, isPlaceholderData } = useFavorsPage(tipo, pagina);
+  const favores = data?.items ?? [];
+
+  const cambiarTipo = (t: FavorType | undefined) => {
+    setTipo(t);
+    setPagina(0);
+  };
 
   return (
     <Screen scroll={false}>
@@ -27,9 +34,9 @@ export default function Favores() {
       <AppButton label="Publicar un favor" icon="add-circle-outline" onPress={() => router.push('/favores/nuevo')} />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips} contentContainerStyle={{ paddingRight: 8 }}>
-        <Chip label="Todos" selected={!tipo} onPress={() => setTipo(undefined)} />
+        <Chip label="Todos" selected={!tipo} onPress={() => cambiarTipo(undefined)} />
         {tipos.map((t) => (
-          <Chip key={t} label={favorTypeLabel[t]} selected={tipo === t} onPress={() => setTipo(t)} />
+          <Chip key={t} label={favorTypeLabel[t]} selected={tipo === t} onPress={() => cambiarTipo(t)} />
         ))}
       </ScrollView>
 
@@ -39,7 +46,7 @@ export default function Favores() {
         </View>
       ) : (
         <FlatList
-          data={data ?? []}
+          data={favores}
           keyExtractor={(item) => item.id}
           refreshing={isRefetching}
           onRefresh={refetch}
@@ -65,6 +72,31 @@ export default function Favores() {
             </View>
           }
           contentContainerStyle={{ paddingBottom: spacing.lg, paddingTop: spacing.xs }}
+          ListFooterComponent={
+            pagina > 0 || data?.hasNext ? (
+              <View style={styles.paginacion}>
+                <View style={styles.paginaBtn}>
+                  <AppButton
+                    label="Anterior"
+                    variant="secondary"
+                    icon="chevron-back"
+                    disabled={pagina === 0 || isPlaceholderData}
+                    onPress={() => setPagina((n) => Math.max(0, n - 1))}
+                  />
+                </View>
+                <Text style={[styles.paginaNum, { color: p.muted }]}>Página {pagina + 1}</Text>
+                <View style={styles.paginaBtn}>
+                  <AppButton
+                    label="Siguiente"
+                    variant="secondary"
+                    icon="chevron-forward"
+                    disabled={!data?.hasNext || isPlaceholderData}
+                    onPress={() => setPagina((n) => n + 1)}
+                  />
+                </View>
+              </View>
+            ) : undefined
+          }
         />
       )}
     </Screen>
@@ -74,6 +106,9 @@ export default function Favores() {
 const styles = StyleSheet.create({
   titulo: { fontSize: 28, fontFamily: fonts.bold, marginTop: spacing.xs },
   sub: { fontSize: 16, fontFamily: fonts.regular, marginTop: 4, marginBottom: spacing.md },
-  chips: { flexGrow: 0, marginBottom: spacing.sm },
+  chips: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.sm },
+  paginacion: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
+  paginaBtn: { flex: 1 },
+  paginaNum: { fontSize: 14, fontFamily: fonts.medium },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: spacing.xl },
 });

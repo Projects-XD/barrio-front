@@ -13,13 +13,16 @@ export class FavorController {
     try {
       const zoneId = (req.query.zone_id || req.query.zoneId) as string;
       const type = req.query.type as FavorType | undefined;
+      // validate() ya convirtió limit y offset a número (o los dejó sin definir).
+      const limit = req.query.limit as number | undefined;
+      const offset = req.query.offset as number | undefined;
 
       if (!zoneId) {
         throw new AppError('El parámetro zone_id es requerido', 400);
       }
 
       const supabase = getSupabaseClient(req);
-      const favors = await favorService.listActiveFavors(supabase, { zoneId, type });
+      const favors = await favorService.listActiveFavors(supabase, { zoneId, type, limit, offset });
 
       res.json({
         success: true,

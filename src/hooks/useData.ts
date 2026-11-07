@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/api/client';
 import {
   createFavor,
@@ -293,6 +293,51 @@ export function useFavors(type?: FavorType) {
       const sentIds = new Set(remote.map((f) => f.client_id));
       const stillPending = pending.filter((f) => !sentIds.has(f.id));
       return [...stillPending, ...remote.map((bf) => mapBackendFavorToFrontend(bf, userId))];
+    },
+  });
+}
+
+export const FAVORS_PAGE_SIZE = 8;
+
+// Una página de favores (0-based). Se pide uno de más para saber si existe la página siguiente.
+// Los favores pendientes de envío (offline) solo aparecen en la primera página.
+export function useFavorsPage(type: FavorType | undefined, page: number) {
+  const zoneId = useAppStore((s) => s.zoneId);
+  const userId = useAppStore((s) => s.userId);
+  const userName = useAppStore((s) => s.userFullName);
+
+  return useQuery({
+    queryKey: ['favors', zoneId, type ?? 'todos', 'page', page],
+    enabled: Boolean(zoneId),
+    placeholderData: keepPreviousData,
+    queryFn: async (): Promise<{ items: Favor[]; hasNext: boolean }> => {
+      const pending =
+        page === 0
+          ? (await listPending('create_favor'))
+              .filter((item) => !type || item.payload.type === type)
+              .map((item) => mapPendingFavor(item, userId, userName))
+          : [];
+
+      let remote: BackendFavor[] = [];
+      try {
+        remote = await listFavors({
+          zoneId: zoneId!,
+          type,
+          limit: FAVORS_PAGE_SIZE + 1,
+          offset: page * FAVORS_PAGE_SIZE,
+        });
+      } catch (error) {
+        if (!isNetworkError(error) || pending.length === 0) throw error;
+      }
+
+      const hasNext = remote.length > FAVORS_PAGE_SIZE;
+      const pageRemote = remote.slice(0, FAVORS_PAGE_SIZE);
+      const sentIds = new Set(pageRemote.map((f) => f.client_id));
+      const stillPending = pending.filter((f) => !sentIds.has(f.id));
+      return {
+        items: [...stillPending, ...pageRemote.map((bf) => mapBackendFavorToFrontend(bf, userId))],
+        hasNext,
+      };
     },
   });
 }
