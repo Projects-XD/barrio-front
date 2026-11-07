@@ -64,7 +64,6 @@ export default function OficioDetalle() {
     );
   }
 
-  // Los perfiles aún no guardan teléfono: se abre WhatsApp con el mensaje listo para elegir el contacto.
   const handleWhatsApp = () => {
     setShowContactModal(false);
     const msg = encodeURIComponent(
@@ -99,7 +98,7 @@ export default function OficioDetalle() {
           <Text style={styles.oficio}>{oficioLabel[profile.oficio.category]}</Text>
         </View>
 
-        {/* Barra de métricas tipográfica (sin iconos genéricos) */}
+        {/* Barra de métricas tipográfica */}
         <View style={styles.statsBar}>
           {stats.map((st, idx) => (
             <View key={st.label} style={styles.statColWrapper}>
@@ -118,7 +117,7 @@ export default function OficioDetalle() {
         <Text style={[styles.descripcion, { color: colors.texto }]}>{profile.description}</Text>
       </Card>
 
-      {/* Nota comunitaria sutil y humana (sin cajas ni escudos genéricos) */}
+      {/* Nota comunitaria sutil y humana */}
       <View style={styles.notaComunitaria}>
         <Text style={styles.notaTexto}>
           {profile.validatedCount >= 2
@@ -127,22 +126,27 @@ export default function OficioDetalle() {
         </Text>
       </View>
 
-      {/* Botones de acción con jerarquía y colores diferenciados */}
+      {/* Botones de acción con lógica para el propio técnico */}
       <View style={styles.actionButtons}>
-        <AppButton
-          label="Contactar técnico"
-          variant="accent"
-          onPress={() => setShowContactModal(true)}
-        />
+        {!esMio ? (
+          <AppButton
+            label="Contactar técnico"
+            variant="accent"
+            onPress={() => setShowContactModal(true)}
+          />
+        ) : null}
+
         <AppButton
           label={
-            esMio || profile.hasVouchedByMe
-              ? (esMio ? 'Es tu oficio' : 'Visto bueno registrado')
-              : vouch.isPending
-                ? 'Registrando visto bueno...'
-                : 'Dar visto bueno'
+            esMio
+              ? 'Es tu perfil profesional'
+              : profile.hasVouchedByMe
+                ? 'Visto bueno registrado'
+                : vouch.isPending
+                  ? 'Registrando visto bueno...'
+                  : 'Dar visto bueno'
           }
-          variant="secondary"
+          variant={esMio ? 'secondary' : 'secondary'}
           onPress={handleVouch}
           disabled={esMio || profile.hasVouchedByMe || vouch.isPending}
         />
@@ -158,19 +162,20 @@ export default function OficioDetalle() {
         <Pressable style={styles.modalOverlay} onPress={() => setShowContactModal(false)}>
           <Pressable onPress={() => {}} style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
             <Text style={[styles.modalTitle, { color: p.text }]}>Contactar a {profile.user.fullName}</Text>
-            <Text style={[styles.modalSub, { color: p.muted }]}>
-              Abre WhatsApp con un mensaje listo y elige el contacto de tu vecino.
+            <Text style={[styles.modalSubtitle, { color: p.muted }]}>
+              Coordina el servicio de forma directa y transparente con tu vecino.
             </Text>
 
-            <View style={styles.modalButtons}>
+            <View style={styles.modalButtonsStack}>
               <AppButton
-                label="Enviar mensaje por WhatsApp"
+                label="Escribir por WhatsApp"
                 variant="accent"
+                icon="logo-whatsapp"
                 onPress={handleWhatsApp}
               />
               <AppButton
-                label="Cancelar"
-                variant="link"
+                label="Cerrar"
+                variant="secondary"
                 onPress={() => setShowContactModal(false)}
               />
             </View>
@@ -182,32 +187,32 @@ export default function OficioDetalle() {
 }
 
 const styles = StyleSheet.create({
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: spacing.xl },
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerInfo: {
-    marginBottom: spacing.xs,
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
   nombre: {
     fontSize: 22,
     fontFamily: fonts.bold,
-    letterSpacing: -0.3,
+    textAlign: 'center',
+    marginBottom: 4,
   },
   oficio: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: fonts.semiBold,
-    color: colors.azul,
-    marginTop: 2,
+    color: colors.naranja,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   statsBar: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.naranjaClaro,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
+    marginVertical: spacing.xs,
   },
   statColWrapper: {
     flex: 1,
@@ -216,95 +221,83 @@ const styles = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    height: 26,
-    backgroundColor: '#E2E8F0',
+    height: 24,
+    backgroundColor: 'rgba(19, 46, 102, 0.1)',
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: fonts.bold,
     color: colors.azul,
-    marginBottom: 2,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    color: '#64748B',
+    color: colors.gris,
+    marginTop: 2,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.grisBorde,
     marginVertical: spacing.md,
   },
   seccionTitulo: {
-    fontSize: 14.5,
-    fontFamily: fonts.semiBold,
-    marginBottom: 6,
+    fontSize: 15,
+    fontFamily: fonts.bold,
+    marginBottom: spacing.xs,
   },
   descripcion: {
-    fontSize: 14.5,
+    fontSize: 15,
     fontFamily: fonts.regular,
     lineHeight: 22,
-    color: '#334155',
   },
   notaComunitaria: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: radius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginTop: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
   },
   notaTexto: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fonts.regular,
-    color: '#64748B',
+    color: colors.gris,
     lineHeight: 18,
     textAlign: 'center',
   },
   actionButtons: {
-    marginTop: spacing.md,
-    gap: 10,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(19, 46, 102, 0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.md,
+    padding: spacing.lg,
   },
   modalContent: {
     width: '100%',
-    maxWidth: 360,
     borderRadius: radius.lg,
     padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.grisBorde,
-    shadowColor: '#132E66',
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    maxWidth: 400,
   },
   modalTitle: {
-    fontSize: 19,
+    fontSize: 18,
     fontFamily: fonts.bold,
-    marginBottom: 6,
+    marginBottom: 4,
     textAlign: 'center',
   },
-  modalSub: {
+  modalSubtitle: {
     fontSize: 14,
     fontFamily: fonts.regular,
+    marginBottom: spacing.lg,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: spacing.md,
   },
-  modalButtons: {
-    marginTop: spacing.xs,
+  modalButtonsStack: {
+    gap: spacing.sm,
   },
 });
