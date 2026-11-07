@@ -10,8 +10,8 @@ export const colors = {
   texto: '#1E293B',      // Texto de párrafos y lectura
   gris: '#64748B',       // Texto atenuado / secundario
 
-  // Compatibilidad con archivos existentes:
-  crema: '#F8F9FA',
+  // Compatibilidad con ambos módulos:
+  crema: '#DFE1E5',
   verde: '#132E66',
   ambar: '#EA982B',
   bordeSuave: '#DFE1E5',
@@ -23,18 +23,21 @@ export const fonts = {
   regular: 'InstrumentSans_400Regular',
   medium: 'InstrumentSans_500Medium',
   semiBold: 'InstrumentSans_600SemiBold',
+  semibold: 'InstrumentSans_600SemiBold',
   bold: 'InstrumentSans_700Bold',
 };
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };
 export const radius = { sm: 8, md: 12, lg: 16, pill: 999 };
-export const typography = { base: 17, pequeno: 15, subtitulo: 20, titulo: 28 };
+export const typography = { base: 18, pequeno: 15, subtitulo: 20, titulo: 28 };
 export const touch = { min: 48 };
 
 export function getPalette(emergency: boolean) {
   return {
     primary: emergency ? colors.rojo : colors.azul,
     accent: colors.naranja,
+    cta: emergency ? colors.rojo : colors.naranja,
+    ctaText: colors.blanco,
     background: colors.fondo,
     surface: colors.blanco,
     text: emergency ? colors.rojo : colors.carbon,

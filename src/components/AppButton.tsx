@@ -25,8 +25,8 @@ export function AppButton({ label, onPress, variant = 'primary', disabled = fals
       disabled={disabled}
       style={({ pressed }) => [
         styles.base,
-        isPrimary && { backgroundColor: p.primary },
-        isAccent && { backgroundColor: p.accent },
+        isPrimary && { backgroundColor: p.cta ?? p.primary },
+        isAccent && { backgroundColor: p.accent ?? p.cta },
         isSecondary && {
           backgroundColor: colors.blanco,
           borderWidth: 1.5,
@@ -40,7 +40,8 @@ export function AppButton({ label, onPress, variant = 'primary', disabled = fals
       <Text
         style={[
           styles.label,
-          (isPrimary || isAccent) && { color: colors.blanco },
+          isPrimary && { color: p.ctaText ?? colors.blanco },
+          isAccent && { color: colors.blanco },
           isSecondary && { color: p.primary },
           isLink && [styles.linkLabel, { color: p.primary }],
         ]}

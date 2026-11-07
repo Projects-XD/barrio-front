@@ -87,7 +87,7 @@ export default function Perfil() {
           </View>
           <View style={styles.usuarioInfo}>
             <Text style={[styles.nombre, { color: p.text }]}>Alexander García</Text>
-            <Text style={[styles.zona, { color: p.muted }]}>Zona: Centro · Miembro activo</Text>
+            <Text style={[styles.zona, { color: p.muted }]}>Zona: Castilla · Miembro activo</Text>
           </View>
         </View>
       </Card>

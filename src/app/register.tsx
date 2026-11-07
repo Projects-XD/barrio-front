@@ -9,7 +9,24 @@ import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
 import { ZONE_ID } from '@/data/mock';
 
-const zonas = ['Centro', 'Los Álamos', 'La Plaza', 'Villa Norte', 'San Isidro'];
+const zonas = [
+  'Castilla',
+  'La Obrilla',
+  'San Rafael',
+  'San Vicente',
+  'El Papayo',
+  'Terela',
+  'Chapayra',
+  'Río Seco',
+  'Miraflores',
+  'Las Mercedes',
+  'Loma El Mirador',
+  'Cruz de Caña',
+  'Virgen de Fátima',
+  'Sector Chocán',
+  'Mi Cautivo',
+  'Los Pulache',
+];
 
 export default function Register() {
   const p = usePalette();
@@ -25,7 +42,7 @@ export default function Register() {
   };
 
   return (
-    <Screen scroll={false}>
+    <Screen scroll={true}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={[styles.titulo, { color: p.text }]}>Únete a tu Barrio</Text>
@@ -47,7 +64,7 @@ export default function Register() {
             ]}
           />
 
-          <Text style={[styles.label, { color: p.text }]}>Tu zona o barrio</Text>
+          <Text style={[styles.label, { color: p.text }]}>Centro poblado o zona</Text>
           <View style={styles.chips}>
             {zonas.map((z) => (
               <Chip key={z} label={z} selected={zona === z} onPress={() => setZona(z)} />

@@ -1,13 +1,18 @@
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 import { usePalette } from '@/hooks/usePalette';
-import { spacing } from '@/theme';
+import { fonts, spacing } from '@/theme';
+import type { IconName } from '@/i18n/icons';
 
-type Props = { title: string; message: string };
+type Props = { title: string; message: string; icon?: IconName };
 
-export function EmptyState({ title, message }: Props) {
+export function EmptyState({ title, message, icon = 'leaf-outline' }: Props) {
   const p = usePalette();
   return (
     <View style={styles.wrap}>
+      <View style={[styles.circle, { backgroundColor: p.border }]}>
+        <Ionicons name={icon} size={36} color={p.primary} />
+      </View>
       <Text style={[styles.title, { color: p.text }]}>{title}</Text>
       <Text style={[styles.message, { color: p.muted }]}>{message}</Text>
     </View>
@@ -16,6 +21,7 @@ export function EmptyState({ title, message }: Props) {
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', padding: spacing.xl },
-  title: { fontSize: 18, fontWeight: '700', marginBottom: 6, textAlign: 'center' },
-  message: { fontSize: 16, textAlign: 'center' },
+  circle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
+  title: { fontFamily: fonts.bold, fontSize: 18, marginBottom: 6, textAlign: 'center' },
+  message: { fontFamily: fonts.regular, fontSize: 16, textAlign: 'center' },
 });

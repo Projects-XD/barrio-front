@@ -1,6 +1,6 @@
 import type { CriticalResource, Favor, ProfessionalProfile, SupportService, VulnerabilityReport } from '@/types';
 
-export const ZONE_ID = 'zona-centro';
+export const ZONE_ID = 'castilla';
 
 export const profilesMock: ProfessionalProfile[] = [
   {
@@ -91,9 +91,9 @@ export const favorsMock: Favor[] = [
 ];
 
 export const servicesMock: SupportService[] = [
-  { id: 's1', name: 'Centro de salud Los Álamos', type: 'salud', phone: '000000000', addressSummary: 'Av. Principal, frente a la plaza', distanceKm: 0.9, hours: '08:00 a 20:00', isVerified: true },
-  { id: 's2', name: 'Bomberos, estación Centro', type: 'bomberos', phone: '000000001', addressSummary: 'Calle del Mercado', distanceKm: 1.4, hours: '24 horas', isVerified: true },
-  { id: 's3', name: 'Grupo de apoyo vecinal Plaza', type: 'grupo_apoyo', phone: '000000002', addressSummary: 'Sede junta de vecinos', distanceKm: 0.5, hours: null, isVerified: false },
+  { id: 's1', name: 'Centro de salud Piura (ejemplo)', type: 'salud', phone: '106', addressSummary: 'Referencia: zona céntrica de Piura', distanceKm: 0.9, hours: '08:00 a 20:00', isVerified: true },
+  { id: 's2', name: 'Bomberos Piura (ejemplo)', type: 'bomberos', phone: '116', addressSummary: 'Referencia: zona céntrica de Piura', distanceKm: 1.4, hours: '24 horas', isVerified: true },
+  { id: 's3', name: 'Comisaría de Piura (ejemplo)', type: 'policia', phone: '105', addressSummary: 'Referencia: Castilla', distanceKm: 0.5, hours: null, isVerified: false },
 ];
 
 export const reportsMock: VulnerabilityReport[] = [
@@ -106,4 +106,4 @@ export const resourcesMock: CriticalResource[] = [
   { id: 'c2', kind: 'pedido', resource: 'agua', quantity: 20, notes: 'Litros para familia', status: 'abierto', distanceKm: 0.7 },
 ];
 
-export const zoneMock = { id: ZONE_ID, name: 'Centro', city: 'Ciudad' };
+export const zoneMock = { id: ZONE_ID, name: 'Castilla', city: 'Piura', centerLat: -5.19, centerLng: -80.63 };

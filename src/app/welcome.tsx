@@ -47,7 +47,6 @@ export default function Welcome() {
   const [index, setIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
-  // Ancho exacto de cada diapositiva respetando los márgenes de Screen (16px a cada lado)
   const slideWidth = Math.max(width - spacing.md * 2, 280);
   const isSmallDevice = height < 700;
   const imageHeight = Math.min(height * 0.22, isSmallDevice ? 140 : 175);
@@ -127,7 +126,6 @@ export default function Welcome() {
           )}
         />
 
-        {/* Indicador de puntos interactivo con transiciones animadas */}
         <View style={styles.dots}>
           {slides.map((_, i) => {
             const active = i === index;

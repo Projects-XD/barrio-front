@@ -1,22 +1,25 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
-  useFonts,
   InstrumentSans_400Regular,
   InstrumentSans_500Medium,
   InstrumentSans_600SemiBold,
   InstrumentSans_700Bold,
+  useFonts,
 } from '@expo-google-fonts/instrument-sans';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { ActivityIndicator, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { usePalette } from '@/hooks/usePalette';
+import { useOfflineSync } from '@/offline/sync';
 import { colors, fonts } from '@/theme';
 
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const p = usePalette();
+  useOfflineSync();
+
   const [fontsLoaded] = useFonts({
     InstrumentSans_400Regular,
     InstrumentSans_500Medium,
