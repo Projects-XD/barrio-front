@@ -52,7 +52,8 @@ function buildFullUrl(path: string): string {
 export async function request<T>(
   path: string,
   options: RequestInit = {},
-  explicitToken?: string
+  explicitToken?: string,
+  retried = false
 ): Promise<T> {
   const url = buildFullUrl(path);
   const method = options.method || 'GET';
@@ -125,6 +126,21 @@ export async function request<T>(
   const contentType = res.headers.get('content-type') || '';
   const isJson = contentType.includes('application/json');
   const body = isJson ? await res.json().catch(() => ({})) : await res.text();
+
+  // Token caducado: el store lo conserva pero Supabase ya puede tener uno renovado.
+  if (res.status === 401 && !retried && !explicitToken && token) {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      const fresh = data.session?.access_token;
+      if (!error && fresh && fresh !== token) {
+        useAppStore.setState({ token: fresh });
+        return request<T>(path, options, undefined, true);
+      }
+      if (error) await supabase.auth.signOut(); // dispara clearSession en _layout
+    } catch {
+      // sin conexión: se propaga el 401 original
+    }
+  }
 
   if (!res.ok) {
     const errorMsg =
