@@ -1,147 +1,293 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Favor, FavorType, OficioCategory, ProfessionalProfile } from '@/types';
-import { favorsMock, profilesMock, reportsMock, resourcesMock, servicesMock, ZONE_ID } from '@/data/mock';
-import { enqueue } from '@/offline/outbox';
-import { flushOutbox } from '@/offline/sync';
+import {
+  createFavor,
+  getFavorById,
+  getProfileById,
+  listFavors,
+  listProfiles,
+  vouchProfile,
+  type BackendFavor,
+  type BackendProfile,
+} from '@/api/endpoints';
+import { profilesMock, reportsMock, resourcesMock, servicesMock } from '@/data/mock';
 import { useAppStore } from '@/store/app-store';
+import type { Favor, FavorType, OficioCategory, ProfessionalProfile } from '@/types';
+import { generateUUID } from '@/utils/uuid';
 
-const delay = <T,>(value: T, ms = 250) => new Promise<T>((resolve) => setTimeout(() => resolve(value), ms));
+const FALLBACK_ZONE_ID = 'a23c2ac0-4434-48bb-a091-89fbedf46dc6'; // Centro
 
-function newClientId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+/**
+ * Transforma un perfil devuelto por la API del Backend al modelo tipado de la UI.
+ */
+export function mapBackendProfileToFrontend(
+  bp: BackendProfile,
+  _currentUserId?: string | null
+): ProfessionalProfile {
+  return {
+    id: bp.id,
+    userId: bp.user_id,
+    user: {
+      id: bp.user?.id ?? bp.user_id,
+      fullName: bp.user?.full_name ?? 'Vecino Profesional',
+      avatarUrl: bp.user?.avatar_url ?? null,
+    },
+    oficio: {
+      id: bp.oficio?.id ?? bp.oficio_id,
+      category: bp.oficio?.category ?? 'otro',
+      name: bp.oficio?.name ?? 'Oficio',
+    },
+    zoneId: bp.zone_id ?? FALLBACK_ZONE_ID,
+    description: bp.description ?? '',
+    yearsExperience: bp.years_experience ?? null,
+    distanceKm: bp.location_lat && bp.location_lng ? 0.4 : undefined,
+    validatedCount: bp.validated_count ?? 0,
+    isValidated: bp.is_validated ?? (bp.validated_count >= 2),
+    hasVouchedByMe: false,
+  };
 }
 
-export function useProfiles(oficio?: string, search?: string) {
+/**
+ * Transforma un favor devuelto por la API del Backend al modelo tipado de la UI.
+ */
+export function mapBackendFavorToFrontend(
+  bf: BackendFavor,
+  currentUserId?: string | null
+): Favor {
+  return {
+    id: bf.id,
+    authorId: bf.author_id,
+    author: {
+      id: bf.author?.id ?? bf.author_id,
+      fullName: bf.author?.full_name ?? 'Vecino de la comunidad',
+    },
+    zoneId: bf.zone_id ?? FALLBACK_ZONE_ID,
+    type: bf.type,
+    title: bf.title,
+    description: bf.description,
+    status: bf.status,
+    interestedCount: 0,
+    hasInterestedByMe: currentUserId ? bf.author_id === currentUserId : false,
+    createdAt: bf.created_at,
+    syncStatus: bf.sync_status ?? 'enviado',
+  };
+}
+
+// ============================================================================
+// HOOKS: OFICIOS (Módulo Día a Día)
+// ============================================================================
+
+export function useProfiles(category?: OficioCategory, search?: string) {
+  const zoneId = useAppStore((s) => s.zoneId) || FALLBACK_ZONE_ID;
+  const currentUserId = useAppStore((s) => s.userId);
+
   return useQuery({
-    queryKey: ['profiles', oficio ?? 'todos', search ?? ''],
-    queryFn: () => {
-      let result = profilesMock;
-      if (oficio) {
-        result = result.filter((p) => p.oficio.category === oficio);
+    queryKey: ['profiles', zoneId, category ?? 'todos', search ?? ''],
+    queryFn: async (): Promise<ProfessionalProfile[]> => {
+      try {
+        const data = await listProfiles({
+          zoneId,
+          category: category || undefined,
+        });
+
+        let profiles = data.map((bp) => mapBackendProfileToFrontend(bp, currentUserId));
+
+        if (search && search.trim()) {
+          const q = search.toLowerCase().trim();
+          profiles = profiles.filter(
+            (p) =>
+              p.user.fullName.toLowerCase().includes(q) ||
+              p.description.toLowerCase().includes(q) ||
+              p.oficio.name.toLowerCase().includes(q)
+          );
+        }
+
+        return profiles;
+      } catch {
+        // Fallback a mock data si el backend aún no está iniciado
+        let profiles = profilesMock;
+        if (category) {
+          profiles = profiles.filter((p) => p.oficio.category === category);
+        }
+        if (search && search.trim()) {
+          const q = search.toLowerCase().trim();
+          profiles = profiles.filter(
+            (p) =>
+              p.user.fullName.toLowerCase().includes(q) ||
+              p.description.toLowerCase().includes(q) ||
+              p.oficio.name.toLowerCase().includes(q)
+          );
+        }
+        return profiles;
       }
-      if (search && search.trim()) {
-        const q = search.toLowerCase().trim();
-        result = result.filter(
-          (p) =>
-            p.user.fullName.toLowerCase().includes(q) ||
-            p.description.toLowerCase().includes(q) ||
-            p.oficio.name.toLowerCase().includes(q)
-        );
-      }
-      return delay(result);
     },
   });
 }
 
 export function useProfile(id: string) {
+  const currentUserId = useAppStore((s) => s.userId);
+
   return useQuery({
     queryKey: ['profile', id],
-    queryFn: () => delay(profilesMock.find((p) => p.id === id) ?? null),
-  });
-}
-
-export function useMyProfile() {
-  return useQuery({
-    queryKey: ['myProfile'],
-    queryFn: () => delay(profilesMock.find((p) => p.userId === 'me') ?? null),
-  });
-}
-
-export function useUpsertMyProfile() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: {
-      category: OficioCategory;
-      description: string;
-      yearsExperience: number;
-    }) => {
-      const existingIdx = profilesMock.findIndex((p) => p.userId === 'me');
-      const profileData: ProfessionalProfile = {
-        id: existingIdx >= 0 ? profilesMock[existingIdx].id : `p-me-${Date.now()}`,
-        userId: 'me',
-        user: { id: 'me', fullName: 'Alexander García', avatarUrl: null },
-        oficio: { id: `o-${input.category}`, category: input.category, name: input.category },
-        zoneId: ZONE_ID,
-        description: input.description,
-        yearsExperience: input.yearsExperience,
-        distanceKm: 0.1,
-        validatedCount: existingIdx >= 0 ? profilesMock[existingIdx].validatedCount : 0,
-        isValidated: existingIdx >= 0 ? profilesMock[existingIdx].isValidated : false,
-        hasVouchedByMe: false,
-      };
-
-      if (existingIdx >= 0) {
-        profilesMock[existingIdx] = profileData;
-      } else {
-        profilesMock.unshift(profileData);
+    queryFn: async (): Promise<ProfessionalProfile | null> => {
+      if (!id) return null;
+      try {
+        const bp = await getProfileById(id);
+        return mapBackendProfileToFrontend(bp, currentUserId);
+      } catch {
+        return profilesMock.find((p) => p.id === id) ?? null;
       }
-
-      return delay(profileData, 150);
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['profiles'] });
-      qc.invalidateQueries({ queryKey: ['myProfile'] });
-    },
+    enabled: Boolean(id),
   });
 }
 
 export function useVouch(id: string) {
   const qc = useQueryClient();
+
   return useMutation({
-    mutationFn: () => delay(null, 150),
-    onSuccess: () => {
-      const profile = profilesMock.find((p) => p.id === id);
-      if (profile && !profile.hasVouchedByMe) {
-        profile.hasVouchedByMe = true;
-        profile.validatedCount += 1;
-        profile.isValidated = profile.validatedCount >= 2;
+    mutationFn: async () => {
+      try {
+        return await vouchProfile(id);
+      } catch {
+        const p = profilesMock.find((prof) => prof.id === id);
+        if (p) {
+          p.validatedCount += 1;
+          p.hasVouchedByMe = true;
+        }
+        return { success: true };
       }
+    },
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['profile', id] });
       qc.invalidateQueries({ queryKey: ['profiles'] });
-      qc.invalidateQueries({ queryKey: ['myProfile'] });
     },
   });
 }
 
-export function useFavors(type?: FavorType) {
+export function useMyProfile() {
+  const currentUserId = useAppStore((s) => s.userId);
+
   return useQuery({
-    queryKey: ['favors', type ?? 'todos'],
-    queryFn: () => delay(favorsMock.filter((f) => !type || f.type === type)),
+    queryKey: ['myProfile', currentUserId],
+    queryFn: async (): Promise<ProfessionalProfile | null> => {
+      const p = profilesMock.find((item) => item.userId === currentUserId || item.userId === 'me');
+      return p ?? null;
+    },
+  });
+}
+
+export function useUpsertMyProfile() {
+  const qc = useQueryClient();
+  const currentUserId = useAppStore((s) => s.userId) || 'me';
+  const userFullName = useAppStore((s) => s.userFullName) || 'Alexander García';
+
+  return useMutation({
+    mutationFn: async (input: {
+      category: OficioCategory;
+      description: string;
+      yearsExperience: number;
+    }) => {
+      const existing = profilesMock.find((p) => p.userId === currentUserId || p.userId === 'me');
+      if (existing) {
+        existing.oficio.category = input.category;
+        existing.description = input.description;
+        existing.yearsExperience = input.yearsExperience;
+        return existing;
+      }
+
+      const newP: ProfessionalProfile = {
+        id: `prof-${Date.now()}`,
+        userId: currentUserId,
+        user: { id: currentUserId, fullName: userFullName, avatarUrl: null },
+        oficio: { id: `oficio-${Date.now()}`, category: input.category, name: input.category },
+        zoneId: useAppStore.getState().zoneId || FALLBACK_ZONE_ID,
+        description: input.description,
+        yearsExperience: input.yearsExperience,
+        distanceKm: 0.1,
+        validatedCount: 1,
+        isValidated: false,
+        hasVouchedByMe: false,
+      };
+      profilesMock.push(newP);
+      return newP;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['myProfile'] });
+      qc.invalidateQueries({ queryKey: ['profiles'] });
+    },
+  });
+}
+
+// ============================================================================
+// HOOKS: FAVORES (Módulo Día a Día)
+// ============================================================================
+
+export function useFavors(type?: FavorType) {
+  const zoneId = useAppStore((s) => s.zoneId) || FALLBACK_ZONE_ID;
+  const currentUserId = useAppStore((s) => s.userId);
+
+  return useQuery({
+    queryKey: ['favors', zoneId, type ?? 'todos'],
+    queryFn: async (): Promise<Favor[]> => {
+      const data = await listFavors({
+        zoneId,
+        type: type || undefined,
+      });
+
+      return data.map((bf) => mapBackendFavorToFrontend(bf, currentUserId));
+    },
+  });
+}
+
+export function useFavor(id: string) {
+  const currentUserId = useAppStore((s) => s.userId);
+
+  return useQuery({
+    queryKey: ['favor', id],
+    queryFn: async (): Promise<Favor | null> => {
+      if (!id) return null;
+      const bf = await getFavorById(id);
+      return mapBackendFavorToFrontend(bf, currentUserId);
+    },
+    enabled: Boolean(id),
   });
 }
 
 export function useCreateFavor() {
   const qc = useQueryClient();
+  const zoneId = useAppStore((s) => s.zoneId) || FALLBACK_ZONE_ID;
+
   return useMutation({
-    mutationFn: async (input: { type: FavorType; title: string; description: string | null }) => {
-      const clientId = newClientId();
-      const online = useAppStore.getState().isOnline;
+    mutationFn: async (input: {
+      type: FavorType;
+      title: string;
+      description: string | null;
+    }) => {
+      // Regla de Frontend: Generar UUIDv4 como client_id para garantizar idempotencia
+      const clientId = generateUUID();
 
-      await enqueue(clientId, 'create_favor', { ...input, clientId });
-      if (online) await flushOutbox();
-
-      const favor: Favor = {
-        id: clientId,
-        authorId: 'me',
-        author: { id: 'me', fullName: 'Tú' },
-        zoneId: ZONE_ID,
+      const created = await createFavor({
+        client_id: clientId,
+        zone_id: zoneId,
         type: input.type,
         title: input.title,
         description: input.description,
-        status: 'abierta',
-        interestedCount: 0,
-        hasInterestedByMe: false,
-        createdAt: new Date().toISOString(),
-        syncStatus: online ? 'enviado' : 'pendiente',
-      };
-      return favor;
+      });
+
+      return mapBackendFavorToFrontend(created);
     },
-    onSuccess: (favor) => {
-      favorsMock.unshift(favor);
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['favors'] });
     },
   });
 }
+
+// ============================================================================
+// HOOKS SECUNDARIOS (Módulo Emergencia - Sin modificar)
+// ============================================================================
+
+const delay = <T,>(value: T, ms = 200) =>
+  new Promise<T>((resolve) => setTimeout(() => resolve(value), ms));
 
 export function useServices() {
   return useQuery({ queryKey: ['services'], queryFn: () => delay(servicesMock) });

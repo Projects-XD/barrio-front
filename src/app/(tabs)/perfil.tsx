@@ -16,6 +16,7 @@ import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
 import { ToggleRow } from '@/components/ToggleRow';
 import { ValidationBadge } from '@/components/ValidationBadge';
+import { supabase } from '@/lib/supabase';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
 import { useMyProfile, useUpsertMyProfile } from '@/hooks/useData';
@@ -32,6 +33,8 @@ export default function Perfil() {
   const isOnline = useAppStore((s) => s.isOnline);
   const setOnline = useAppStore((s) => s.setOnline);
   const clearSession = useAppStore((s) => s.clearSession);
+  const userFullName = useAppStore((s) => s.userFullName) || 'Alexander García';
+  const userEmail = useAppStore((s) => s.userEmail);
 
   const { data: myProfile } = useMyProfile();
   const upsertProfile = useUpsertMyProfile();
@@ -44,6 +47,14 @@ export default function Perfil() {
   const [experiencia, setExperiencia] = useState(
     myProfile?.yearsExperience ? String(myProfile.yearsExperience) : '2'
   );
+
+  const initials = userFullName
+    .split(' ')
+    .filter(Boolean)
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 
   const handleOpenModal = () => {
     if (myProfile) {
@@ -67,7 +78,10 @@ export default function Perfil() {
     );
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch {}
     clearSession();
     router.replace('/welcome');
   };
@@ -84,11 +98,13 @@ export default function Perfil() {
       <Card>
         <View style={styles.usuarioRow}>
           <View style={[styles.avatar, { backgroundColor: colors.azul }]}>
-            <Text style={styles.avatarText}>AG</Text>
+            <Text style={styles.avatarText}>{initials || 'V'}</Text>
           </View>
           <View style={styles.usuarioInfo}>
-            <Text style={[styles.nombre, { color: p.text }]}>Alexander García</Text>
-            <Text style={[styles.zona, { color: p.muted }]}>Zona: Castilla · Miembro activo</Text>
+            <Text style={[styles.nombre, { color: p.text }]}>{userFullName}</Text>
+            <Text style={[styles.zona, { color: p.muted }]}>
+              {userEmail ? `${userEmail} · ` : ''}Miembro activo
+            </Text>
           </View>
         </View>
       </Card>
@@ -199,23 +215,23 @@ export default function Perfil() {
         onRequestClose={() => setModalVisible(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
-          <Pressable style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
+          <View style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.modalTitle, { color: p.text }]}>
-                {myProfile ? 'Editar mi oficio' : 'Ofrecer un oficio'}
+                {myProfile ? 'Editar mi Oficio' : 'Ofrecer Oficio en el Barrio'}
               </Text>
               <Text style={[styles.modalSub, { color: p.muted }]}>
-                Tus vecinos de zona podrán verte en el directorio y darte su visto bueno.
+                Comparte tus habilidades técnicas con tus vecinos para recibir recomendaciones y avales.
               </Text>
 
-              <Text style={[styles.inputLabel, { color: p.text }]}>Especialidad u oficio</Text>
+              <Text style={[styles.inputLabel, { color: p.text }]}>Categoría técnica</Text>
               <View style={styles.catChips}>
-                {categorias.map((c) => (
+                {categorias.map((cat) => (
                   <Chip
-                    key={c}
-                    label={oficioLabel[c]}
-                    selected={selectedCat === c}
-                    onPress={() => setSelectedCat(c)}
+                    key={cat}
+                    label={oficioLabel[cat]}
+                    selected={selectedCat === cat}
+                    onPress={() => setSelectedCat(cat)}
                   />
                 ))}
               </View>
@@ -230,20 +246,23 @@ export default function Perfil() {
                 style={[styles.modalInput, { borderColor: p.border, color: p.text }]}
               />
 
-              <Text style={[styles.inputLabel, { color: p.text }]}>Descripción de tus servicios</Text>
+              <Text style={[styles.inputLabel, { color: p.text }]}>Descripción del servicio</Text>
               <TextInput
                 value={descripcion}
                 onChangeText={setDescripcion}
+                placeholder="Describe qué trabajos realizas y cómo ayudas a tus vecinos..."
+                placeholderTextColor={colors.gris}
                 multiline
                 numberOfLines={3}
-                placeholder="Describe brevemente tus trabajos y horarios..."
-                placeholderTextColor={colors.gris}
-                style={[styles.modalTextArea, { borderColor: p.border, color: p.text }]}
+                style={[
+                  styles.modalInput,
+                  { minHeight: 80, textAlignVertical: 'top', borderColor: p.border, color: p.text },
+                ]}
               />
 
-              <View style={{ marginTop: spacing.md }}>
+              <View style={{ marginTop: spacing.md, gap: 8 }}>
                 <AppButton
-                  label={upsertProfile.isPending ? 'Guardando...' : 'Guardar perfil profesional'}
+                  label={upsertProfile.isPending ? 'Guardando...' : 'Guardar y publicar'}
                   variant="accent"
                   onPress={handleSaveProfile}
                   disabled={upsertProfile.isPending}
@@ -255,7 +274,7 @@ export default function Perfil() {
                 />
               </View>
             </ScrollView>
-          </Pressable>
+          </View>
         </Pressable>
       </Modal>
     </Screen>
@@ -263,21 +282,21 @@ export default function Perfil() {
 }
 
 const styles = StyleSheet.create({
-  header: { marginBottom: spacing.md, marginTop: spacing.xs },
+  header: { marginBottom: spacing.md },
   titulo: { fontSize: 28, fontFamily: fonts.bold, marginBottom: 4 },
-  subtitulo: { fontSize: 15, fontFamily: fonts.regular, lineHeight: 20 },
+  subtitulo: { fontSize: 15, fontFamily: fonts.regular, lineHeight: 22 },
   usuarioRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: colors.blanco, fontFamily: fonts.bold, fontSize: 18 },
+  avatarText: { color: colors.blanco, fontSize: 18, fontFamily: fonts.bold },
   usuarioInfo: { flex: 1 },
   nombre: { fontSize: 19, fontFamily: fonts.bold, marginBottom: 2 },
-  zona: { fontSize: 14, fontFamily: fonts.medium },
+  zona: { fontSize: 14, fontFamily: fonts.regular },
   seccionLabel: { fontSize: 16, fontFamily: fonts.semiBold, marginTop: spacing.md, marginBottom: 8 },
   oficioHeader: {
     flexDirection: 'row',
@@ -320,15 +339,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     fontSize: 16,
     fontFamily: fonts.regular,
-  },
-  modalTextArea: {
-    minHeight: 80,
-    borderWidth: 1.5,
-    borderRadius: radius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    fontFamily: fonts.regular,
-    textAlignVertical: 'top',
+    marginBottom: spacing.xs,
   },
 });

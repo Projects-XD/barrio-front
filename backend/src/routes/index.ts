@@ -1,0 +1,19 @@
+import { Router } from 'express';
+import healthRoutes from './health.routes';
+import profileRoutes from './profile.routes';
+import favorRoutes from './favor.routes';
+import emergencyRoutes from './emergency.routes';
+import vulnerabilityRoutes from './vulnerability.routes';
+import resourceRoutes from './resource.routes';
+
+const apiRouter = Router();
+
+// Módulo "Día a Día" y Rutas de la API Barrio
+apiRouter.use('/health', healthRoutes);
+apiRouter.use('/profiles', profileRoutes);
+apiRouter.use('/favors', favorRoutes);
+apiRouter.use('/emergency', emergencyRoutes);
+apiRouter.use('/reports', vulnerabilityRoutes);
+apiRouter.use('/resources', resourceRoutes);
+
+export default apiRouter;
