@@ -481,19 +481,24 @@ export function useSaveMyLocation() {
       if (authErr) throw new Error(authErr.message);
 
       // 2. Si tiene oficios registrados en su zona, actualizar también sus coordenadas en professional_profiles
+      // La ubicación ya quedó guardada en Auth; los oficios son un extra que no debe bloquear el guardado.
       if (zoneId) {
-        const profiles = await listProfiles({ zoneId });
-        const mine = profiles.filter((p) => p.user_id === userId);
-        for (const prof of mine) {
-          await upsertProfile({
-            id: prof.id,
-            oficio_id: prof.oficio_id,
-            zone_id: zoneId,
-            description: prof.description,
-            years_experience: prof.years_experience,
-            location_lat: input.lat,
-            location_lng: input.lng,
-          });
+        try {
+          const profiles = await listProfiles({ zoneId });
+          const mine = profiles.filter((p) => p.user_id === userId);
+          for (const prof of mine) {
+            await upsertProfile({
+              id: prof.id,
+              oficio_id: prof.oficio_id,
+              zone_id: zoneId,
+              description: prof.description,
+              years_experience: prof.years_experience,
+              location_lat: input.lat,
+              location_lng: input.lng,
+            });
+          }
+        } catch {
+          // Sin oficios visibles (o zona no válida): se conserva la ubicación en Auth.
         }
       }
 

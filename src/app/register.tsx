@@ -57,6 +57,7 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [locStatus, setLocStatus] = useState<'idle' | 'loading' | 'found' | 'outside' | 'notfound' | 'denied'>('idle');
+  const [ubicacionRegistro, setUbicacionRegistro] = useState<Coords | null>(null);
 
   const mapZones = useMemo(
     () =>
@@ -72,6 +73,7 @@ export default function Register() {
   );
 
   const handleMapChange = (c: Coords, zoneId?: string) => {
+    setUbicacionRegistro(c);
     if (zoneId) {
       const direct = zonas.find((z) => z.id === zoneId);
       if (direct) {
@@ -106,6 +108,7 @@ export default function Register() {
         return;
       }
       const coords: Coords = { lat: pos.lat, lng: pos.lng };
+      setUbicacionRegistro(coords);
       const texts = await placeTexts(pos.lat, pos.lng);
       // Solo aceptamos ubicaciones dentro de Castilla
       const enCastilla = isWithinCastilla(coords) || texts.some((t) => t.includes('castilla'));
@@ -212,6 +215,7 @@ export default function Register() {
           options: {
             data: {
               full_name: nombre.trim(),
+              ...(ubicacionRegistro ? { location_lat: ubicacionRegistro.lat, location_lng: ubicacionRegistro.lng } : {}),
               zone_id: zonaSeleccionada?.id,
             },
           },
