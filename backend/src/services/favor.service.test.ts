@@ -135,26 +135,26 @@ const favorInsert = (writes: ReturnType<typeof fakeSupabase>['writes']) =>
 const CLIENT_ID = 'c0a80101-1234-4567-89ab-01a1b442bf73';
 const favorBody = { client_id: CLIENT_ID, type: 'herramienta', title: 'Taladro' };
 
-test('createFavor sin urgency queda normal y pendiente', async () => {
+test('createFavor sin urgency queda normal y aprobado', async () => {
   const { client, writes } = newFavorSupabase();
   await service.createFavor(client, AUTHOR, createFavorSchema.parse(favorBody));
   assert.equal(favorInsert(writes)?.urgency, 'normal');
-  assert.equal(favorInsert(writes)?.moderation_status, 'pendiente');
+  assert.equal(favorInsert(writes)?.moderation_status, 'aprobado');
 });
 
 for (const urgency of ['urgente', 'emergencia']) {
-  test(`createFavor ${urgency} queda pendiente`, async () => {
+  test(`createFavor ${urgency} queda aprobado`, async () => {
     const { client, writes } = newFavorSupabase();
     await service.createFavor(client, AUTHOR, createFavorSchema.parse({ ...favorBody, urgency }));
-    assert.equal(favorInsert(writes)?.moderation_status, 'pendiente');
+    assert.equal(favorInsert(writes)?.moderation_status, 'aprobado');
   });
 }
 
 test('createFavor ignora un moderation_status enviado por el cliente', async () => {
   const { client, writes } = newFavorSupabase();
-  const dto = createFavorSchema.parse({ ...favorBody, urgency: 'emergencia', moderation_status: 'aprobado' });
+  const dto = createFavorSchema.parse({ ...favorBody, urgency: 'emergencia', moderation_status: 'rechazado' });
   await service.createFavor(client, AUTHOR, dto);
-  assert.equal(favorInsert(writes)?.moderation_status, 'pendiente');
+  assert.equal(favorInsert(writes)?.moderation_status, 'aprobado');
 });
 
 test('reintentar con el mismo client_id no vuelve a encolar', async () => {
@@ -164,7 +164,7 @@ test('reintentar con el mismo client_id no vuelve a encolar', async () => {
   assert.equal(writes.length, 0);
 });
 
-test('sync create_favor aplica la misma moderación, y sin urgency queda normal', async () => {
+test('sync create_favor también aprueba el favor, y sin urgency queda normal', async () => {
   const run = async (payload: Record<string, unknown>) => {
     const { client, writes } = newFavorSupabase();
     const [result] = await new SyncService().processSyncBatch(client, AUTHOR, [
@@ -174,24 +174,24 @@ test('sync create_favor aplica la misma moderación, y sin urgency queda normal'
     return favorInsert(writes);
   };
   const { client_id: _clientId, ...payload } = favorBody;
-  assert.equal((await run({ ...payload, urgency: 'emergencia' }))?.moderation_status, 'pendiente');
+  assert.equal((await run({ ...payload, urgency: 'emergencia' }))?.moderation_status, 'aprobado');
   const sinUrgencia = await run(payload);
   assert.equal(sinUrgencia?.urgency, 'normal');
-  assert.equal(sinUrgencia?.moderation_status, 'pendiente');
+  assert.equal(sinUrgencia?.moderation_status, 'aprobado');
 });
 
-test('editar el contenido de un urgente aprobado lo devuelve a la cola', async () => {
+test('editar el contenido de un urgente aprobado no cambia la moderación', async () => {
   const { client, writes } = fakeSupabase({ ...baseFavor, urgency: 'urgente', moderation_status: 'aprobado', created_at: hoursAgo(1) });
   await service.updateFavor(client, AUTHOR, 'f1', { title: 'Otro texto' });
-  assert.equal(writes[0]?.values.moderation_status, 'pendiente');
-  assert.equal(writes[0]?.values.moderated_by, null);
+  assert.equal('moderation_status' in writes[0]!.values, false);
+  assert.equal('moderated_by' in writes[0]!.values, false);
 });
 
-test('editar el contenido de un normal aprobado también lo devuelve a la cola', async () => {
+test('editar el contenido de un normal aprobado no cambia la moderación', async () => {
   const { client, writes } = fakeSupabase({ ...baseFavor, moderation_status: 'aprobado', created_at: hoursAgo(1) });
   await service.updateFavor(client, AUTHOR, 'f1', { title: 'Otro texto' });
-  assert.equal(writes[0]?.values.moderation_status, 'pendiente');
-  assert.equal(writes[0]?.values.moderated_by, null);
+  assert.equal('moderation_status' in writes[0]!.values, false);
+  assert.equal('moderated_by' in writes[0]!.values, false);
 });
 
 test('cerrar un favor no toca la moderación', async () => {
