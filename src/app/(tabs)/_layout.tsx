@@ -4,7 +4,7 @@ import { Tabs } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmergencyFab } from '@/components/EmergencyFab';
-import { useEmergencyState, useUnreadNotificationCount } from '@/hooks/useData';
+import { useEmergencyState } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import type { IconName } from '@/i18n/icons';
 import { useAppStore } from '@/store/app-store';
@@ -23,7 +23,6 @@ export default function TabsLayout() {
   const p = usePalette();
   const insets = useSafeAreaInsets();
   const { data: emergency } = useEmergencyState();
-  const { data: unread } = useUnreadNotificationCount();
 
   // Para celulares con barra de navegación por gestos (insets.bottom suele ser 20-34px)
   // o celulares con botones tradicionales (insets.bottom es 0-10px)
@@ -73,17 +72,6 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="avisos"
-          options={{
-            title: 'Avisos',
-            tabBarBadge: unread && unread > 0 ? (unread > 9 ? '9+' : unread) : undefined,
-            tabBarBadgeStyle: styles.badge,
-            tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} on="notifications" off="notifications-outline" />
-            ),
-          }}
-        />
-        <Tabs.Screen
           name="mapa"
           options={{
             title: 'Mapa',
@@ -115,7 +103,6 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   label: { fontFamily: fonts.semiBold, fontSize: 12, marginTop: 1 },
-  badge: { backgroundColor: colors.naranja, color: colors.azul, fontFamily: fonts.bold, fontSize: 11 },
   iconPill: {
     width: 44,
     height: 30,
