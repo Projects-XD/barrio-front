@@ -88,18 +88,3 @@ export interface CriticalResource {
   status: 'abierto' | 'cubierto' | 'cancelado';
   distanceKm?: number;
 }
-
-export interface EmergencyState {
-  zoneId: string;
-  status: E.EmergencyStatus;
-  reason: string | null;
-  activatedAt: string | null;
-}
-
-export interface AppNotification {
-  id: string;
-  type: E.NotificationType;
-  payload: Record<string, unknown>;
-  readAt: string | null;
-  createdAt: string;
-}

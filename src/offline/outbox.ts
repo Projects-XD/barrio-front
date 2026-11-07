@@ -1,3 +1,4 @@
+import { useAppStore } from '@/store/app-store';
 import { getDb } from './db';
 
 export const MAX_ATTEMPTS = 5;
@@ -21,26 +22,33 @@ type OutboxRow = {
 };
 
 export async function enqueue(clientId: string, operation: OutboxOperation, payload: Record<string, unknown>) {
+  const userId = useAppStore.getState().userId;
+  if (!userId) throw new Error('Inicia sesión para guardar datos sin conexión.');
   const db = await getDb();
   await db.runAsync(
-    'INSERT OR IGNORE INTO outbox (client_id, operation, payload, created_at) VALUES (?, ?, ?, ?)',
+    'INSERT OR IGNORE INTO outbox (client_id, operation, payload, created_at, user_id) VALUES (?, ?, ?, ?, ?)',
     clientId,
     operation,
     JSON.stringify(payload),
     new Date().toISOString(),
+    userId,
   );
 }
 
+// Solo devuelve lo del usuario con sesión activa, para no enviar ni mostrar datos de otro vecino.
 // Si SQLite no está disponible (por ejemplo en web), se trata como cola vacía.
 export async function listPending(operation?: OutboxOperation): Promise<OutboxItem[]> {
+  const userId = useAppStore.getState().userId;
+  if (!userId) return [];
   try {
     const db = await getDb();
     const rows = await db.getAllAsync<OutboxRow>(
       `SELECT client_id, operation, payload, attempts, created_at
          FROM outbox
-        WHERE status != 'enviado' AND attempts < ?
+        WHERE status != 'enviado' AND attempts < ? AND user_id = ?
         ORDER BY created_at ASC`,
       MAX_ATTEMPTS,
+      userId,
     );
     return rows
       .filter((r) => !operation || r.operation === operation)

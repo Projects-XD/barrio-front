@@ -7,10 +7,18 @@ import { useAppStore } from '@/store/app-store';
 import { listPending, markFailed, markSent } from './outbox';
 
 let flushing = false;
+// Si llega un pedido de envío mientras otro está en curso, se repite al terminar.
+let flushAgain = false;
+
+const isTransient = (status: number) => status === 0 || status === 401 || status >= 500;
 
 export async function flushOutbox() {
   const { isOnline, token } = useAppStore.getState();
-  if (flushing || !isOnline || !token) return;
+  if (!isOnline || !token) return;
+  if (flushing) {
+    flushAgain = true;
+    return;
+  }
   flushing = true;
 
   try {
@@ -28,8 +36,9 @@ export async function flushOutbox() {
       );
       results = response.results;
     } catch (error) {
-      // Sin red, el envío se reintenta luego y no cuenta como intento fallido.
-      if (error instanceof ApiError && error.status === 0) return;
+      // Fallos transitorios (sin red, sesión vencida, servidor caído) se reintentan luego
+      // y no consumen intentos: si no, los datos pendientes se perderían sin aviso.
+      if (error instanceof ApiError && isTransient(error.status)) return;
       const message = error instanceof Error ? error.message : 'Error al sincronizar';
       await Promise.all(pending.map((op) => markFailed(op.clientId, message)));
       return;
@@ -49,6 +58,10 @@ export async function flushOutbox() {
     // Un fallo de SQLite no debe tumbar la app; la cola se reintenta en el siguiente cambio de red.
   } finally {
     flushing = false;
+    if (flushAgain) {
+      flushAgain = false;
+      void flushOutbox();
+    }
   }
 }
 

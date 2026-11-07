@@ -12,12 +12,3 @@ export const favorTypeIcon: Record<FavorType, IconName> = {
   movilidad_solidaria: 'car-outline',
   otros: 'ellipsis-horizontal-outline',
 };
-
-export const favorTypeColor: Record<FavorType, string> = {
-  herramienta: '#132E66',
-  ayuda_temporal: '#132E66',
-  donacion_materiales: '#132E66',
-  intercambio_habilidades: '#132E66',
-  movilidad_solidaria: '#132E66',
-  otros: '#132E66',
-};

@@ -306,7 +306,7 @@ export type RegisterPushTokenDTO = z.infer<typeof registerPushTokenSchema>;
 export const syncOperationSchema = z.object({
   client_id: z.string().uuid('client_id debe ser un UUID válido'),
   operation: z.string().min(1, 'operation es requerida'),
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
 });
 export type SyncOperationDTO = z.infer<typeof syncOperationSchema>;
 

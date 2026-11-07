@@ -37,7 +37,6 @@ export const fonts = {
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };
 export const radius = { sm: 10, md: 16, lg: 20, xl: 28, pill: 999 };
-export const typography = { base: 16, pequeno: 14, subtitulo: 20, titulo: 28 };
 export const touch = { min: 48 };
 
 // Sombra suave teñida de azul: da profundidad sin verse pesada.

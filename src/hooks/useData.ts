@@ -216,10 +216,6 @@ export function useVouch(id: string) {
   });
 }
 
-export function useOficios() {
-  return useQuery({ queryKey: ['oficios'], queryFn: listOficios, staleTime: 10 * 60_000 });
-}
-
 export function useMyProfile() {
   const zoneId = useAppStore((s) => s.zoneId);
   const userId = useAppStore((s) => s.userId);

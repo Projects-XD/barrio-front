@@ -42,7 +42,7 @@ export const errorHandler: ErrorRequestHandler = (
   // 2. Manejo de errores de validación de Zod
   else if (err instanceof ZodError) {
     statusCode = 400;
-    const details = err.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ');
+    const details = err.issues.map((e) => `${e.path.map(String).join('.')}: ${e.message}`).join(', ');
     message = `Datos inválidos: ${details}`;
   }
   // 3. Errores genéricos o de librerías

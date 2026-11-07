@@ -196,19 +196,7 @@ export default function Register() {
 
         // Si Supabase devuelve sesión inmediata (auto-confirm activo)
         if (data.session) {
-          // Asegurar que el registro en public.users exista
-          try {
-            await supabase.from('users').upsert({
-              id: data.user.id,
-              full_name: nombre.trim(),
-              zone_id: zonaSeleccionada?.id,
-              status: 'active',
-            });
-            logger.debug('AUTH_REGISTER', `Registro en public.users asegurado para ${data.user.id}`);
-          } catch (upsertErr: any) {
-            logger.warn('AUTH_REGISTER', 'Aviso al insertar en public.users (será manejado por el trigger SQL)', upsertErr);
-          }
-
+          // public.users lo crea el trigger SQL handle_new_user (0002); con RLS el cliente no puede escribirlo.
           setSession({
             token: data.session.access_token,
             userId: data.user.id,

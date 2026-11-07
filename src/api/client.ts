@@ -7,6 +7,9 @@ const RAW_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/
   ''
 );
 
+// Sin timeout, un servidor inaccesible deja la petición colgada y nunca se usa la cola offline.
+const REQUEST_TIMEOUT_MS = 15_000;
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -92,9 +95,12 @@ export async function request<T>(
 
   // 3. Ejecutar petición HTTP
   let res: Response;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     logger.debug('API_CLIENT', `Petición HTTP ${method} -> ${url}`);
     res = await fetch(url, {
+      signal: controller.signal,
       ...options,
       headers,
     });
@@ -111,6 +117,8 @@ export async function request<T>(
       'NETWORK_ERROR',
       `No se pudo conectar con el servidor (${url}). Verifica que el backend esté encendido.`
     );
+  } finally {
+    clearTimeout(timer);
   }
 
   // 4. Procesar respuesta del servidor

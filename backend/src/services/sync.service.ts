@@ -1,7 +1,12 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables } from '../types/database.types';
 import { AppError } from '../middlewares/errorHandler';
-import type { SyncOperationDTO } from '../utils/validators';
+import {
+  createFavorSchema,
+  createEmergencyReportSchema,
+  createVouchSchema,
+  type SyncOperationDTO,
+} from '../utils/validators';
 import { logger } from '../utils/logger';
 
 export interface SyncProcessResult {
@@ -12,6 +17,24 @@ export interface SyncProcessResult {
   message?: string;
   data?: unknown;
   error?: string;
+}
+
+// Aplica a las operaciones offline las mismas reglas de validación que los endpoints REST.
+type PayloadParser<T> = {
+  safeParse(data: unknown):
+    | { success: true; data: T }
+    | { success: false; error: { issues: { path: PropertyKey[]; message: string }[] } };
+};
+
+function parseSyncPayload<T>(schema: PayloadParser<T>, payload: unknown): T {
+  const result = schema.safeParse(payload);
+  if (!result.success) {
+    const detail = result.error.issues
+      .map((i) => `${i.path.map(String).join('.') || 'payload'}: ${i.message}`)
+      .join('; ');
+    throw new AppError(`Payload inválido: ${detail}`, 400);
+  }
+  return result.data;
 }
 
 export class SyncService {
@@ -115,7 +138,10 @@ export class SyncService {
                 supabase,
                 userId,
                 item.client_id,
-                item.payload
+                parseSyncPayload(createFavorSchema, {
+                  ...item.payload,
+                  client_id: item.client_id,
+                })
               );
               break;
             }
@@ -124,7 +150,7 @@ export class SyncService {
               executionResult = await this.executeCreateVulnerabilityReport(
                 supabase,
                 userId,
-                item.payload
+                parseSyncPayload(createEmergencyReportSchema, item.payload)
               );
               break;
             }
@@ -132,7 +158,7 @@ export class SyncService {
               executionResult = await this.executeCreateVouch(
                 supabase,
                 userId,
-                item.payload
+                parseSyncPayload(createVouchSchema, item.payload)
               );
               break;
             }
