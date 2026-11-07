@@ -10,7 +10,7 @@ type Props = {
   userLocation?: Coords | null;
   userFocusTrigger?: number;
   fitTrigger?: number;
-  onPointPress?: (id: string) => void;
+  onPointPress?: (id: string, same?: boolean) => void;
   onMapClear?: () => void;
   height?: number;
 };
@@ -50,10 +50,15 @@ export function BarrioMap({
     const handler = (event: MessageEvent) => {
       if (typeof event.data !== 'string') return;
       try {
-        const data = JSON.parse(event.data) as { source?: string; type?: string; id?: string };
+        const data = JSON.parse(event.data) as {
+          source?: string;
+          type?: string;
+          id?: string;
+          same?: boolean;
+        };
         if (data.source !== 'barrio-map') return;
         if (data.type === 'ready') setReady(true);
-        else if (data.type === 'point' && data.id) pressRef.current?.(data.id);
+        else if (data.type === 'point' && data.id) pressRef.current?.(data.id, data.same);
         else if (data.type === 'clear') clearRef.current?.();
       } catch {
         // Mensajes ajenos se ignoran.

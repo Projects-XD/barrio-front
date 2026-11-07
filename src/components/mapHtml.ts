@@ -77,9 +77,12 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     .leg-item{display:inline-flex;align-items:center;gap:5px}
     .dot{display:inline-block;width:9px;height:9px;border-radius:50%}
     .vacio{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:999;background:rgba(255,255,255,.96);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;color:#5E6B82;box-shadow:0 3px 12px rgba(19,46,102,.18);display:none;white-space:nowrap}
-    .pin-wrap{display:flex;align-items:center;justify-content:center;position:relative;width:36px;height:36px}
-    .pin-core{width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 3px 8px rgba(19,46,102,.32);display:flex;align-items:center;justify-content:center;transition:transform .18s ease,box-shadow .18s ease}
-    .pin-selected .pin-core{transform:scale(1.32);border-color:#132E66;box-shadow:0 5px 14px rgba(19,46,102,.55)}
+    .pin-wrap{display:flex;align-items:center;justify-content:center;position:relative;width:38px;height:38px;cursor:pointer}
+    .pin-core{width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 3px 8px rgba(19,46,102,.32);display:flex;align-items:center;justify-content:center;transition:transform .18s ease,box-shadow .18s ease;pointer-events:none}
+    .pin-core svg{pointer-events:none}
+    .pin-wrap:hover .pin-core{transform:scale(1.14)}
+    .pin-selected .pin-core{transform:scale(1.36) !important;border-color:#132E66;box-shadow:0 5px 14px rgba(19,46,102,.55)}
+    .pin-ring-sel{position:absolute;width:38px;height:38px;border-radius:50%;border:2.5px solid #132E66;background:rgba(234,152,43,.22);pointer-events:none}
     .pin-urg{position:absolute;width:36px;height:36px;border-radius:50%;border:2px solid #B8442F;animation:pulse 1.8s infinite;pointer-events:none}
     .user-wrap{display:flex;align-items:center;justify-content:center;position:relative;width:32px;height:32px}
     .user-pulse{position:absolute;width:30px;height:30px;border-radius:50%;background:rgba(43,74,140,.28);animation:pulse 2s infinite;pointer-events:none}
@@ -109,6 +112,7 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     var layer = L.layerGroup().addTo(map);
     var userLayer = L.layerGroup().addTo(map);
     var currentPoints = [];
+    var markersById = {};
     var selectedId = null;
     var hasAutoFitted = false;
 
@@ -148,60 +152,120 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
       return '<svg ' + common + '><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
     }
 
+    function buildPinIcon(p, isSelected) {
+      var bg = '#132E66';
+      var fg = '#ffffff';
+      if (p.kind === 'ofrecer') {
+        bg = '#EA982B';
+        fg = '#132E66';
+      } else if (p.kind === 'oficio') {
+        bg = '#2E7D5B';
+        fg = '#ffffff';
+      } else if (p.kind === 'emergencia') {
+        bg = '#B8442F';
+        fg = '#ffffff';
+      }
+
+      var isUrgent = p.urgency === 'urgente' || p.urgency === 'emergencia' || p.kind === 'emergencia';
+      var svg = svgIconFor(p, fg);
+      var safeId = String(p.id).replace(/"/g, '');
+      var html = '<div class="pin-wrap ' + (isSelected ? 'pin-selected' : '') + '" data-pin-id="' + safeId + '">' +
+        (isSelected ? '<div class="pin-ring-sel"></div>' : '') +
+        (isUrgent ? '<div class="pin-urg"></div>' : '') +
+        '<div class="pin-core" style="background:' + bg + ';color:' + fg + '">' + svg + '</div>' +
+        '</div>';
+
+      return L.divIcon({
+        className: '',
+        html: html,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19]
+      });
+    }
+
+    function updateSelectionVisuals() {
+      currentPoints.forEach(function (p) {
+        var m = markersById[p.id];
+        if (!m) return;
+        var isSel = selectedId === p.id;
+        var el = m.getElement ? m.getElement() : null;
+        if (el) {
+          var wrap = el.querySelector('.pin-wrap');
+          if (wrap) {
+            if (isSel) wrap.classList.add('pin-selected');
+            else wrap.classList.remove('pin-selected');
+          }
+          var ring = el.querySelector('.pin-ring-sel');
+          if (isSel && !ring && wrap) {
+            var r = document.createElement('div');
+            r.className = 'pin-ring-sel';
+            wrap.insertBefore(r, wrap.firstChild);
+          } else if (!isSel && ring && ring.parentNode) {
+            ring.parentNode.removeChild(ring);
+          }
+        }
+        var zOffset = isSel ? 1000 : p.kind === 'emergencia' ? 400 : p.kind === 'ofrecer' ? 200 : 100;
+        m.setZIndexOffset(zOffset);
+      });
+    }
+
+    var lastClickId = null;
+    var lastClickTs = 0;
+
+    window.handlePinClick = function (id) {
+      var now = Date.now();
+      if (lastClickId === id && now - lastClickTs < 120) return;
+      lastClickId = id;
+      lastClickTs = now;
+
+      var found = null;
+      for (var i = 0; i < currentPoints.length; i++) {
+        if (currentPoints[i].id === id) {
+          found = currentPoints[i];
+          break;
+        }
+      }
+      if (!found) return;
+      var isSame = selectedId === found.id;
+      selectedId = found.id;
+      updateSelectionVisuals();
+      map.panTo([found.lat, found.lng], { animate: true });
+      send({ type: 'point', id: found.id, same: isSame });
+    };
+
     function renderMarkers() {
       layer.clearLayers();
+      markersById = {};
       var vacioEl = document.getElementById('vacio');
       if (vacioEl) vacioEl.style.display = currentPoints.length ? 'none' : 'block';
 
       currentPoints.forEach(function (p) {
-        var bg = '#132E66';
-        var fg = '#ffffff';
-        if (p.kind === 'ofrecer') {
-          bg = '#EA982B';
-          fg = '#132E66';
-        } else if (p.kind === 'oficio') {
-          bg = '#2E7D5B';
-          fg = '#ffffff';
-        } else if (p.kind === 'emergencia') {
-          bg = '#B8442F';
-          fg = '#ffffff';
-        }
-
         var isSelected = selectedId === p.id;
-        var isUrgent = p.urgency === 'urgente' || p.urgency === 'emergencia' || p.kind === 'emergencia';
-        var svg = svgIconFor(p, fg);
-        var html = '<div class="pin-wrap ' + (isSelected ? 'pin-selected' : '') + '">' +
-          (isUrgent ? '<div class="pin-urg"></div>' : '') +
-          '<div class="pin-core" style="background:' + bg + ';color:' + fg + '">' + svg + '</div>' +
-          '</div>';
-
-        var icon = L.divIcon({
-          className: '',
-          html: html,
-          iconSize: [36, 36],
-          iconAnchor: [18, 18]
-        });
-
+        var icon = buildPinIcon(p, isSelected);
         var zOffset = isSelected ? 1000 : p.kind === 'emergencia' ? 400 : p.kind === 'ofrecer' ? 200 : 100;
         var m = L.marker([p.lat, p.lng], {
           icon: icon,
           zIndexOffset: zOffset
         }).addTo(layer);
 
-        m.bindTooltip(p.label, { direction: 'top', offset: [0, -14], className: 'barrio-tip' });
-        m.on('click', function (e) {
-          L.DomEvent.stopPropagation(e);
-          selectedId = p.id;
-          renderMarkers();
-          send({ type: 'point', id: p.id });
+        markersById[p.id] = m;
+        m.bindTooltip(p.label, { direction: 'top', offset: [0, -15], className: 'barrio-tip', interactive: false });
+        m.on('click', function () {
+          window.handlePinClick(p.id);
         });
       });
     }
 
-    map.on('click', function () {
+    map.on('click', function (e) {
+      var orig = e && e.originalEvent ? e.originalEvent : null;
+      var tgt = orig && orig.target ? orig.target : null;
+      if (tgt && tgt.closest && (tgt.closest('.leaflet-marker-icon') || tgt.closest('[data-pin-id]'))) {
+        return;
+      }
+      if (Date.now() - lastClickTs < 350) return;
       if (selectedId !== null) {
         selectedId = null;
-        renderMarkers();
+        updateSelectionVisuals();
         send({ type: 'clear' });
       }
     });
@@ -230,9 +294,9 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
 
     window.focusPoint = function (id, lat, lng) {
       selectedId = id || null;
-      renderMarkers();
+      updateSelectionVisuals();
       if (typeof lat === 'number' && typeof lng === 'number') {
-        map.setView([lat, lng], 16, { animate: true });
+        map.panTo([lat, lng], { animate: true });
       }
     };
 

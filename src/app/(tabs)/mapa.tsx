@@ -608,7 +608,14 @@ export default function MapaBarrio() {
               userLocation={userLocation}
               userFocusTrigger={userFocusTrigger}
               fitTrigger={fitTrigger}
-              onPointPress={(id) => setSelectedId(id)}
+              onPointPress={(id, same) => {
+                if (same) {
+                  const found = filteredItems.find((x) => x.id === id);
+                  if (found) abrirDetalleEntry(found);
+                } else {
+                  setSelectedId(id);
+                }
+              }}
               onMapClear={() => setSelectedId(null)}
             />
 
