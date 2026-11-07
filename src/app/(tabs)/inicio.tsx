@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Alert, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { EmptyState } from '@/components/EmptyState';
 import { FavorCard } from '@/components/FavorCard';
 import { Screen } from '@/components/Screen';
 import { SectionHeader } from '@/components/SectionHeader';
 import { StatusBanner } from '@/components/StatusBanner';
 import { usePalette } from '@/hooks/usePalette';
-import { useFavors, useZones } from '@/hooks/useData';
+import { useFavors, useIsAdmin, useZones } from '@/hooks/useData';
 import type { IconName } from '@/i18n/icons';
 import { selectEmergencyActive, useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
@@ -54,6 +54,11 @@ export default function Inicio() {
   const { data: zonas = [] } = useZones();
   const { data: favors = [], isLoading } = useFavors();
   const zona = zonas.find((z) => z.id === zoneId)?.name;
+  const { data: isAdmin } = useIsAdmin();
+
+  // Login, reapertura y el tab Inicio pasan todos por aquí. No se bloquea mientras carga el rol:
+  // los vecinos no deben esperar a /admin/me para ver su inicio.
+  if (isAdmin) return <Redirect href="/admin" />;
 
   const tiles: Tile[] = emergency
     ? [

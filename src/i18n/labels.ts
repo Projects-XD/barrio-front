@@ -1,3 +1,4 @@
+import type { ReportReason } from '@/api/endpoints';
 import type { FavorStatus, FavorType, FavorUrgency, OficioCategory, ResourceType, ServiceType, SyncStatus } from '@/types';
 
 export const oficioLabel: Record<OficioCategory, string> = {
@@ -7,6 +8,14 @@ export const oficioLabel: Record<OficioCategory, string> = {
   cerrajeria: 'Cerrajería',
   clases: 'Clases',
   paseador_mascotas: 'Paseador de mascotas',
+  otro: 'Otro',
+};
+
+export const reportReasonLabel: Record<ReportReason, string> = {
+  acoso: 'Acoso',
+  spam: 'Spam',
+  contenido_inapropiado: 'Contenido inapropiado',
+  datos_falsos: 'Datos falsos',
   otro: 'Otro',
 };
 

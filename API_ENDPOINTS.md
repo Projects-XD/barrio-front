@@ -182,6 +182,7 @@ Esta guía detalla de forma clara y amigable todos los endpoints disponibles en 
 Requieren `Bearer <token>` de un usuario con `users.is_admin = true`, activo y con zona. Cada admin solo modera su zona. El rol se asigna únicamente por SQL.
 
 * **Ruta:** `GET /admin/favors/pending?limit=20&offset=0`: cola de la zona, los más antiguos primero.
+* **Ruta:** `GET /admin/reports?limit=20&offset=0`: reportes entre vecinos de su zona, los más recientes primero, con `reporter` y `target` (`id`, `full_name`).
 * **Ruta:** `PATCH /admin/favors/:id/approve`: publica el favor en el feed de su zona. Sin body.
 * **Ruta:** `PATCH /admin/favors/:id/reject`: retira el favor (soft-delete). **Body:**
 ```json

@@ -216,7 +216,7 @@ export default function Perfil() {
           <AppButton
             label="Panel de Administración"
             icon="shield-checkmark-outline"
-            onPress={() => router.push('/admin')}
+            onPress={() => router.replace('/admin')}
           />
         ) : null}
         <AppButton

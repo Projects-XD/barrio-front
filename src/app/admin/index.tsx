@@ -7,8 +7,9 @@ import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { UrgencyBadge } from '@/components/UrgencyBadge';
 import { usePalette } from '@/hooks/usePalette';
-import { useApproveFavor, useIsAdmin, usePendingFavors, useRejectFavor } from '@/hooks/useData';
-import { favorTypeLabel } from '@/i18n/labels';
+import { useApproveFavor, useIsAdmin, usePendingFavors, useRejectFavor, useUserReports } from '@/hooks/useData';
+import type { BackendUserReport } from '@/api/endpoints';
+import { favorTypeLabel, reportReasonLabel } from '@/i18n/labels';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
 import type { Favor } from '@/types';
@@ -102,11 +103,29 @@ function PendingFavorCard({ favor }: { favor: Favor }) {
   );
 }
 
+function UserReportCard({ report }: { report: BackendUserReport }) {
+  const p = usePalette();
+  // El backend antepone "[conversación <id>]" a los detalles; aquí solo interesa lo que escribió el vecino.
+  const detalles = report.details?.replace(/^\[conversación [^\]]+\]\s*/, '');
+
+  return (
+    <Card>
+      <Text style={[styles.tipo, { color: colors.rojo }]}>{reportReasonLabel[report.reason]}</Text>
+      <Text style={[styles.titulo, { color: p.text }]}>Reportado: {report.target?.full_name ?? 'Vecino'}</Text>
+      {detalles ? <Text style={[styles.descripcion, { color: p.body }]}>{detalles}</Text> : null}
+      <Text style={[styles.meta, { color: p.muted }]}>
+        Por {report.reporter.full_name} · {timeAgo(report.created_at)}
+      </Text>
+    </Card>
+  );
+}
+
 export default function AdminPanel() {
   const p = usePalette();
   const hydrated = useAppStore((s) => s.hydrated);
   const isAdmin = useIsAdmin();
   const pendientes = usePendingFavors(isAdmin.data === true);
+  const reportes = useUserReports(isAdmin.data === true);
 
   if (!hydrated || isAdmin.isLoading) {
     return (
@@ -140,6 +159,7 @@ export default function AdminPanel() {
   }
 
   const favores = pendientes.data ?? [];
+  const actualizando = pendientes.isFetching || reportes.isFetching;
 
   return (
     <Screen>
@@ -162,11 +182,34 @@ export default function AdminPanel() {
         favores.map((favor) => <PendingFavorCard key={favor.id} favor={favor} />)
       )}
 
+      <Text style={[styles.encabezado, styles.seccion, { color: p.text }]}>Reportes de vecinos</Text>
+      <Text style={[styles.sub, { color: p.muted }]}>Lo que los vecinos han reportado desde el chat en tu zona.</Text>
+
+      {reportes.isLoading ? (
+        <ActivityIndicator size="large" color={p.primary} style={{ marginTop: spacing.xl }} />
+      ) : reportes.isError ? (
+        <EmptyState icon="cloud-offline-outline" title="No pudimos cargar los reportes" message={reportes.error.message} />
+      ) : reportes.data?.length ? (
+        reportes.data.map((report) => <UserReportCard key={report.id} report={report} />)
+      ) : (
+        <EmptyState icon="checkmark-done-outline" title="Sin reportes" message="Nadie ha reportado a un vecino en tu zona." />
+      )}
+
       <AppButton
-        label={pendientes.isFetching ? 'Actualizando...' : 'Actualizar'}
+        label={actualizando ? 'Actualizando...' : 'Actualizar'}
         variant="link"
-        disabled={pendientes.isFetching}
-        onPress={() => pendientes.refetch()}
+        disabled={actualizando}
+        onPress={() => {
+          pendientes.refetch();
+          reportes.refetch();
+        }}
+      />
+      {/* Inicio redirige aquí a los admins: esta es su salida al resto de la app y a cerrar sesión. */}
+      <AppButton
+        label="Ir a mi perfil"
+        variant="secondary"
+        icon="person-outline"
+        onPress={() => router.replace('/(tabs)/perfil')}
       />
     </Screen>
   );
@@ -175,6 +218,7 @@ export default function AdminPanel() {
 const styles = StyleSheet.create({
   encabezado: { fontSize: 26, fontFamily: fonts.bold, lineHeight: 32 },
   sub: { fontSize: 16, fontFamily: fonts.regular, lineHeight: 22, marginTop: 6, marginBottom: spacing.md },
+  seccion: { marginTop: spacing.lg },
   tipo: { fontFamily: fonts.semiBold, fontSize: 14 },
   titulo: { fontFamily: fonts.bold, fontSize: 18, lineHeight: 24, marginTop: 2 },
   descripcion: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 21, marginTop: spacing.xs },

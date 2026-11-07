@@ -19,6 +19,7 @@ import {
   listNotifications,
   listOficios,
   listPendingFavors,
+  listUserReports,
   listProfiles,
   listReports,
   listResources,
@@ -468,6 +469,14 @@ export function usePendingFavors(enabled: boolean) {
     queryKey: ['adminPending'],
     enabled,
     queryFn: async () => (await listPendingFavors(20)).map((bf) => mapBackendFavorToFrontend(bf, userId)),
+  });
+}
+
+export function useUserReports(enabled: boolean) {
+  return useQuery({
+    queryKey: ['adminReports'],
+    enabled,
+    queryFn: () => listUserReports(50),
   });
 }
 

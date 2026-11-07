@@ -97,6 +97,48 @@ router.get(
 
 /**
  * @openapi
+ * /admin/reports:
+ *   get:
+ *     summary: Listar los reportes entre vecinos de la zona del admin
+ *     tags:
+ *       - Administración
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *           default: 0
+ *     responses:
+ *       200:
+ *         description: Reportes con quien reporta y el reportado, los más recientes primero
+ *       401:
+ *         description: No autenticado
+ *       403:
+ *         description: El usuario no es administrador activo con zona
+ */
+router.get(
+  '/reports',
+  validate(listPendingFavorsQuerySchema, 'query'),
+  handle((req, _adminId, zoneId) =>
+    moderationService.listReports(getSupabaseClient(req), zoneId, {
+      limit: Number(req.query.limit),
+      offset: Number(req.query.offset),
+    })
+  )
+);
+
+/**
+ * @openapi
  * /admin/favors/{id}/approve:
  *   patch:
  *     summary: Aprobar la urgencia de un favor pendiente

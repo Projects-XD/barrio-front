@@ -3,6 +3,9 @@ import type { Database, Tables, TablesUpdate } from '../types/database.types';
 import { AppError } from '../middlewares/errorHandler';
 
 type Client = SupabaseClient<Database>;
+type UserLite = { id: string; full_name: string };
+
+export type UserReportView = Tables<'user_reports'> & { reporter: UserLite; target: UserLite | null };
 
 // Un favor ya cerrado o cancelado no tiene nada que moderar.
 const MODERABLE_STATUSES: Tables<'favors'>['status'][] = ['abierta', 'en_curso'];
@@ -32,6 +35,48 @@ export class ModerationService {
     }
 
     return (data as unknown as Tables<'favors'>[]) || [];
+  }
+
+  /**
+   * Reportes entre vecinos de la zona del admin, los más recientes primero.
+   * target_id no tiene FK, por eso la zona se filtra por quien reporta y los reportados se leen aparte.
+   * Solo se puede reportar dentro de un favor de la misma zona, así que ambos comparten zona.
+   */
+  public async listReports(
+    supabase: Client,
+    zoneId: string,
+    { limit, offset }: { limit: number; offset: number }
+  ): Promise<UserReportView[]> {
+    const { data, error } = await supabase
+      .from('user_reports')
+      .select('*, users!user_reports_reporter_user_id_fkey!inner(id, full_name, zone_id)')
+      .eq('users.zone_id', zoneId)
+      .eq('target_type', 'user')
+      .order('created_at', { ascending: false })
+      .order('id')
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw new AppError(`Error al consultar los reportes: ${error.message}`, 400);
+    }
+
+    const rows = (data ?? []) as unknown as (Tables<'user_reports'> & { users: UserLite })[];
+    if (rows.length === 0) return [];
+
+    const { data: targets, error: targetsError } = await supabase
+      .from('users')
+      .select('id, full_name')
+      .in('id', [...new Set(rows.map((row) => row.target_id))]);
+
+    if (targetsError) {
+      throw new AppError(`Error al consultar los reportes: ${targetsError.message}`, 400);
+    }
+
+    return rows.map(({ users: reporter, ...report }) => ({
+      ...report,
+      reporter: { id: reporter.id, full_name: reporter.full_name },
+      target: targets?.find((user) => user.id === report.target_id) ?? null,
+    }));
   }
 
   public async approve(
