@@ -44,6 +44,7 @@ export const favorTypeSchema = z.enum([
   'donacion_materiales',
   'intercambio_habilidades',
   'movilidad_solidaria',
+  'otros',
 ]);
 
 export const favorStatusSchema = z.enum([

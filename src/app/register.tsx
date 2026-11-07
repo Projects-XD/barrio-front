@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Alert,
   Pressable,
   StyleSheet,
@@ -30,6 +31,14 @@ export default function Register() {
   const setSession = useAppStore((s) => s.setSession);
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  // Desliza el formulario desde la derecha al ir a registro, y desde la izquierda al ir a login.
+  const [slide] = useState(() => new Animated.Value(0));
+  const switchMode = (next: 'login' | 'register') => {
+    if (next === mode) return;
+    slide.setValue(next === 'register' ? 48 : -48);
+    Animated.spring(slide, { toValue: 0, useNativeDriver: true, friction: 9, tension: 70 }).start();
+    setMode(next);
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
@@ -245,7 +254,7 @@ export default function Register() {
           <Pressable
             accessibilityRole="tab"
             onPress={() => {
-              setMode('login');
+              switchMode('login');
               setErrorMsg(null);
             }}
             style={[
@@ -267,7 +276,7 @@ export default function Register() {
           <Pressable
             accessibilityRole="tab"
             onPress={() => {
-              setMode('register');
+              switchMode('register');
               setErrorMsg(null);
             }}
             style={[
@@ -293,7 +302,7 @@ export default function Register() {
           </View>
         ) : null}
 
-        <View style={styles.form}>
+        <Animated.View style={[styles.form, { transform: [{ translateX: slide }] }]}>
           {mode === 'register' ? (
             <>
               <Text style={[styles.label, { color: p.text }]}>Nombre y apellido</Text>
@@ -343,16 +352,16 @@ export default function Register() {
             <>
               <Text style={[styles.label, { color: p.text }]}>Tu zona o barrio</Text>
               <AppButton
-                label={locStatus === 'loading' ? 'Buscando tu ubicaciÃ³n...' : 'Usar mi ubicaciÃ³n'}
+                label={locStatus === 'loading' ? 'Buscando tu ubicación...' : 'Usar mi ubicación'}
                 variant="secondary"
                 onPress={detectZone}
                 disabled={locStatus === 'loading'}
               />
               {locStatus === 'found' ? (
-                <Text style={[styles.privacyNote, { color: p.primary }]}>Detectamos tu zona: {zonaSeleccionada?.name}. Tu ubicaciÃ³n exacta no se guarda.</Text>
+                <Text style={[styles.privacyNote, { color: p.primary }]}>Detectamos tu zona: {zonaSeleccionada?.name}. Tu ubicación exacta no se guarda.</Text>
               ) : null}
               {locStatus === 'denied' ? (
-                <Text style={[styles.privacyNote, { color: p.muted }]}>Sin permiso de ubicaciÃ³n. Elige tu zona abajo.</Text>
+                <Text style={[styles.privacyNote, { color: p.muted }]}>Sin permiso de ubicación. Elige tu zona abajo.</Text>
               ) : null}
               {locStatus === 'notfound' ? (
                 <Text style={[styles.privacyNote, { color: p.muted }]}>No pudimos detectar tu zona. Elige tu zona abajo.</Text>
@@ -380,7 +389,7 @@ export default function Register() {
               ) : null}
             </>
           ) : null}
-        </View>
+        </Animated.View>
 
         <View style={styles.footer}>
           <Text style={[styles.privacyNote, { color: p.muted }]}>

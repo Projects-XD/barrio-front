@@ -80,7 +80,7 @@ export default function Reportar() {
       </Text>
 
       <Text style={[styles.nota, { color: colors.rojo, fontWeight: '600' }]}>
-        Si es urgente, llama al 105 (PolicÃ­a), 116 (Bomberos) o 106 (SAMU). Este reporte no reemplaza una llamada de emergencia.
+        Si es urgente, llama al 105 (Policía), 116 (Bomberos) o 106 (SAMU). Este reporte no reemplaza una llamada de emergencia.
       </Text>
       <AppButton
         label={crear.isPending ? 'Enviando...' : 'Enviar reporte'}

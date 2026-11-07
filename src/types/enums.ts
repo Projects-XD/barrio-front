@@ -12,7 +12,8 @@ export type FavorType =
   | 'ayuda_temporal'
   | 'donacion_materiales'
   | 'intercambio_habilidades'
-  | 'movilidad_solidaria';
+  | 'movilidad_solidaria'
+  | 'otros';
 export type FavorStatus = 'abierta' | 'en_curso' | 'cerrada' | 'cancelada';
 export type SyncStatus = 'pendiente' | 'enviado' | 'error';
 export type EmergencyStatus = 'inactiva' | 'activa';

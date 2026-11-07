@@ -16,6 +16,7 @@ export const favorTypeLabel: Record<FavorType, string> = {
   donacion_materiales: 'Donación de materiales',
   intercambio_habilidades: 'Intercambio de habilidades',
   movilidad_solidaria: 'Movilidad solidaria',
+  otros: 'Otros',
 };
 
 export const favorStatusLabel: Record<FavorStatus, string> = {
@@ -50,9 +51,10 @@ export const serviceLabel: Record<ServiceType, string> = {
 };
 
 export const favorTypeBackground: Record<FavorType, string> = {
-  herramienta: '#E6EEF8',
-  ayuda_temporal: '#F8ECE0',
-  donacion_materiales: '#EEF5E3',
-  intercambio_habilidades: '#F1E8F7',
-  movilidad_solidaria: '#E3F4F2',
+  herramienta: '#F4F6FA',
+  ayuda_temporal: '#F4F6FA',
+  donacion_materiales: '#F4F6FA',
+  intercambio_habilidades: '#F4F6FA',
+  movilidad_solidaria: '#F4F6FA',
+  otros: '#F4F6FA',
 };

@@ -43,7 +43,7 @@ export default function Oficios() {
         <View style={styles.headerRow}>
           <Text style={[styles.titulo, { color: p.text }]}>Oficios del Barrio</Text>
           <View style={styles.shieldPill}>
-            <Text style={styles.shieldText}>ValidaciÃ³n vecinal</Text>
+            <Text style={styles.shieldText}>Validación vecinal</Text>
           </View>
         </View>
       </View>

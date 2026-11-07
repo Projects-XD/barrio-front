@@ -10,12 +10,14 @@ export const favorTypeIcon: Record<FavorType, IconName> = {
   donacion_materiales: 'cube-outline',
   intercambio_habilidades: 'bulb-outline',
   movilidad_solidaria: 'car-outline',
+  otros: 'ellipsis-horizontal-outline',
 };
 
 export const favorTypeColor: Record<FavorType, string> = {
   herramienta: '#132E66',
-  ayuda_temporal: '#EA982B',
-  donacion_materiales: '#2E7D5B',
-  intercambio_habilidades: '#7A4FB0',
-  movilidad_solidaria: '#1E8C9A',
+  ayuda_temporal: '#132E66',
+  donacion_materiales: '#132E66',
+  intercambio_habilidades: '#132E66',
+  movilidad_solidaria: '#132E66',
+  otros: '#132E66',
 };

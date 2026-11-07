@@ -1,15 +1,5 @@
-import { useRef, useState } from 'react';
-import {
-  FlatList,
-  Image,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { Animated, Easing, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { Screen } from '@/components/Screen';
@@ -45,86 +35,58 @@ export default function Welcome() {
   const p = usePalette();
   const { width, height } = useWindowDimensions();
   const [index, setIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+  // Un solo valor animado: el carrusel entero se desplaza hacia la izquierda o la derecha.
+  const [offset] = useState(() => new Animated.Value(0));
 
-  const slideWidth = Math.max(width - spacing.md * 2, 280);
-  const isSmallDevice = height < 700;
-  const imageHeight = Math.min(height * 0.22, isSmallDevice ? 140 : 175);
-  const imageWidth = Math.min(slideWidth * 0.85, 270);
-
+  const slideWidth = Math.min(Math.max(width - spacing.md * 2, 280), 520);
+  const imageHeight = Math.min(height * 0.25, 220);
+  const imageWidth = Math.min(slideWidth * 0.85, 300);
   const last = index === slides.length - 1;
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const offsetX = event.nativeEvent.contentOffset.x;
-    const newIndex = Math.round(offsetX / slideWidth);
-    if (newIndex >= 0 && newIndex < slides.length && newIndex !== index) {
-      setIndex(newIndex);
-    }
-  };
-
-  const goToSlide = (i: number) => {
-    flatListRef.current?.scrollToIndex({ index: i, animated: true });
-    setIndex(i);
-  };
+  useEffect(() => {
+    Animated.timing(offset, {
+      toValue: -index * slideWidth,
+      duration: 380,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [index, slideWidth, offset]);
 
   const next = () => {
     if (last) {
       router.replace('/register');
     } else {
-      const nextIndex = index + 1;
-      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-      setIndex(nextIndex);
+      setIndex((i) => i + 1);
     }
   };
 
   return (
     <Screen scroll={false}>
       <View style={styles.carouselContainer}>
-        <FlatList
-          ref={flatListRef}
-          data={slides}
-          keyExtractor={(item) => item.id}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          bounces={false}
-          getItemLayout={(_, i) => ({
-            length: slideWidth,
-            offset: slideWidth * i,
-            index: i,
-          })}
-          onScrollToIndexFailed={(info) => {
-            setTimeout(() => {
-              flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
-            }, 50);
-          }}
-          renderItem={({ item }) => (
-            <View style={[styles.slideItem, { width: slideWidth }]}>
-              <View
-                style={[
-                  styles.imageCard,
-                  {
-                    width: imageWidth,
-                    height: imageHeight,
-                    borderColor: colors.grisBorde,
-                  },
-                ]}
-              >
-                <Image
-                  source={item.image}
-                  style={styles.image}
-                  resizeMode="cover"
-                  accessibilityLabel={item.titulo}
-                />
+        <View style={{ width: slideWidth, overflow: 'hidden' }}>
+          <Animated.View
+            style={{
+              flexDirection: 'row',
+              width: slideWidth * slides.length,
+              transform: [{ translateX: offset }],
+            }}
+          >
+            {slides.map((item) => (
+              <View key={item.id} style={[styles.slideItem, { width: slideWidth }]}>
+                <View
+                  style={[
+                    styles.imageCard,
+                    { width: imageWidth, height: imageHeight, borderColor: colors.grisBorde },
+                  ]}
+                >
+                  <Image source={item.image} style={styles.image} resizeMode="cover" accessibilityLabel={item.titulo} />
+                </View>
+                <Text style={[styles.titulo, { color: p.text }]}>{item.titulo}</Text>
+                <Text style={[styles.texto, { color: p.muted }]}>{item.texto}</Text>
               </View>
-
-              <Text style={[styles.titulo, { color: p.text }]}>{item.titulo}</Text>
-              <Text style={[styles.texto, { color: p.muted }]}>{item.texto}</Text>
-            </View>
-          )}
-        />
+            ))}
+          </Animated.View>
+        </View>
 
         <View style={styles.dots}>
           {slides.map((_, i) => {
@@ -134,14 +96,8 @@ export default function Welcome() {
                 key={i}
                 accessibilityRole="button"
                 accessibilityLabel={`Ir a diapositiva ${i + 1}`}
-                onPress={() => goToSlide(i)}
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor: active ? p.primary : p.border,
-                    width: active ? 22 : 8,
-                  },
-                ]}
+                onPress={() => setIndex(i)}
+                style={[styles.dot, { backgroundColor: active ? p.primary : p.border, width: active ? 22 : 8 }]}
               />
             );
           })}
@@ -149,75 +105,28 @@ export default function Welcome() {
       </View>
 
       <View style={styles.actions}>
-        <AppButton
-          label={last ? 'Empezar ahora' : 'Siguiente'}
-          variant="accent"
-          onPress={next}
-        />
-        <AppButton
-          label="Saltar introducción"
-          variant="link"
-          onPress={() => router.replace('/register')}
-        />
+        <AppButton label={last ? 'Empezar ahora' : 'Siguiente'} variant="accent" onPress={next} />
+        <AppButton label="Saltar introducción" variant="link" onPress={() => router.replace('/register')} />
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  carouselContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  slideItem: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-  },
+  carouselContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  slideItem: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.sm },
   imageCard: {
     borderRadius: radius.md,
     overflow: 'hidden',
     marginBottom: spacing.md,
     borderWidth: 1,
     backgroundColor: colors.blanco,
-    shadowColor: '#132E66',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
     alignSelf: 'center',
   },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  titulo: {
-    fontSize: 22,
-    fontFamily: fonts.bold,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-    lineHeight: 28,
-  },
-  texto: {
-    fontSize: 15,
-    fontFamily: fonts.regular,
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: spacing.xs,
-  },
-  dots: {
-    flexDirection: 'row',
-    gap: 8,
-    marginVertical: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dot: {
-    height: 8,
-    borderRadius: radius.pill,
-  },
-  actions: {
-    paddingTop: spacing.xs,
-  },
+  image: { width: '100%', height: '100%' },
+  titulo: { fontSize: 22, fontFamily: fonts.bold, textAlign: 'center', marginBottom: spacing.xs, lineHeight: 28 },
+  texto: { fontSize: 15, fontFamily: fonts.regular, textAlign: 'center', lineHeight: 22, paddingHorizontal: spacing.xs },
+  dots: { flexDirection: 'row', gap: 8, marginVertical: spacing.md, alignItems: 'center', justifyContent: 'center' },
+  dot: { height: 8, borderRadius: radius.pill },
+  actions: { paddingTop: spacing.xs },
 });
