@@ -46,12 +46,6 @@ export default function OficioDetalle() {
     );
   }
 
-  const initials = profile.user.fullName
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('');
-
   const handleCall = () => {
     setShowContactModal(false);
     Linking.openURL('tel:+51987654321').catch(() => {
@@ -74,28 +68,29 @@ export default function OficioDetalle() {
       <Stack.Screen options={{ title: profile.user.fullName }} />
 
       <Card>
-        <View style={styles.headerRow}>
-          <View style={[styles.avatar, { backgroundColor: '#EBF3FC', borderColor: '#D0E3F8' }]}>
-            <Text style={styles.initials}>{initials}</Text>
-          </View>
-          <View style={styles.headerInfo}>
-            <Text style={[styles.nombre, { color: p.text }]}>{profile.user.fullName}</Text>
-            <Text style={[styles.sub, { color: p.muted }]}>
-              {`${oficioLabel[profile.oficio.category]}${profile.yearsExperience ? ` · ${profile.yearsExperience} años exp.` : ''}`}
-            </Text>
+        <View style={styles.headerInfo}>
+          <Text style={[styles.nombre, { color: p.text }]}>{profile.user.fullName}</Text>
+          <Text style={styles.oficio}>{oficioLabel[profile.oficio.category]}</Text>
+        </View>
+
+        <View style={styles.statsRow}>
+          <ValidationBadge validatedCount={profile.validatedCount} />
+
+          <View style={styles.metricsRow}>
             {profile.distanceKm !== undefined ? (
-              <View style={styles.distanciaRow}>
-                <Ionicons name="location-outline" size={13} color={colors.gris} />
-                <Text style={[styles.distancia, { color: colors.gris }]}>
-                  {profile.distanceKm} km en tu zona
-                </Text>
+              <View style={styles.metricBadge}>
+                <Ionicons name="location-outline" size={13} color={colors.azul} />
+                <Text style={styles.metricText}>{profile.distanceKm} km en tu zona</Text>
+              </View>
+            ) : null}
+
+            {profile.yearsExperience ? (
+              <View style={styles.metricBadge}>
+                <Ionicons name="briefcase-outline" size={13} color={colors.azul} />
+                <Text style={styles.metricText}>{profile.yearsExperience} años de experiencia</Text>
               </View>
             ) : null}
           </View>
-        </View>
-
-        <View style={styles.badgeWrapper}>
-          <ValidationBadge validatedCount={profile.validatedCount} />
         </View>
 
         <View style={styles.divider} />
@@ -174,22 +169,34 @@ export default function OficioDetalle() {
 
 const styles = StyleSheet.create({
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: spacing.xl },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: spacing.sm },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
+  headerInfo: { marginBottom: spacing.xs },
+  nombre: { fontSize: 21, fontFamily: fonts.bold, letterSpacing: -0.3 },
+  oficio: { fontSize: 15, fontFamily: fonts.semiBold, color: colors.azul, marginTop: 2 },
+  statsRow: {
+    gap: 10,
+    marginTop: spacing.sm,
   },
-  initials: { color: colors.azul, fontFamily: fonts.bold, fontSize: 18 },
-  headerInfo: { flex: 1 },
-  nombre: { fontSize: 20, fontFamily: fonts.bold, marginBottom: 2 },
-  sub: { fontSize: 14, fontFamily: fonts.medium },
-  distanciaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  distancia: { fontSize: 13, fontFamily: fonts.regular },
-  badgeWrapper: { marginVertical: 6 },
+  metricsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  metricBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  metricText: {
+    fontSize: 12.5,
+    fontFamily: fonts.medium,
+    color: '#334155',
+  },
   divider: { height: 1, backgroundColor: colors.grisBorde, marginVertical: spacing.md },
   seccionTitulo: { fontSize: 15, fontFamily: fonts.semiBold, marginBottom: 6 },
   descripcion: { fontSize: 15, fontFamily: fonts.regular, lineHeight: 22 },

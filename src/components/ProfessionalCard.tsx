@@ -11,51 +11,44 @@ type Props = { profile: ProfessionalProfile; onPress: () => void };
 
 export function ProfessionalCard({ profile, onPress }: Props) {
   const p = usePalette();
-  const initials = profile.user.fullName
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('');
 
   return (
     <Card onPress={onPress}>
       <View style={styles.container}>
-        <View style={styles.topRow}>
-          <View style={[styles.avatar, { backgroundColor: '#EBF3FC', borderColor: '#D0E3F8' }]}>
-            <Text style={styles.initials}>{initials}</Text>
+        {/* Cabecera: Nombre y Oficio destacados directamente sin avatar */}
+        <View style={styles.headerRow}>
+          <View style={styles.headerInfo}>
+            <Text style={[styles.name, { color: p.text }]}>{profile.user.fullName}</Text>
+            <Text style={styles.oficio}>{oficioLabel[profile.oficio.category]}</Text>
           </View>
-          <View style={styles.mainInfo}>
-            <View style={styles.nameCategoryRow}>
-              <Text style={[styles.name, { color: p.text }]}>{profile.user.fullName}</Text>
-              <View style={styles.tag}>
-                <Text style={styles.tagText}>{oficioLabel[profile.oficio.category]}</Text>
-              </View>
-            </View>
-            <Text numberOfLines={1} style={styles.desc}>
-              {profile.description}
-            </Text>
-          </View>
+          <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
         </View>
 
-        <View style={styles.bottomRow}>
+        {/* Descripción del servicio */}
+        {profile.description ? (
+          <Text numberOfLines={2} style={styles.desc}>
+            {profile.description}
+          </Text>
+        ) : null}
+
+        {/* Fila inferior: Avales minimalistas a la izquierda, distancia y experiencia con presencia a la derecha */}
+        <View style={styles.footerRow}>
           <ValidationBadge validatedCount={profile.validatedCount} />
 
-          <View style={styles.metaRow}>
+          <View style={styles.metricsRow}>
             {profile.distanceKm !== undefined ? (
-              <View style={styles.metaItem}>
-                <Ionicons name="location-outline" size={13} color={colors.gris} />
-                <Text style={styles.metaText}>{profile.distanceKm} km</Text>
+              <View style={styles.metricBadge}>
+                <Ionicons name="location-outline" size={13} color={colors.azul} />
+                <Text style={styles.metricText}>{profile.distanceKm} km</Text>
               </View>
             ) : null}
 
             {profile.yearsExperience ? (
-              <View style={styles.metaItem}>
-                <Ionicons name="briefcase-outline" size={12} color={colors.gris} />
-                <Text style={styles.metaText}>{profile.yearsExperience}a exp</Text>
+              <View style={styles.metricBadge}>
+                <Ionicons name="briefcase-outline" size={13} color={colors.azul} />
+                <Text style={styles.metricText}>{profile.yearsExperience} años exp.</Text>
               </View>
             ) : null}
-
-            <Ionicons name="chevron-forward" size={16} color={colors.grisBorde} style={{ marginLeft: 2 }} />
           </View>
         </View>
       </View>
@@ -67,79 +60,61 @@ const styles = StyleSheet.create({
   container: {
     gap: 10,
   },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-  },
-  initials: {
-    color: colors.azul,
-    fontFamily: fonts.bold,
-    fontSize: 15,
-  },
-  mainInfo: {
-    flex: 1,
-  },
-  nameCategoryRow: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 2,
+    alignItems: 'flex-start',
+  },
+  headerInfo: {
+    flex: 1,
+    paddingRight: 8,
   },
   name: {
-    fontSize: 17,
+    fontSize: 17.5,
     fontFamily: fonts.bold,
-    flex: 1,
-    marginRight: 8,
+    letterSpacing: -0.2,
   },
-  tag: {
-    backgroundColor: '#F1F5F9',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: colors.grisBorde,
-  },
-  tagText: {
-    fontSize: 11.5,
+  oficio: {
+    fontSize: 14,
     fontFamily: fonts.semiBold,
     color: colors.azul,
+    marginTop: 2,
   },
   desc: {
     fontSize: 13.5,
     fontFamily: fonts.regular,
-    color: colors.gris,
-    lineHeight: 18,
+    color: '#475569',
+    lineHeight: 18.5,
   },
-  bottomRow: {
+  footerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 8,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  metaRow: {
+  metricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  metaItem: {
+  metricBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  metaText: {
+  metricText: {
     fontSize: 12,
-    fontFamily: fonts.regular,
-    color: colors.gris,
+    fontFamily: fonts.medium,
+    color: '#334155',
   },
 });

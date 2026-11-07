@@ -40,13 +40,9 @@ export default function Oficios() {
         <View style={styles.headerRow}>
           <Text style={[styles.titulo, { color: p.text }]}>Oficios del Barrio</Text>
           <View style={styles.shieldPill}>
-            <Ionicons name="shield-checkmark" size={13} color={colors.azul} style={{ marginRight: 4 }} />
             <Text style={styles.shieldText}>2+ avales</Text>
           </View>
         </View>
-        <Text style={[styles.subtitulo, { color: p.muted }]}>
-          Técnicos recomendados por vecinos en Castilla
-        </Text>
       </View>
 
       {/* Barra de búsqueda moderna con Ionicons */}

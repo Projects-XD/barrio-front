@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
 import { Chip } from '@/components/Chip';
@@ -123,7 +124,7 @@ export default function Perfil() {
       ) : (
         <Card>
           <View style={styles.sinOficioRow}>
-            <Text style={styles.sinOficioIcono}>🛠️</Text>
+            <Ionicons name="construct-outline" size={26} color={colors.azul} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.sinOficioTitulo, { color: p.text }]}>
                 ¿Ofreces algún oficio o servicio?
