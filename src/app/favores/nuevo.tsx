@@ -81,14 +81,22 @@ export default function NuevoFavor() {
 
       {paso === 2 && (
         <>
-          <Text style={[styles.titulo, { color: p.text }]}>Describe en una línea</Text>
+          <Text style={[styles.titulo, { color: p.text }]}>
+            {tipo === 'otros' ? '¿Qué otro favor necesitas u ofreces?' : 'Describe en una línea'}
+          </Text>
           <Text style={[styles.sub, { color: p.muted }]}>
-            Sé claro y específico para que tus vecinos puedan ayudarte rápidamente.
+            {tipo === 'otros'
+              ? 'Escribe con tus palabras qué necesitas o qué puedes ofrecer. Tus vecinos verán tu mensaje tal cual.'
+              : 'Sé claro y específico para que tus vecinos puedan ayudarte rápidamente.'}
           </Text>
           <TextInput
             value={texto}
             onChangeText={setTexto}
-            placeholder="Ej: Necesito prestada una escalera este sábado..."
+            placeholder={
+              tipo === 'otros'
+                ? 'Ej: Necesito que alguien me enseñe a usar una computadora'
+                : 'Ej: Necesito prestada una escalera este sábado...'
+            }
             placeholderTextColor={colors.gris}
             multiline
             maxLength={120}
