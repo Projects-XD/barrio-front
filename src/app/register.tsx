@@ -19,8 +19,8 @@ import { MapPicker, type MapPickerHandle } from '@/components/MapPicker';
 import { Screen } from '@/components/Screen';
 import { useZones } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
-import { supabase } from '@/lib/supabase';
 import { queryClient } from '@/lib/queryClient';
+import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
 import { CASTILLA_BOUNDS, CASTILLA_CENTER, isWithinCastilla, type Coords } from '@/utils/geo';
@@ -207,9 +207,15 @@ export default function Register() {
         router.replace('/(tabs)/inicio');
       } else {
         // 2. Registro de nuevo usuario contra Supabase Auth
+        const regLat = ubicacionRegistro?.lat ?? zonaSeleccionada?.center_lat ?? CASTILLA_CENTER.lat;
+        const regLng = ubicacionRegistro?.lng ?? zonaSeleccionada?.center_lng ?? CASTILLA_CENTER.lng;
+        const regAddress =
+          zonaSeleccionada?.name ? `${zonaSeleccionada.name}, Castilla` : 'Castilla, Piura';
+
         logger.info('AUTH_REGISTER', `Iniciando registro para: ${cleanEmail}`, {
           nombre: nombre.trim(),
           zone_id: zonaSeleccionada?.id,
+          location: { lat: regLat, lng: regLng, address: regAddress },
         });
 
         const { data, error } = await supabase.auth.signUp({
@@ -218,7 +224,9 @@ export default function Register() {
           options: {
             data: {
               full_name: nombre.trim(),
-              ...(ubicacionRegistro ? { location_lat: ubicacionRegistro.lat, location_lng: ubicacionRegistro.lng } : {}),
+              location_lat: regLat,
+              location_lng: regLng,
+              location_address: regAddress,
               zone_id: zonaSeleccionada?.id,
             },
           },
@@ -276,7 +284,9 @@ export default function Register() {
 
           // Por si algo (ej. el interceptor de api/client.ts) ya disparó una petición con la
           // zona vieja mientras se resolvía la real: se descarta todo lo cacheado y se obliga a
-          // reconsultar con la zona ya correcta antes de navegar al inicio.
+          // reconsultar con la zona ya correcta antes de navegar al inicio. No se pre-calienta
+          // mySavedLocation con zonaSeleccionada?.id: ese sector ya no es el zoneId real (todos
+          // los vecinos quedan en Castilla), así que esa clave de caché sería incorrecta.
           queryClient.clear();
           await queryClient.invalidateQueries();
 

@@ -6,6 +6,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
@@ -32,7 +33,7 @@ import type {
   ProfessionalProfile,
   VulnerabilityReport,
 } from '@/types';
-import { CASTILLA_CENTER, formatDistanceAndWalk, roundForReport, type Coords } from '@/utils/geo';
+import { CASTILLA_CENTER, formatDistanceAndWalk, isWithinCastilla, roundForReport, type Coords } from '@/utils/geo';
 import { distanceKm, getRealPosition } from '@/utils/location';
 import { timeAgo } from '@/utils/time';
 import { styles } from '@/features/mapa/styles';
@@ -135,7 +136,7 @@ export default function MapaBarrio() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fitTrigger, setFitTrigger] = useState(0);
 
-  const [userLocation, setUserLocation] = useState<Coords | null>(null);
+  const [overrideLocation, setOverrideLocation] = useState<Coords | null>(null);
   const [userFocusTrigger, setUserFocusTrigger] = useState(0);
   const [locating, setLocating] = useState(false);
 
@@ -143,14 +144,15 @@ export default function MapaBarrio() {
   // así, si el vecino cambia su ubicación en el Perfil, el marcador se actualiza solo (sin presionar nada)
   // y el botón de precisión nunca "pisa" ese cambio con una posición vieja o simulada del emulador.
   const activeUserLocation: Coords | null = useMemo(
-    () => (savedLocation ? { lat: savedLocation.lat, lng: savedLocation.lng } : userLocation),
-    [savedLocation, userLocation],
+    () => (savedLocation ? { lat: savedLocation.lat, lng: savedLocation.lng } : overrideLocation),
+    [savedLocation, overrideLocation],
   );
 
   const zona = zonas.find((z) => z.id === zoneId);
   // Los sectores (Miraflores, Chapayra, etc.) son solo centros poblados DENTRO del distrito de
   // Castilla, no zonas operativas propias: todo el contenido del barrio vive bajo Castilla, así
-  // que el mapa siempre se centra ahí, sin importar qué sector haya elegido el vecino al registrarse.
+  // que el mapa siempre se centra ahí, sin importar qué sector haya elegido el vecino al registrarse
+  // o dónde haya marcado su ubicación guardada (que puede estar fuera de Castilla).
   const center: Coords = CASTILLA_CENTER;
   const nombreCastilla = zonas.find((z) => z.name === 'Castilla')?.name ?? 'Castilla';
 
@@ -174,21 +176,23 @@ export default function MapaBarrio() {
     }
     setLocating(true);
     try {
+      // Sin ubicación guardada (early return arriba la cubre si existe): si el GPS cae fuera de
+      // Castilla (emulador, IP de otra ciudad), no lo usamos para no desubicar al vecino.
       const pos = await getRealPosition();
       if (pos.status === 'granted') {
         const approx = roundForReport({ lat: pos.lat, lng: pos.lng });
-        // Si el GPS del emulador devuelve una coordenada fuera del barrio (> 10 km),
-        // usamos el centro de la zona para mantener la experiencia coherente.
-        const coords =
-          distanceKm(approx.lat, approx.lng, center.lat, center.lng) <= 10 ? approx : center;
-        setUserLocation(coords);
+        if (isWithinCastilla(approx) || distanceKm(approx.lat, approx.lng, center.lat, center.lng) <= 5) {
+          setOverrideLocation(approx);
+        } else {
+          setOverrideLocation(null);
+        }
         setUserFocusTrigger((n) => n + 1);
       } else {
-        setUserLocation(center);
+        setOverrideLocation(null);
         setUserFocusTrigger((n) => n + 1);
       }
     } catch {
-      setUserLocation(center);
+      setOverrideLocation(null);
       setUserFocusTrigger((n) => n + 1);
     } finally {
       setLocating(false);
@@ -1047,8 +1051,9 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalFiltros(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalFiltros(false)}>
-          <Pressable onPress={() => {}} style={styles.floatingSheet}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalFiltros(false)} />
+          <View style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>Filtros y capas del mapa</Text>
               <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalFiltros(false)} hitSlop={8}>
@@ -1158,8 +1163,8 @@ export default function MapaBarrio() {
                 />
               ) : null}
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* VENTANA FLOTANTE DE RESULTADOS EN LISTA RÁPIDA (Móvil) */}
@@ -1169,8 +1174,9 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalLista(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalLista(false)}>
-          <Pressable onPress={() => {}} style={styles.floatingSheet}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalLista(false)} />
+          <View style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>
                 Puntos en el mapa ({filteredItems.length})
@@ -1219,8 +1225,8 @@ export default function MapaBarrio() {
                 })
               )}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* VENTANA FLOTANTE PARA PUBLICAR DIRECTAMENTE DESDE EL MAPA */}
@@ -1230,8 +1236,9 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalPublicar(false)}
       >
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setModalPublicar(false)}>
-          <Pressable onPress={() => {}} style={styles.floatingSheet}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalPublicar(false)} />
+          <View style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>¿Qué deseas publicar en el mapa?</Text>
               <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalPublicar(false)} hitSlop={8}>
@@ -1281,8 +1288,8 @@ export default function MapaBarrio() {
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.azul} />
             </Pressable>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </Screen>
   );
