@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { favorService } from '../services/favor.service';
 import { getSupabaseClient } from '../config/supabase';
 import { AppError } from '../middlewares/errorHandler';
-import type { FavorType } from '../types/database.types';
+import type { FavorType, FavorIntent } from '../types/database.types';
 
 export class FavorController {
   /**
@@ -17,6 +17,8 @@ export class FavorController {
       }
 
       const type = req.query.type as FavorType | undefined;
+      const intent = req.query.intent as FavorIntent | undefined;
+      const mine = req.query.mine === 'true' || (req.query.mine as unknown) === true;
       // validate() ya convirtió limit y offset a número (o los dejó sin definir).
       const limit = req.query.limit as number | undefined;
       const offset = req.query.offset as number | undefined;
@@ -24,6 +26,8 @@ export class FavorController {
       const supabase = getSupabaseClient(req);
       const favors = await favorService.listActiveFavors(supabase, req.user.id, {
         type,
+        intent,
+        mine,
         limit,
         offset,
       });

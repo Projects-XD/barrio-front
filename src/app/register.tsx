@@ -33,6 +33,59 @@ interface ZoneOption {
   center_lng?: number | null;
 }
 
+function formatAuthError(err: unknown): { userMessage: string; isExpected: boolean } {
+  const raw = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
+  const code =
+    err && typeof err === 'object' && 'code' in err ? String((err as { code?: unknown }).code).toLowerCase() : '';
+  const lower = raw.toLowerCase();
+
+  if (
+    code === 'invalid_credentials' ||
+    lower.includes('invalid login credentials') ||
+    lower.includes('invalid grant') ||
+    lower.includes('invalid password') ||
+    lower.includes('invalid credentials')
+  ) {
+    return {
+      userMessage: 'Correo o contraseña incorrectos. Por favor, verifica tus datos e inténtalo de nuevo.',
+      isExpected: true,
+    };
+  }
+
+  if (lower.includes('email not confirmed')) {
+    return {
+      userMessage: 'Tu correo aún no ha sido confirmado. Revisa tu bandeja de entrada para verificarlo.',
+      isExpected: true,
+    };
+  }
+
+  if (lower.includes('user already registered') || lower.includes('already exists')) {
+    return {
+      userMessage: 'Ya existe una cuenta con este correo. Puedes ingresar en "Iniciar sesión".',
+      isExpected: true,
+    };
+  }
+
+  if (lower.includes('password should be at least')) {
+    return {
+      userMessage: 'La contraseña debe tener al menos 6 caracteres.',
+      isExpected: true,
+    };
+  }
+
+  if (lower.includes('rate limit') || lower.includes('too many requests')) {
+    return {
+      userMessage: 'Demasiados intentos seguidos. Por favor, espera unos momentos antes de volver a intentar.',
+      isExpected: true,
+    };
+  }
+
+  return {
+    userMessage: raw || 'Ocurrió un error al autenticar. Por favor, intenta de nuevo.',
+    isExpected: false,
+  };
+}
+
 export default function Register() {
   const p = usePalette();
   const setSession = useAppStore((s) => s.setSession);
@@ -163,8 +216,14 @@ export default function Register() {
         });
 
         if (error) {
-          logger.error('AUTH_LOGIN', `Error retornado por supabase.auth.signInWithPassword para ${cleanEmail}`, error);
-          throw error;
+          const { userMessage, isExpected } = formatAuthError(error);
+          if (isExpected) {
+            logger.warn('AUTH_LOGIN', `Intento de acceso no exitoso para ${cleanEmail}: ${error.message}`);
+          } else {
+            logger.error('AUTH_LOGIN', `Error retornado por supabase.auth.signInWithPassword para ${cleanEmail}`, error);
+          }
+          setErrorMsg(userMessage);
+          return;
         }
 
         if (!data.session || !data.user) {
@@ -232,10 +291,16 @@ export default function Register() {
           },
         });
 
-        // REQUISITO CRÍTICO: Si Supabase devuelve error, arrojarlo explícitamente para detener el flujo
+        // REQUISITO CRÍTICO: Si Supabase devuelve error, procesarlo limpiamente
         if (error) {
-          logger.error('AUTH_REGISTER', `Error devuelto por supabase.auth.signUp para ${cleanEmail}`, error);
-          throw error;
+          const { userMessage, isExpected } = formatAuthError(error);
+          if (isExpected) {
+            logger.warn('AUTH_REGISTER', `Aviso en registro para ${cleanEmail}: ${error.message}`);
+          } else {
+            logger.error('AUTH_REGISTER', `Error devuelto por supabase.auth.signUp para ${cleanEmail}`, error);
+          }
+          setErrorMsg(userMessage);
+          return;
         }
 
         // Caso borde de Supabase: Si el usuario ya existe en Supabase y confirmación está activa,
@@ -303,13 +368,16 @@ export default function Register() {
         }
       }
     } catch (err: unknown) {
-      const msg = (err instanceof Error && err.message) || 'Ocurrió un error inesperado al autenticar.';
-      logger.error('AUTH_ERROR', `Fallo capturado en autenticación (${mode}) para ${cleanEmail}`, {
-        error: err,
-        message: msg,
-      });
-      setErrorMsg(msg);
-      Alert.alert('Error de Autenticación', msg);
+      const { userMessage, isExpected } = formatAuthError(err);
+      if (isExpected) {
+        logger.warn('AUTH_ERROR', `Aviso en autenticación (${mode}) para ${cleanEmail}: ${userMessage}`);
+      } else {
+        logger.error('AUTH_ERROR', `Fallo inesperado en autenticación (${mode}) para ${cleanEmail}`, {
+          error: err,
+          message: userMessage,
+        });
+      }
+      setErrorMsg(userMessage);
     } finally {
       setIsLoading(false);
     }

@@ -193,7 +193,7 @@ export default function FavorDetalle() {
     <Screen>
       <Stack.Screen
         options={{
-          title: 'Detalle del favor',
+          title: favor.intent === 'ofrecer' ? 'Detalle del ofrecimiento' : 'Detalle de la ayuda',
           headerBackTitle: 'Volver',
         }}
       />
@@ -225,7 +225,41 @@ export default function FavorDetalle() {
         <Card backgroundColor={favorTypeBackground[favor.type]}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderInfo}>
-              {favor.moderationStatus === 'aprobado' ? <UrgencyBadge urgency={favor.urgency} /> : null}
+              <View style={styles.badgeRow}>
+                <View
+                  style={[
+                    styles.tag,
+                    favor.intent === 'ofrecer'
+                      ? { backgroundColor: colors.verdeExitoSuave, borderColor: colors.verdeExito }
+                      : { backgroundColor: colors.naranjaSuave, borderColor: colors.naranja },
+                  ]}
+                >
+                  <Ionicons
+                    name={favor.intent === 'ofrecer' ? 'heart' : 'hand-left'}
+                    size={12}
+                    color={favor.intent === 'ofrecer' ? colors.verdeExito : colors.azul}
+                  />
+                  <Text
+                    style={[
+                      styles.tagText,
+                      { color: favor.intent === 'ofrecer' ? colors.verdeExito : colors.azul },
+                    ]}
+                  >
+                    {favor.intent === 'ofrecer' ? 'Ofrecimiento' : 'Pedido de ayuda'}
+                  </Text>
+                </View>
+
+                {esMio ? (
+                  <View style={[styles.tag, styles.mineTag]}>
+                    <Ionicons name="person" size={12} color={colors.azulMedio} />
+                    <Text style={[styles.tagText, { color: colors.azulMedio, fontFamily: fonts.bold }]}>
+                      Tu publicación
+                    </Text>
+                  </View>
+                ) : null}
+
+                {favor.moderationStatus === 'aprobado' ? <UrgencyBadge urgency={favor.urgency} /> : null}
+              </View>
               <Text style={[styles.tipo, { color: p.muted }]}>{favorTypeLabel[favor.type]}</Text>
             </View>
             {!favor.isDeactivated ? (
@@ -627,6 +661,30 @@ export default function FavorDetalle() {
 }
 
 const styles = StyleSheet.create({
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 6,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  mineTag: {
+    backgroundColor: colors.azulSuave,
+    borderColor: colors.azulMedio,
+  },
+  tagText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+  },
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',

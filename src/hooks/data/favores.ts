@@ -48,16 +48,32 @@ export function useFavors(type?: FavorType) {
 
 export const FAVORS_PAGE_SIZE = 8;
 
+export interface UseFavorsPageOptions {
+  type?: FavorType;
+  intent?: FavorIntent;
+  mine?: boolean;
+  page: number;
+}
+
 // Una página de favores (0-based). Se pide uno de más para saber si existe la página siguiente.
 // Los favores pendientes de envío (offline) solo aparecen en la primera página.
-export function useFavorsPage(type: FavorType | undefined, page: number) {
+export function useFavorsPage(
+  optionsOrType: UseFavorsPageOptions | FavorType | undefined,
+  maybePage: number = 0
+) {
+  const isObject = typeof optionsOrType === 'object' && optionsOrType !== null && 'page' in optionsOrType;
+  const type = isObject ? optionsOrType.type : optionsOrType;
+  const page = isObject ? optionsOrType.page : maybePage;
+  const intent = isObject ? optionsOrType.intent : undefined;
+  const mine = isObject ? optionsOrType.mine : undefined;
+
   const zoneId = useAppStore((s) => s.zoneId);
   const userId = useAppStore((s) => s.userId);
   const userName = useAppStore((s) => s.userFullName);
   const isFocused = useIsFocused();
 
   return useQuery({
-    queryKey: ['favors', zoneId, type ?? 'todos', 'page', page],
+    queryKey: ['favors', zoneId, type ?? 'todos', intent ?? 'todos', mine ? 'mine' : 'all', 'page', page],
     staleTime: FRESH_LIVE_MS,
     subscribed: isFocused,
     enabled: Boolean(zoneId),
@@ -66,7 +82,11 @@ export function useFavorsPage(type: FavorType | undefined, page: number) {
       const pending =
         page === 0
           ? (await listPending('create_favor'))
-              .filter((item) => !type || item.payload.type === type)
+              .filter((item) => {
+                if (type && item.payload.type !== type) return false;
+                if (intent && item.payload.intent !== intent) return false;
+                return true;
+              })
               .map((item) => mapPendingFavor(item, userId, userName))
           : [];
 
@@ -75,6 +95,8 @@ export function useFavorsPage(type: FavorType | undefined, page: number) {
         remote = await listFavors({
           zoneId: zoneId!,
           type,
+          intent,
+          mine,
           limit: FAVORS_PAGE_SIZE + 1,
           offset: page * FAVORS_PAGE_SIZE,
         });

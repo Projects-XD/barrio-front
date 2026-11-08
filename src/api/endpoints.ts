@@ -188,15 +188,21 @@ export const deleteProfile = (id: string) =>
 // =====================================================================
 // ============================================================================
 
-export const listFavors = (params: {
+export interface ListFavorsParams {
   zoneId: string;
   type?: FavorType;
+  intent?: FavorIntent;
+  mine?: boolean;
   limit?: number;
   offset?: number;
-}) => {
+}
+
+export const listFavors = (params: ListFavorsParams) => {
   const query = new URLSearchParams();
   query.set('zone_id', params.zoneId);
   if (params.type) query.set('type', params.type);
+  if (params.intent) query.set('intent', params.intent);
+  if (params.mine) query.set('mine', 'true');
   if (params.limit !== undefined) query.set('limit', String(params.limit));
   if (params.offset !== undefined) query.set('offset', String(params.offset));
   return api.get<BackendFavor[]>(`/favors?${query.toString()}`);
