@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   },
   titulo: {
     fontSize: 24,
-    fontFamily: fonts.display,
+    fontFamily: fonts.section,
   },
   badgeRow: {
     flexDirection: 'row',

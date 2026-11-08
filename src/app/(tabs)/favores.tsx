@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   },
   titulo: {
     fontSize: 23,
-    fontFamily: fonts.display,
+    fontFamily: fonts.section,
     lineHeight: 28,
   },
   sub: {
