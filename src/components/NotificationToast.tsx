@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { BackendNotification } from '@/api/endpoints';
 import { colors, fonts, radius, shadow } from '@/theme';
-import { describeNotification, notificationIcon, notificationRoute } from '@/utils/notificaciones';
+import { describeNotification, iconForNotification, notificationRoute } from '@/utils/notificaciones';
 
 type Props = {
   notification: BackendNotification | null;
@@ -78,7 +78,7 @@ export function NotificationToast({ notification, onClose, top, rightInset = 80 
         style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
       >
         <View style={styles.icon}>
-          <Ionicons name={notificationIcon[notification.type]} size={20} color={colors.azul} />
+          <Ionicons name={iconForNotification(notification)} size={20} color={colors.azul} />
         </View>
         <View style={styles.body}>
           <Text style={styles.title} numberOfLines={1}>
