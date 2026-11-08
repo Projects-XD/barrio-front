@@ -539,6 +539,8 @@ export class ProfileService {
           favor_id: newFavor.id,
           favor_title: `Coordinación: ${oficioName}`,
           sender_name: clientUser.full_name,
+          count: 1,
+          mensajes: [body.length > 120 ? body.slice(0, 119) + '…' : body],
         },
       });
     } catch {

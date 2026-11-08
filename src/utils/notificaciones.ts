@@ -85,11 +85,26 @@ export function describeNotification(n: BackendNotification): { title: string; d
         title: `${str(n.payload.responder_name) ?? 'Un vecino'} quiere ayudarte`,
         detail: favorTitle ? `En tu favor «${favorTitle}»` : null,
       };
-    case 'nuevo_mensaje':
+    case 'nuevo_mensaje': {
+      const remitente = str(n.payload.sender_name) ?? 'Un vecino';
+      const total = typeof n.payload.count === 'number' ? n.payload.count : 1;
+      const mensajes = Array.isArray(n.payload.mensajes)
+        ? (n.payload.mensajes as unknown[]).filter((m): m is string => typeof m === 'string' && m.length > 0)
+        : [];
+      // De 3 mensajes seguidos en adelante solo se avisa cuántos son.
+      if (total >= 3) {
+        return {
+          title: `${remitente} te envió ${total} mensajes`,
+          detail: favorTitle ? `Sobre «${limpiaTitulo(favorTitle)}»` : null,
+        };
+      }
+      // De 1 a 2 mensajes se muestra su contenido.
+      if (mensajes.length > 0) return { title: `${remitente} te escribió`, detail: mensajes.join('\n') };
       return {
-        title: `Nuevo mensaje de ${str(n.payload.sender_name) ?? 'un vecino'}`,
+        title: `Nuevo mensaje de ${remitente}`,
         detail: favorTitle ? `Sobre «${favorTitle}»` : null,
       };
+    }
     case 'visto_bueno_recibido':
       if (n.payload.kind === 'oficio') {
         return { title: `${str(n.payload.voucher_name) ?? 'Un vecino'} avaló tu oficio`, detail: null };
@@ -123,15 +138,20 @@ export function describeNotification(n: BackendNotification): { title: string; d
   }
 }
 
-// Ruta a la que lleva un aviso al tocarlo; null si no tiene destino.
-export function notificationRoute(n: BackendNotification): string | null {
+// Ruta a la que lleva un aviso al tocarlo. Todos tienen destino: si no hay uno más específico,
+// se abre la lista de avisos.
+export function notificationRoute(n: BackendNotification): string {
   const conversationId = str(n.payload.conversation_id);
   const favorId = str(n.payload.favor_id);
   const profileId = str(n.payload.profile_id);
+  const kind = str(n.payload.kind);
   if (conversationId) return `/chat/${conversationId}`;
   if (favorId) return `/favores/${favorId}`;
   if (profileId) return `/oficio/${profileId}`;
   // Emergencias y alertas comunitarias llevan al panel de emergencia.
-  if (n.type === 'emergencia_activada' || n.payload.kind === 'emergencia_finalizada') return '/emergencia';
-  return null;
+  if (n.type === 'emergencia_activada' || kind === 'emergencia_finalizada') return '/emergencia';
+  if (n.type === 'reporte_actualizado' && kind === 'reporte') return '/emergencia';
+  // Estado de la cuenta y de denuncias: se revisan en el perfil.
+  if (kind === 'denuncia' || (kind && kind.startsWith('cuenta_'))) return '/(tabs)/perfil';
+  return '/avisos';
 }

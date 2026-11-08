@@ -11,8 +11,12 @@ let channelSeq = 0;
 // Respaldo de Realtime: si el canal no entrega el aviso, esta consulta lo detecta en poco tiempo.
 const POLL_MS = 15_000;
 
-// Entrega cada aviso nuevo a `onNueva` (por ejemplo, para mostrar una ventana flotante), una sola vez.
-// Tiene dos vías que comparten el registro de avisos ya entregados:
+// Un aviso cuenta como "nuevo" cuando cambia su firma: así un aviso de mensajes que se actualiza
+// (llega otro mensaje en la misma conversación) vuelve a mostrarse, y el mismo estado no se repite.
+const firma = (n: BackendNotification) => `${n.updated_at ?? n.created_at}|${String(n.payload?.count ?? '')}`;
+
+// Entrega cada aviso nuevo o actualizado a `onNueva` (por ejemplo, para mostrar una ventana flotante),
+// una sola vez. Tiene dos vías que comparten el registro de avisos ya entregados:
 //   1. Realtime: instantáneo. Requiere la migración 0028 y permiso de lectura de `authenticated`.
 //   2. Consulta cada 15 s: respaldo por si Realtime no llega.
 // También actualiza al instante el contador y la lista de Avisos.
@@ -22,7 +26,7 @@ export function useNotificationsRealtime(onNueva?: (n: BackendNotification) => v
   const isOnline = useAppStore((s) => s.isOnline);
 
   const callbackRef = useRef(onNueva);
-  const vistos = useRef(new Set<string>());
+  const vistos = useRef(new Map<string, string>());
   const sembrado = useRef(false);
 
   useEffect(() => {
@@ -31,14 +35,17 @@ export function useNotificationsRealtime(onNueva?: (n: BackendNotification) => v
 
   // Al cambiar de vecino se empieza de cero.
   useEffect(() => {
-    vistos.current = new Set();
+    vistos.current = new Map();
     sembrado.current = false;
   }, [userId]);
 
   const anunciar = useCallback(
     (n: BackendNotification) => {
-      if (vistos.current.has(n.id)) return;
-      vistos.current.add(n.id);
+      const f = firma(n);
+      if (vistos.current.get(n.id) === f) return;
+      vistos.current.set(n.id, f);
+      // Un aviso ya leído solo se registra: no se muestra.
+      if (n.read_at) return;
       // Una emergencia o alerta nueva (o su cierre) recarga el mapa y el estado de la zona al instante.
       if (n.type === 'emergencia_activada' || n.payload?.kind === 'emergencia_finalizada') {
         void qc.invalidateQueries({ queryKey: ['reports'] });
@@ -49,7 +56,7 @@ export function useNotificationsRealtime(onNueva?: (n: BackendNotification) => v
     [qc]
   );
 
-  // Vía 1: Realtime.
+  // Vía 1: Realtime (avisos nuevos y avisos que se actualizan).
   useEffect(() => {
     if (!userId) return;
     channelSeq += 1;
@@ -57,11 +64,12 @@ export function useNotificationsRealtime(onNueva?: (n: BackendNotification) => v
       .channel(`avisos-${userId}-${channelSeq}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
         (payload) => {
-          const nueva = payload.new as BackendNotification;
-          logger.info('AVISOS', 'Aviso recibido por Realtime', { type: nueva.type });
           void qc.invalidateQueries({ queryKey: ['notifications'] });
+          if (payload.eventType === 'DELETE') return;
+          const nueva = payload.new as BackendNotification;
+          logger.info('AVISOS', 'Aviso recibido por Realtime', { type: nueva.type, evento: payload.eventType });
           anunciar(nueva);
         }
       )
@@ -75,7 +83,7 @@ export function useNotificationsRealtime(onNueva?: (n: BackendNotification) => v
   }, [userId, qc, anunciar]);
 
   // Vía 2: consulta periódica. La primera respuesta solo registra lo que ya existía, para no
-  // mostrar de golpe los avisos viejos; después se entrega cada aviso sin leer que no se haya visto.
+  // mostrar de golpe los avisos viejos; después se entrega cada aviso sin leer que haya cambiado.
   useQuery({
     queryKey: ['notifications', userId, 'poll'],
     enabled: Boolean(userId) && isOnline,
@@ -84,14 +92,11 @@ export function useNotificationsRealtime(onNueva?: (n: BackendNotification) => v
     queryFn: async () => {
       const lista = await listNotifications();
       if (!sembrado.current) {
-        lista.forEach((n) => vistos.current.add(n.id));
+        lista.forEach((n) => vistos.current.set(n.id, firma(n)));
         sembrado.current = true;
       } else {
         // De la más antigua a la más nueva, para que salgan en orden.
-        [...lista].reverse().forEach((n) => {
-          if (n.read_at) vistos.current.add(n.id);
-          else anunciar(n);
-        });
+        [...lista].reverse().forEach(anunciar);
       }
       return lista;
     },

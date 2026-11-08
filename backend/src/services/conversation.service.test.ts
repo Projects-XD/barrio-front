@@ -1,7 +1,7 @@
 // Ejecutar con: npm test
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ConversationService, MESSAGES_PER_MINUTE } from './conversation.service';
+import { ConversationService, MESSAGES_PER_MINUTE, mensajePreview } from './conversation.service';
 
 type Answer = (table: string, isWrite: boolean) => unknown;
 
@@ -112,6 +112,9 @@ test('enviar un mensaje lo guarda y avisa al otro vecino', async () => {
   const notification = writes.find((w) => w.table === 'notifications');
   assert.equal(notification?.values.user_id, AUTHOR);
   assert.equal(notification?.values.type, 'nuevo_mensaje');
+  const payload = notification?.values.payload as { count: number; mensajes: string[] };
+  assert.equal(payload.count, 1);
+  assert.deepEqual(payload.mensajes, ['Hola']);
 });
 
 test('si el destinatario silenció la conversación no se crea el aviso', async () => {
@@ -121,10 +124,26 @@ test('si el destinatario silenció la conversación no se crea el aviso', async 
   assert.equal(writes.some((w) => w.table === 'notifications'), false);
 });
 
-test('si ya hay un aviso de mensaje sin leer no se crea otro', async () => {
-  const { client, writes } = fakeSupabase(baseAnswer({ notifications: [{ id: 'n1' }] }));
+test('si ya hay un aviso sin leer se actualiza con el total y los dos ultimos mensajes', async () => {
+  const { client, writes } = fakeSupabase(
+    baseAnswer({ notifications: [{ id: 'n1', payload: { count: 2, mensajes: ['uno', 'dos'], sender_name: 'María' } }] })
+  );
   await service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola', images: [] });
-  assert.equal(writes.some((w) => w.table === 'notifications'), false);
+  const escrituras = writes.filter((w) => w.table === 'notifications');
+  assert.equal(escrituras.length, 1);
+  assert.equal(escrituras[0]?.op, 'update');
+  const payload = escrituras[0]?.values.payload as { count: number; mensajes: string[]; sender_name: string };
+  assert.equal(payload.count, 3);
+  assert.deepEqual(payload.mensajes, ['dos', 'Hola']);
+  assert.equal(payload.sender_name, 'María');
+});
+
+test('mensajePreview devuelve el texto, lo recorta y describe las imagenes', () => {
+  assert.equal(mensajePreview({ body: '  Hola  ' }), 'Hola');
+  assert.equal(mensajePreview({ body: 'a'.repeat(200) }).length, 120);
+  assert.equal(mensajePreview({ body: '', images: ['x'] }), 'Te envió una imagen');
+  assert.equal(mensajePreview({ body: '', images: ['x', 'y'] }), 'Te envió 2 imágenes');
+  assert.equal(mensajePreview({ body: '' }), '');
 });
 
 test('silenciar solo cambia la marca de quien lo pide', async () => {

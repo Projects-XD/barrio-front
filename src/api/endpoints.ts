@@ -284,6 +284,7 @@ export interface BackendNotification {
   payload: Record<string, unknown>;
   read_at: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export const listNotifications = (limit = 30, offset = 0) =>

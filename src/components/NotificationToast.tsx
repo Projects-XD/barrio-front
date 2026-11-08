@@ -85,7 +85,7 @@ export function NotificationToast({ notification, onClose, top, rightInset = 80 
             {title}
           </Text>
           {detail ? (
-            <Text style={styles.detail} numberOfLines={1}>
+            <Text style={styles.detail} numberOfLines={2}>
               {detail}
             </Text>
           ) : null}

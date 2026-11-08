@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +16,17 @@ export function NotificationHost() {
   const pathname = usePathname();
   const [cola, setCola] = useState<BackendNotification[]>([]);
 
-  const agregar = useCallback((n: BackendNotification) => setCola((c) => [...c, n].slice(-MAX_COLA)), []);
+  const rutaActual = useRef(pathname);
+  useEffect(() => {
+    rutaActual.current = pathname;
+  });
+
+  const agregar = useCallback((n: BackendNotification) => {
+    // Si ya estás dentro de esa conversación, el mensaje se ve en el chat y no hace falta avisar.
+    const conversacion = typeof n.payload?.conversation_id === 'string' ? n.payload.conversation_id : null;
+    if (n.type === 'nuevo_mensaje' && conversacion && rutaActual.current.endsWith('/chat/' + conversacion)) return;
+    setCola((c) => [...c, n].slice(-MAX_COLA));
+  }, []);
   const cerrar = useCallback(() => setCola((c) => c.slice(1)), []);
   useNotificationsRealtime(agregar);
 
