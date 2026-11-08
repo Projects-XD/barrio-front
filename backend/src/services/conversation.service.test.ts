@@ -71,20 +71,20 @@ test('quien no participa en la conversación recibe 404 al leer mensajes', async
 
 test('quien no participa no puede enviar mensajes y no se escribe nada', async () => {
   const { client, writes } = fakeSupabase(baseAnswer());
-  await assert.rejects(service.sendMessage(client, OUTSIDER, 'c1', { body: 'Hola' }), rejectsWith(404));
+  await assert.rejects(service.sendMessage(client, OUTSIDER, 'c1', { body: 'Hola', images: [] }), rejectsWith(404));
   assert.equal(writes.length, 0);
 });
 
 test('enviar en una conversación cerrada da 409', async () => {
   const { client, writes } = fakeSupabase(baseAnswer({ conversations: { ...conversation, closed_at: '2026-01-01' } }));
-  await assert.rejects(service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola' }), rejectsWith(409));
+  await assert.rejects(service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola', images: [] }), rejectsWith(409));
   assert.equal(writes.length, 0);
 });
 
 test('si el otro vecino te bloqueó da 403 sin revelar el bloqueo', async () => {
   const { client, writes } = fakeSupabase(baseAnswer({ user_blocks: [{ blocker_id: AUTHOR }] }));
   await assert.rejects(
-    service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola' }),
+    service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola', images: [] }),
     (err: unknown) =>
       rejectsWith(403)(err) && !(err as Error).message.toLowerCase().includes('bloque'),
   );
@@ -93,19 +93,19 @@ test('si el otro vecino te bloqueó da 403 sin revelar el bloqueo', async () => 
 
 test('si tú bloqueaste al otro vecino da 403', async () => {
   const { client, writes } = fakeSupabase(baseAnswer({ user_blocks: [{ blocker_id: RESPONDER }] }));
-  await assert.rejects(service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola' }), rejectsWith(403));
+  await assert.rejects(service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola', images: [] }), rejectsWith(403));
   assert.equal(writes.length, 0);
 });
 
 test('pasado el límite de mensajes por minuto da 429 y no escribe', async () => {
   const { client, writes } = fakeSupabase(baseAnswer(), MESSAGES_PER_MINUTE);
-  await assert.rejects(service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola' }), rejectsWith(429));
+  await assert.rejects(service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola', images: [] }), rejectsWith(429));
   assert.equal(writes.length, 0);
 });
 
 test('enviar un mensaje lo guarda y avisa al otro vecino', async () => {
   const { client, writes } = fakeSupabase(baseAnswer());
-  const sent = await service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola' });
+  const sent = await service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola', images: [] });
   assert.equal(sent.id, 'm1');
   assert.equal(writes.find((w) => w.table === 'messages')?.values.body, 'Hola');
   assert.equal(writes.find((w) => w.table === 'messages')?.values.sender_id, RESPONDER);
@@ -116,14 +116,14 @@ test('enviar un mensaje lo guarda y avisa al otro vecino', async () => {
 
 test('si el destinatario silenció la conversación no se crea el aviso', async () => {
   const { client, writes } = fakeSupabase(baseAnswer({ conversations: { ...conversation, author_muted: true } }));
-  await service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola' });
+  await service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola', images: [] });
   assert.ok(writes.some((w) => w.table === 'messages'));
   assert.equal(writes.some((w) => w.table === 'notifications'), false);
 });
 
 test('si ya hay un aviso de mensaje sin leer no se crea otro', async () => {
   const { client, writes } = fakeSupabase(baseAnswer({ notifications: [{ id: 'n1' }] }));
-  await service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola' });
+  await service.sendMessage(client, RESPONDER, 'c1', { body: 'Hola', images: [] });
   assert.equal(writes.some((w) => w.table === 'notifications'), false);
 });
 

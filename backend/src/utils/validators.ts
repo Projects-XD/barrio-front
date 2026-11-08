@@ -259,13 +259,16 @@ export const listMessagesQuerySchema = z.object({
 });
 export type ListMessagesQueryDTO = z.infer<typeof listMessagesQuerySchema>;
 
-export const sendMessageSchema = z.object({
-  body: z
-    .string()
-    .trim()
-    .min(1, 'El mensaje no puede estar vacío')
-    .max(1000, 'El mensaje no puede exceder 1000 caracteres'),
-});
+export const sendMessageSchema = z
+  .object({
+    body: z.string().trim().max(1000, 'El mensaje no puede exceder 1000 caracteres').default(''),
+    // Solo URLs del bucket chat-images de este proyecto; en la BD no se guardan archivos.
+    images: z
+      .array(z.string().url().max(500).regex(/\/storage\/v1\/object\/public\/chat-images\//, 'Imagen no válida'))
+      .max(2, 'Máximo 2 imágenes por mensaje')
+      .default([]),
+  })
+  .refine((v) => v.body.length > 0 || v.images.length > 0, { message: 'El mensaje no puede estar vacío' });
 export type SendMessageDTO = z.infer<typeof sendMessageSchema>;
 
 export const updateConversationSchema = z

@@ -2,6 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables } from '../types/database.types';
 import { AppError, dbError } from '../middlewares/errorHandler';
 import { logger } from '../utils/logger';
+import { purgeChatImages } from '../utils/chatImages';
 import type {
   ReportConversationUserDTO,
   SendMessageDTO,
@@ -207,7 +208,7 @@ export class ConversationService {
 
     const { data: message, error } = await supabase
       .from('messages')
-      .insert({ conversation_id: conversationId, sender_id: userId, body: dto.body })
+      .insert({ conversation_id: conversationId, sender_id: userId, body: dto.body, images: dto.images })
       .select('*')
       .single();
 
@@ -273,6 +274,18 @@ export class ConversationService {
     });
   }
 
+  /** Al cerrarse un chat se borran sus imágenes (Storage + BD). Nunca hace fallar el cierre. */
+  private async purgeImages(conversationIds: string[]): Promise<void> {
+    try {
+      const { supabaseAdmin } = await import('../config/supabase');
+      await purgeChatImages(supabaseAdmin, conversationIds);
+    } catch (err) {
+      logger.error('No se pudo iniciar el borrado de imágenes del chat', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   /**
    * Silenciar (solo afecta a quien lo pide: deja de recibir avisos) o cerrar la conversación.
    */
@@ -298,6 +311,7 @@ export class ConversationService {
       if (error) {
         throw dbError('Error al actualizar la conversación', error);
       }
+      if (changes.closed_at) await this.purgeImages([conversationId]);
     }
 
     return this.getConversation(supabase, userId, conversationId);
@@ -320,17 +334,19 @@ export class ConversationService {
       throw dbError('Error al bloquear al vecino', error);
     }
 
-    const { error: closeError } = await supabase
+    const { data: closed, error: closeError } = await supabase
       .from('conversations')
       .update({ closed_at: new Date().toISOString() })
       .is('closed_at', null)
       .or(
         `and(author_id.eq.${userId},responder_id.eq.${otherId}),and(author_id.eq.${otherId},responder_id.eq.${userId})`
-      );
+      )
+      .select('id');
 
     if (closeError) {
       throw dbError('Error al cerrar las conversaciones', closeError);
     }
+    await this.purgeImages(Array.isArray(closed) ? closed.map((c) => c.id) : []);
 
     return { blocked_user_id: otherId };
   }

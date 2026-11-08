@@ -868,6 +868,7 @@ export interface Database {
           conversation_id: string;
           sender_id: string;
           body: string;
+          images: string[];
           read_at: string | null;
           created_at: string;
         };
@@ -876,6 +877,7 @@ export interface Database {
           conversation_id: string;
           sender_id: string;
           body: string;
+          images?: string[];
           read_at?: string | null;
           created_at?: string;
         };
@@ -884,6 +886,7 @@ export interface Database {
           conversation_id?: string;
           sender_id?: string;
           body?: string;
+          images?: string[];
           read_at?: string | null;
           created_at?: string;
         };

@@ -9,6 +9,8 @@ import type {
 import { AppError, dbError } from '../middlewares/errorHandler';
 import type { CreateFavorDTO, UpdateFavorDTO, CreateFavorInterestDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
+import { logger } from '../utils/logger';
+import { purgeFavorChatImages } from '../utils/chatImages';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EDIT_WINDOW_MS = DAY_MS;
@@ -404,6 +406,19 @@ export class FavorService {
 
     if (error || !data) {
       throw new AppError(`No se pudo actualizar el favor: ${error?.message || 'Error desconocido'}`, 400);
+    }
+
+    // Favor resuelto: se borran las imágenes de sus chats (Storage + BD). Nunca hace fallar la resolución.
+    if (dto.status === 'cerrada') {
+      try {
+        const { supabaseAdmin } = await import('../config/supabase');
+        await purgeFavorChatImages(supabaseAdmin, favorId);
+      } catch (err) {
+        logger.error('No se pudo iniciar el borrado de imágenes del favor resuelto', {
+          favorId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
 
     // Si hubo cambio de estado, registrar en favor_events
