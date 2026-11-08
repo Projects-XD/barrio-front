@@ -23,6 +23,11 @@ export function ChatFab({ bottomOffset = 88, onAgregarOficio }: ChatFabProps) {
     onAgregarOficio?.();
   };
 
+  const irAMisAyudas = () => {
+    setAbierto(false);
+    router.push('/favores/mis-publicaciones');
+  };
+
   const irAChats = () => {
     setAbierto(false);
     router.push('/chats');
@@ -62,7 +67,7 @@ export function ChatFab({ bottomOffset = 88, onAgregarOficio }: ChatFabProps) {
           {/* Opciones emergentes ancladas sobre la posición del botón */}
           <View style={[styles.menuContainer, { bottom: bottomOffset + 68 }]}>
             {/* Opción: Agregar ayuda */}
-            <FadeInView delay={120}>
+            <FadeInView delay={180}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Agregar ayuda"
@@ -82,7 +87,7 @@ export function ChatFab({ bottomOffset = 88, onAgregarOficio }: ChatFabProps) {
             </FadeInView>
 
             {/* Opción: Agregar oficio */}
-            <FadeInView delay={60}>
+            <FadeInView delay={120}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Agregar oficio"
@@ -97,6 +102,26 @@ export function ChatFab({ bottomOffset = 88, onAgregarOficio }: ChatFabProps) {
                 </View>
                 <View style={[styles.actionCircle, styles.actionCircleOficio]}>
                   <Ionicons name="construct" size={22} color={colors.blanco} />
+                </View>
+              </Pressable>
+            </FadeInView>
+
+            {/* Opción: Mis ayudas */}
+            <FadeInView delay={60}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Ver mis ayudas"
+                onPress={irAMisAyudas}
+                style={({ pressed }) => [
+                  styles.actionItem,
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                <View style={styles.labelPill}>
+                  <Text style={styles.actionLabel}>Mis ayudas</Text>
+                </View>
+                <View style={[styles.actionCircle, styles.actionCircleMisAyudas]}>
+                  <Ionicons name="folder-open" size={22} color={colors.blanco} />
                 </View>
               </Pressable>
             </FadeInView>
@@ -199,6 +224,9 @@ const styles = StyleSheet.create({
   },
   actionCircleOficio: {
     backgroundColor: colors.verdeExito,
+  },
+  actionCircleMisAyudas: {
+    backgroundColor: colors.azul,
   },
   actionCircleChat: {
     backgroundColor: colors.azulMedio,
