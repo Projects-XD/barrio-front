@@ -3,7 +3,7 @@ import { colors, fonts, radius, spacing } from '@/theme';
 
 export const styles = StyleSheet.create({
   header: { marginBottom: spacing.sm },
-  titulo: { fontSize: 26, fontFamily: fonts.bold },
+  titulo: { fontSize: 26, fontFamily: fonts.section },
   usuarioRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatar: {
     width: 58,

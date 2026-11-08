@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   },
   bellBadgeText: { fontFamily: fonts.bold, fontSize: 11, color: colors.azul },
   logo: { width: 48, height: 48, borderRadius: 14 },
-  hola: { fontFamily: fonts.bold, fontSize: 26 },
+  hola: { fontFamily: fonts.section, fontSize: 26 },
   zonaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   zona: { fontFamily: fonts.medium, fontSize: 15 },
 

@@ -14,7 +14,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  titulo: { fontFamily: fonts.bold, fontSize: 24 },
+  titulo: { fontFamily: fonts.section, fontSize: 24 },
   sub: { fontFamily: fonts.regular, fontSize: 13, marginTop: 1 },
   topActionBtn: {
     flexDirection: 'row',
