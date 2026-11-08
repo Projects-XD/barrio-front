@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, usePathname } from 'expo-router';
+import { AgregarOficioModal } from '@/components/AgregarOficioModal';
 import { ChatFab } from '@/components/ChatFab';
 import { EmergencyFab } from '@/components/EmergencyFab';
 import { useFavorRealtime } from '@/hooks/useFavorRealtime';
@@ -29,6 +30,8 @@ export default function TabsLayout() {
   const pathname = usePathname();
   const enPerfil = pathname.endsWith('/perfil');
   const enMapa = pathname.endsWith('/mapa');
+  // `n` cambia en cada apertura para que el formulario arranque limpio.
+  const [oficioModal, setOficioModal] = useState({ abierto: false, n: 0 });
 
   const bottomPadding = Math.max(insets.bottom, 12);
   const totalBarHeight = 60 + bottomPadding;
@@ -94,9 +97,17 @@ export default function TabsLayout() {
       {enPerfil || enMapa ? null : (
         <>
           <EmergencyFab top={insets.top + 8} />
-          <ChatFab bottomOffset={totalBarHeight + 12} />
+          <ChatFab
+            bottomOffset={totalBarHeight + 12}
+            onAgregarOficio={() => setOficioModal((s) => ({ abierto: true, n: s.n + 1 }))}
+          />
         </>
       )}
+      <AgregarOficioModal
+        key={oficioModal.n}
+        visible={oficioModal.abierto}
+        onClose={() => setOficioModal((s) => ({ ...s, abierto: false }))}
+      />
     </View>
   );
 }

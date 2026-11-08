@@ -6,9 +6,10 @@ import { colors, fonts, radius } from '@/theme';
 
 interface ChatFabProps {
   bottomOffset?: number;
+  onAgregarOficio?: () => void;
 }
 
-export function ChatFab({ bottomOffset = 88 }: ChatFabProps) {
+export function ChatFab({ bottomOffset = 88, onAgregarOficio }: ChatFabProps) {
   const [abierto, setAbierto] = useState(false);
 
   const irAAgregarAyuda = () => {
@@ -18,7 +19,7 @@ export function ChatFab({ bottomOffset = 88 }: ChatFabProps) {
 
   const irAAgregarOficio = () => {
     setAbierto(false);
-    router.navigate({ pathname: '/(tabs)/perfil', params: { agregarOficio: '1' } });
+    onAgregarOficio?.();
   };
 
   const irAChats = () => {
