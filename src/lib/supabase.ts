@@ -4,12 +4,13 @@ import { Platform } from 'react-native';
 import { logger } from '@/utils/logger';
 
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl =
+  process.env.EXPO_PUBLIC_SUPABASE_URL ??
+  'https://dsmecsgrvyhjiavjswxn.supabase.co';
+const supabaseAnonKey =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzbWVjc2dydnloamlhdmpzd3huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwMzY5MTAsImV4cCI6MjEwOTYxMjkxMH0.4jVAgqGoQIM5Q87TNurSaMOdtslJwVjfqIrHIOrEuCM';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Faltan EXPO_PUBLIC_SUPABASE_URL o EXPO_PUBLIC_SUPABASE_ANON_KEY en el .env. Copia .env.example, completa los valores y reinicia Expo con --clear.');
-}
 
 /**
  * Adaptador de almacenamiento seguro compatible con Expo Native (SecureStore)

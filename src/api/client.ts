@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
 import { logger } from '@/utils/logger';
 
-const RAW_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1').replace(
+const RAW_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.1.43:3001/api/v1').replace(
   /\/+$/,
   ''
 );
