@@ -20,6 +20,7 @@ import type { OficioCategory } from '@/types';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
 import { distanceMetersBetween } from '@/utils/geo';
 import { AppModal } from '@/components/AppModal';
+import { PaginationControls } from '@/components/PaginationControls';
 
 const categorias = Object.keys(oficioLabel) as OficioCategory[];
 const ITEMS_PER_PAGE = 6;
@@ -251,41 +252,14 @@ export default function Oficios() {
           }
           ListFooterComponent={
             totalPaginas > 1 ? (
-              <View style={styles.paginationRow}>
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={paginaActual === 1}
-                  onPress={() => setPagina((p) => Math.max(1, p - 1))}
-                  style={[
-                    styles.pageBtn,
-                    paginaActual === 1 && styles.pageBtnDisabled,
-                  ]}
-                >
-                  <Ionicons name="chevron-back" size={16} color={paginaActual === 1 ? colors.gris : colors.azul} />
-                  <Text style={[styles.pageBtnText, paginaActual === 1 && styles.pageBtnTextDisabled]}>
-                    Anterior
-                  </Text>
-                </Pressable>
-
-                <Text style={styles.pageIndicator}>
-                  Página {paginaActual} de {totalPaginas}
-                </Text>
-
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={paginaActual === totalPaginas}
-                  onPress={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-                  style={[
-                    styles.pageBtn,
-                    paginaActual === totalPaginas && styles.pageBtnDisabled,
-                  ]}
-                >
-                  <Text style={[styles.pageBtnText, paginaActual === totalPaginas && styles.pageBtnTextDisabled]}>
-                    Siguiente
-                  </Text>
-                  <Ionicons name="chevron-forward" size={16} color={paginaActual === totalPaginas ? colors.gris : colors.azul} />
-                </Pressable>
-              </View>
+              <PaginationControls
+                page={paginaActual}
+                totalPages={totalPaginas}
+                hasPrev={paginaActual > 1}
+                hasNext={paginaActual < totalPaginas}
+                onPrev={() => setPagina((p) => Math.max(1, p - 1))}
+                onNext={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+              />
             ) : undefined
           }
           contentContainerStyle={{ paddingBottom: 16 }}
@@ -544,40 +518,6 @@ const styles = StyleSheet.create({
   resetText: {
     fontFamily: fonts.semiBold,
     fontSize: 13,
-  },
-  paginationRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xs,
-    marginTop: spacing.xs,
-  },
-  pageBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: radius.sm,
-    backgroundColor: colors.blanco,
-    borderWidth: 1,
-    borderColor: colors.grisBorde,
-  },
-  pageBtnDisabled: {
-    opacity: 0.4,
-  },
-  pageBtnText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 13,
-    color: colors.azul,
-  },
-  pageBtnTextDisabled: {
-    color: colors.gris,
-  },
-  pageIndicator: {
-    fontFamily: fonts.medium,
-    fontSize: 13,
-    color: colors.gris,
   },
   sheetOverlay: {
     flex: 1,

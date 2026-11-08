@@ -16,17 +16,12 @@ export function ChatFab({ bottomOffset = 88 }: ChatFabProps) {
     router.push('/chats');
   };
 
-  const irAEmergencia = () => {
-    setAbierto(false);
-    router.push('/emergencia');
-  };
-
   return (
     <>
       {/* Botón flotante principal */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={abierto ? 'Cerrar acciones rápidas' : 'Abrir chat y emergencias'}
+        accessibilityLabel={abierto ? 'Cerrar chats' : 'Abrir mis chats'}
         onPress={() => setAbierto((v) => !v)}
         style={({ pressed }) => [
           styles.fab,
@@ -54,25 +49,7 @@ export function ChatFab({ bottomOffset = 88 }: ChatFabProps) {
 
           {/* Opciones emergentes ancladas sobre la posición del botón */}
           <View style={[styles.menuContainer, { bottom: bottomOffset + 68 }]}>
-            {/* Opción 1: Alerta / Emergencia */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Ir a apoyo en emergencia"
-              onPress={irAEmergencia}
-              style={({ pressed }) => [
-                styles.actionItem,
-                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-              ]}
-            >
-              <View style={styles.labelPill}>
-                <Text style={styles.actionLabel}>Alerta / Emergencia</Text>
-              </View>
-              <View style={[styles.actionCircle, styles.actionCircleAlerta]}>
-                <Ionicons name="alert-circle" size={22} color={colors.blanco} />
-              </View>
-            </Pressable>
-
-            {/* Opción 2: Mis Chats */}
+            {/* Opción: Mis Chats */}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Ir a mis chats"

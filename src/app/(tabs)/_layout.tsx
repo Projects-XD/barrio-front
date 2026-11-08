@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, usePathname } from 'expo-router';
 import { ChatFab } from '@/components/ChatFab';
+import { EmergencyFab } from '@/components/EmergencyFab';
 import { useFavorRealtime } from '@/hooks/useFavorRealtime';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -89,7 +90,12 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-      {enPerfil ? null : <ChatFab bottomOffset={totalBarHeight + 12} />}
+      {enPerfil ? null : (
+        <>
+          <EmergencyFab bottomOffset={totalBarHeight + 12} right={82} />
+          <ChatFab bottomOffset={totalBarHeight + 12} />
+        </>
+      )}
     </View>
   );
 }

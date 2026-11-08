@@ -5,9 +5,10 @@ import { colors, fonts, radius } from '@/theme';
 
 interface EmergencyFabProps {
   bottomOffset?: number;
+  right?: number;
 }
 
-export function EmergencyFab({ bottomOffset = 88 }: EmergencyFabProps) {
+export function EmergencyFab({ bottomOffset = 88, right = 16 }: EmergencyFabProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -15,7 +16,7 @@ export function EmergencyFab({ bottomOffset = 88 }: EmergencyFabProps) {
       onPress={() => router.push('/emergencia')}
       style={({ pressed }) => [
         styles.fab,
-        { bottom: bottomOffset, opacity: pressed ? 0.85 : 1 },
+        { bottom: bottomOffset, right, opacity: pressed ? 0.85 : 1 },
       ]}
     >
       <Ionicons name="alert-circle" size={22} color={colors.blanco} />

@@ -13,6 +13,7 @@ import { favorTypeLabel } from '@/i18n/labels';
 import type { FavorIntent, FavorType } from '@/types';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
 import { AppModal } from '@/components/AppModal';
+import { PaginationControls } from '@/components/PaginationControls';
 
 const tipos = Object.keys(favorTypeLabel) as FavorType[];
 
@@ -237,27 +238,13 @@ export default function FavoresScreen() {
           contentContainerStyle={{ paddingBottom: spacing.lg, paddingTop: spacing.xs }}
           ListFooterComponent={
             pagina > 0 || data?.hasNext ? (
-              <View style={styles.paginacion}>
-                <View style={styles.paginaBtn}>
-                  <AppButton
-                    label="Anterior"
-                    variant="secondary"
-                    icon="chevron-back"
-                    disabled={pagina === 0 || isPlaceholderData}
-                    onPress={() => setPagina((n) => Math.max(0, n - 1))}
-                  />
-                </View>
-                <Text style={[styles.paginaNum, { color: p.muted }]}>Página {pagina + 1}</Text>
-                <View style={styles.paginaBtn}>
-                  <AppButton
-                    label="Siguiente"
-                    variant="secondary"
-                    icon="chevron-forward"
-                    disabled={!data?.hasNext || isPlaceholderData}
-                    onPress={() => setPagina((n) => n + 1)}
-                  />
-                </View>
-              </View>
+              <PaginationControls
+                page={pagina + 1}
+                hasPrev={pagina > 0 && !isPlaceholderData}
+                hasNext={Boolean(data?.hasNext) && !isPlaceholderData}
+                onPrev={() => setPagina((n) => Math.max(0, n - 1))}
+                onNext={() => setPagina((n) => n + 1)}
+              />
             ) : undefined
           }
         />
@@ -532,16 +519,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.azul,
   },
-
-  // Paginación
-  paginacion: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  paginaBtn: { flex: 1 },
-  paginaNum: { fontSize: 14, fontFamily: fonts.medium },
 
   // Modal para publicar (+)
   modalOverlay: {
