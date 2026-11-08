@@ -80,7 +80,7 @@ export default function Inicio() {
 
   return (
     <Screen>
-      <View style={styles.header}>
+      <View style={[styles.header, { marginRight: 64 }]}>
         <Image source={iconApp} style={styles.logo} accessibilityLabel="Barrio" />
         <View style={{ flex: 1 }}>
           <Text style={[styles.hola, { color: p.text }]}>Hola, {firstName || 'vecino'}</Text>

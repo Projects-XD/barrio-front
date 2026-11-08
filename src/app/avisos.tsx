@@ -8,44 +8,9 @@ import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
 import { useMarkNotificationRead, useNotifications } from '@/hooks/useData';
 import type { BackendNotification } from '@/api/endpoints';
-import type { IconName } from '@/i18n/icons';
 import { colors, fonts, spacing } from '@/theme';
+import { describeNotification as describe, notificationIcon as typeIcon, notificationRoute } from '@/utils/notificaciones';
 import { timeAgo } from '@/utils/time';
-
-const str = (value: unknown): string | null => (typeof value === 'string' && value ? value : null);
-
-const typeIcon: Record<BackendNotification['type'], IconName> = {
-  interes_en_favor: 'hand-left-outline',
-  nuevo_mensaje: 'chatbubble-ellipses-outline',
-  visto_bueno_recibido: 'ribbon-outline',
-  reporte_actualizado: 'document-text-outline',
-  emergencia_activada: 'alert-circle-outline',
-  sistema: 'notifications-outline',
-};
-
-function describe(n: BackendNotification): { title: string; detail: string | null } {
-  const favorTitle = str(n.payload.favor_title);
-  switch (n.type) {
-    case 'interes_en_favor':
-      return {
-        title: `${str(n.payload.responder_name) ?? 'Un vecino'} quiere ayudarte`,
-        detail: favorTitle ? `En tu favor «${favorTitle}»` : null,
-      };
-    case 'nuevo_mensaje':
-      return {
-        title: `Nuevo mensaje de ${str(n.payload.sender_name) ?? 'un vecino'}`,
-        detail: favorTitle ? `Sobre «${favorTitle}»` : null,
-      };
-    case 'visto_bueno_recibido':
-      return { title: 'Recibiste un visto bueno', detail: null };
-    case 'reporte_actualizado':
-      return { title: 'Tu reporte tuvo novedades', detail: null };
-    case 'emergencia_activada':
-      return { title: 'Se activó una emergencia en tu zona', detail: null };
-    default:
-      return { title: 'Aviso de Barrio', detail: null };
-  }
-}
 
 export default function Avisos() {
   const p = usePalette();
@@ -54,10 +19,8 @@ export default function Avisos() {
 
   const abrir = (n: BackendNotification) => {
     if (!n.read_at) markRead.mutate(n.id);
-    const conversationId = str(n.payload.conversation_id);
-    const favorId = str(n.payload.favor_id);
-    if (conversationId) router.push(`/chat/${conversationId}`);
-    else if (favorId) router.push(`/favores/${favorId}`);
+    const ruta = notificationRoute(n);
+    if (ruta) router.push(ruta as never);
   };
 
   return (
@@ -77,7 +40,7 @@ export default function Avisos() {
         <EmptyState
           icon="notifications-outline"
           title="Aún no tienes avisos"
-          message="Cuando un vecino responda a tu favor, te avisamos aquí."
+          message="Aquí te avisamos cuando alguien publique una ayuda o un oficio, o responda a tu favor."
         />
       ) : (
         data.map((n) => {

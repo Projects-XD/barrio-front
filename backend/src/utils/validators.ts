@@ -96,6 +96,7 @@ export const notificationTypeSchema = z.enum([
   'interes_en_favor',
   'reporte_actualizado',
   'emergencia_activada',
+  'nueva_publicacion',
   'sistema',
 ]);
 

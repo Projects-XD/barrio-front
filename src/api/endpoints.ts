@@ -266,6 +266,7 @@ export type BackendNotificationType =
   | 'interes_en_favor'
   | 'reporte_actualizado'
   | 'emergencia_activada'
+  | 'nueva_publicacion'
   | 'sistema'
   | 'nuevo_mensaje';
 
