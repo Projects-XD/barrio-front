@@ -77,8 +77,10 @@ export class FavorService {
       query = query.eq('intent', params.intent);
     }
 
-    if (params.mine) {
+    if (params.mine === true) {
       query = query.eq('author_id', userId);
+    } else if (params.mine === false) {
+      query = query.neq('author_id', userId);
     }
 
     if (params.limit !== undefined) {

@@ -233,7 +233,14 @@ export const listFavorsQuerySchema = z.object({
   zoneId: z.string().uuid('zoneId debe ser un UUID válido').optional(),
   type: favorTypeSchema.optional(),
   intent: favorIntentSchema.optional(),
-  mine: z.preprocess((val) => val === 'true' || val === true, z.boolean()).optional(),
+  mine: z
+    .preprocess((val) => {
+      if (val === undefined || val === null || val === '') return undefined;
+      if (val === 'true' || val === true) return true;
+      if (val === 'false' || val === false) return false;
+      return val;
+    }, z.boolean().optional())
+    .optional(),
   status: favorStatusSchema.optional(),
   // Paginación opcional: sin limit se devuelve la lista completa (compatibilidad con clientes previos).
   limit: z.coerce.number().int().min(1).max(100).optional(),
