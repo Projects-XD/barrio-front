@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
   FlatList,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,6 +19,7 @@ import { oficioLabel } from '@/i18n/labels';
 import type { OficioCategory } from '@/types';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
 import { distanceMetersBetween } from '@/utils/geo';
+import { AppModal } from '@/components/AppModal';
 
 const categorias = Object.keys(oficioLabel) as OficioCategory[];
 const ITEMS_PER_PAGE = 6;
@@ -293,16 +293,8 @@ export default function Oficios() {
       )}
 
       {/* Modal inferior (Bottom Sheet) para filtrar oficios */}
-      <Modal
-        visible={modalFiltro}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalFiltro(false)}
-      >
-        <View style={styles.sheetOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalFiltro(false)} />
-          <View style={styles.sheetContent}>
-            <View style={styles.sheetHeader}>
+      <AppModal visible={modalFiltro} onClose={() => setModalFiltro(false)} animationType="slide" overlayStyle={styles.sheetOverlay} cardStyle={styles.sheetContent}>
+                    <View style={styles.sheetHeader}>
               <View>
                 <Text style={styles.sheetTitle}>Filtrar por oficio</Text>
                 <Text style={styles.sheetSub}>Selecciona una especialidad vecinal</Text>
@@ -393,9 +385,7 @@ export default function Oficios() {
                 <Text style={styles.sheetBtnPrimaryText}>Aplicar</Text>
               </Pressable>
             </View>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
     </Screen>
   );
 }

@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -31,6 +30,7 @@ import { updateFavor, type BackendMessage, type ReportReason } from '@/api/endpo
 import { queryClient } from '@/lib/queryClient';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
+import { AppModal } from '@/components/AppModal';
 
 const MAX_LENGTH = 1000;
 
@@ -267,11 +267,8 @@ export default function Chat() {
         </Pressable>
       </View>
 
-      <Modal visible={panel !== null} transparent animationType="fade" onRequestClose={closePanel}>
-        <View style={styles.overlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={closePanel} />
-          <View style={styles.card}>
-            {panel === 'menu' ? (
+      <AppModal visible={panel !== null} onClose={closePanel} animationType="fade" overlayStyle={styles.overlay} cardStyle={styles.card}>
+                    {panel === 'menu' ? (
               <>
                 <Text style={[styles.cardTitle, { color: p.text }]}>Opciones</Text>
                 <AppButton
@@ -424,9 +421,7 @@ export default function Chat() {
                 <AppButton label="Cancelar" variant="secondary" onPress={closePanel} />
               </>
             ) : null}
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
     </KeyboardAvoidingView>
   );
 }

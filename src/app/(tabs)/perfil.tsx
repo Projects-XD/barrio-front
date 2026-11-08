@@ -3,10 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -45,6 +43,7 @@ import { oficioLabel } from '@/i18n/labels';
 import type { OficioCategory, ProfessionalProfile } from '@/types';
 import { colors, spacing } from '@/theme';
 import { styles } from '@/features/perfil/styles';
+import { AppModal } from '@/components/AppModal';
 
 const categorias = Object.keys(oficioLabel) as OficioCategory[];
 
@@ -527,16 +526,8 @@ export default function Perfil() {
       </Card>
 
       {/* Menú contextual (⋮) de opciones de un oficio */}
-      <Modal
-        visible={menuOficio !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMenuOficio(null)}
-      >
-        <View style={styles.centerOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuOficio(null)} />
-          <View style={styles.contextSheet}>
-            <View style={styles.contextSheetHeader}>
+      <AppModal visible={menuOficio !== null} onClose={() => setMenuOficio(null)} animationType="fade" overlayStyle={styles.centerOverlay} cardStyle={styles.contextSheet}>
+                    <View style={styles.contextSheetHeader}>
               <View style={[styles.oficioCatIcon, { backgroundColor: p.highlight }]}>
                 <Ionicons
                   name={menuOficio ? oficioIcon[menuOficio.oficio.category] : 'construct-outline'}
@@ -594,21 +585,11 @@ export default function Perfil() {
             <View style={{ marginTop: spacing.xs }}>
               <AppButton label="Cancelar" variant="secondary" onPress={() => setMenuOficio(null)} />
             </View>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
 
       {/* Modal para registrar o editar oficio */}
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalVisible(false)} />
-          <View style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
-            <View style={styles.modalHeaderRow}>
+      <AppModal visible={modalVisible} onClose={() => setModalVisible(false)} animationType="slide" overlayStyle={styles.modalOverlay} cardStyle={[styles.modalCard, { backgroundColor: colors.blanco }]}>
+                    <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: p.text, flex: 1, marginBottom: 0 }]}>
                 {editingId ? 'Editar mi oficio' : 'Agregar otro oficio'}
               </Text>
@@ -710,21 +691,11 @@ export default function Perfil() {
                 />
               </View>
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
 
       {/* Modal de confirmación para eliminar oficio */}
-      <Modal
-        visible={confirmDeleteOficio !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setConfirmDeleteOficio(null)}
-      >
-        <View style={styles.centerOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setConfirmDeleteOficio(null)} />
-          <View style={styles.centerDialog}>
-            <View style={[styles.dialogIconWrap, { backgroundColor: colors.rojoSuave }]}>
+      <AppModal visible={confirmDeleteOficio !== null} onClose={() => setConfirmDeleteOficio(null)} animationType="fade" overlayStyle={styles.centerOverlay} cardStyle={styles.centerDialog}>
+                    <View style={[styles.dialogIconWrap, { backgroundColor: colors.rojoSuave }]}>
               <Ionicons name="trash-outline" size={28} color={colors.rojo} />
             </View>
             <Text style={[styles.dialogTitle, { color: p.text }]}>¿Eliminar este oficio?</Text>
@@ -751,29 +722,17 @@ export default function Perfil() {
               disabled={deleteProfile.isPending}
               onPress={() => setConfirmDeleteOficio(null)}
             />
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
 
       {/* Modal de éxito al guardar/publicar oficio */}
-      <Modal
-        visible={exitoOficioMsg !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setExitoOficioMsg(null)}
-      >
-        <View style={styles.centerOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setExitoOficioMsg(null)} />
-          <View style={styles.centerDialog}>
-            <View style={[styles.dialogIconWrap, { backgroundColor: p.highlight }]}>
+      <AppModal visible={exitoOficioMsg !== null} onClose={() => setExitoOficioMsg(null)} animationType="fade" overlayStyle={styles.centerOverlay} cardStyle={styles.centerDialog}>
+                    <View style={[styles.dialogIconWrap, { backgroundColor: p.highlight }]}>
               <Ionicons name="checkmark-circle" size={32} color={colors.verdeExito} />
             </View>
             <Text style={[styles.dialogTitle, { color: p.text }]}>¡Oficio guardado!</Text>
             <Text style={[styles.dialogBody, { color: p.body }]}>{exitoOficioMsg}</Text>
             <AppButton label="Listo" icon="checkmark" onPress={() => setExitoOficioMsg(null)} />
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
     </Screen>
   );
 }

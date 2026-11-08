@@ -19,6 +19,7 @@ import { favorTypeIcon } from '@/i18n/icons';
 import { favorTypeLabel, favorUrgencyLabel } from '@/i18n/labels';
 import type { FavorType, FavorUrgency } from '@/types';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
+import { AppModal } from '@/components/AppModal';
 
 const tipos = Object.keys(favorTypeLabel) as FavorType[];
 
@@ -289,11 +290,8 @@ export default function NuevoFavor() {
         </>
       )}
 
-      <Modal visible={confirmando} transparent animationType="fade" onRequestClose={() => setConfirmando(false)}>
-        <View style={styles.overlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setConfirmando(false)} />
-          <View style={styles.tarjeta}>
-            <View style={[styles.modalIcono, { backgroundColor: p.highlight }]}>
+      <AppModal visible={confirmando} onClose={() => setConfirmando(false)} animationType="fade" overlayStyle={styles.overlay} cardStyle={styles.tarjeta}>
+                    <View style={[styles.modalIcono, { backgroundColor: p.highlight }]}>
               <Ionicons name="paper-plane" size={28} color={p.text} />
             </View>
             <Text style={[styles.tituloModal, { color: p.text }]}>¿Publicar tu favor?</Text>
@@ -312,9 +310,7 @@ export default function NuevoFavor() {
               }}
             />
             <AppButton label="Revisar otra vez" variant="secondary" onPress={() => setConfirmando(false)} />
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
 
       {/* Modal y no Alert.alert, que en web (react-native-web) no hace nada. */}
       <Modal visible={resultado !== null} transparent animationType="fade" onRequestClose={irAFavores}>

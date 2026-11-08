@@ -9,7 +9,7 @@
     "start": "node dist/server.js",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/services/favor.service.test.ts src/services/conversation.service.test.ts src/services/ai.service.test.ts src/utils/authCache.test.ts src/utils/validators.test.ts src/services/zoneAccess.test.ts src/middlewares/errorHandler.test.ts",
+    "test": "tsx --test src/services/favor.service.test.ts src/services/conversation.service.test.ts src/services/ai.service.test.ts src/utils/authCache.test.ts src/utils/castilla.test.ts src/utils/validators.test.ts src/services/zoneAccess.test.ts src/middlewares/errorHandler.test.ts",
     "seed": "tsx scripts/seed-auth.ts"
   },
   "keywords": [

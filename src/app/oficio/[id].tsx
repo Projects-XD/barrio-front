@@ -34,6 +34,7 @@ import { oficioLabel } from '@/i18n/labels';
 import { colors, fonts, radius, spacing } from '@/theme';
 import { distanceMetersBetween } from '@/utils/geo';
 import { shareOficioWhatsApp } from '@/utils/share';
+import { AppModal } from '@/components/AppModal';
 
 export default function OficioDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -271,11 +272,8 @@ export default function OficioDetalle() {
       </View>
 
       {/* Formulario para editar mi oficio sin salir de esta pantalla */}
-      <Modal visible={editando} transparent animationType="fade" onRequestClose={() => setEditando(false)}>
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setEditando(false)} />
-          <View style={[styles.modalContent, { backgroundColor: colors.blanco, maxHeight: '88%' }]}>
-            <View style={styles.modalHeaderRow}>
+      <AppModal visible={editando} onClose={() => setEditando(false)} animationType="fade" overlayStyle={styles.modalOverlay} cardStyle={[styles.modalContent, { backgroundColor: colors.blanco, maxHeight: '88%' }]}>
+                    <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: colors.azul, flex: 1, textAlign: 'left', marginBottom: 0 }]}>
                 {modoNuevo ? 'Agregar otro oficio' : 'Editar mi oficio'}
               </Text>
@@ -345,21 +343,11 @@ export default function OficioDetalle() {
                 />
               </View>
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
 
       {/* Modal de opciones de contacto vecinal */}
-      <Modal
-        visible={showContactModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowContactModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowContactModal(false)} />
-          <View style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
-            <Text style={[styles.modalTitle, { color: p.text }]}>Contactar a {profile.user.fullName}</Text>
+      <AppModal visible={showContactModal} onClose={() => setShowContactModal(false)} animationType="fade" overlayStyle={styles.modalOverlay} cardStyle={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+                    <Text style={[styles.modalTitle, { color: p.text }]}>Contactar a {profile.user.fullName}</Text>
             <Text style={[styles.modalSubtitle, { color: p.muted }]}>
               Coordina el servicio de forma directa y transparente con tu vecino.
             </Text>
@@ -377,21 +365,11 @@ export default function OficioDetalle() {
                 onPress={() => setShowContactModal(false)}
               />
             </View>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
 
       {/* Menú contextual (⋮) de opciones del oficio */}
-      <Modal
-        visible={menuOpciones}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMenuOpciones(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuOpciones(false)} />
-          <View style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
-            <Text style={[styles.modalTitle, { color: p.text }]}>{oficioLabel[profile.oficio.category]}</Text>
+      <AppModal visible={menuOpciones} onClose={() => setMenuOpciones(false)} animationType="fade" overlayStyle={styles.modalOverlay} cardStyle={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+                    <Text style={[styles.modalTitle, { color: p.text }]}>{oficioLabel[profile.oficio.category]}</Text>
             <Text style={[styles.modalSubtitle, { color: p.muted }]}>
               {esMio ? 'Opciones de tu oficio' : 'Opciones del oficio'}
             </Text>
@@ -442,21 +420,11 @@ export default function OficioDetalle() {
             <View style={{ marginTop: spacing.xs }}>
               <AppButton label="Cancelar" variant="secondary" onPress={() => setMenuOpciones(false)} />
             </View>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
 
       {/* Modal para confirmar eliminación de oficio */}
-      <Modal
-        visible={confirmandoBaja}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setConfirmandoBaja(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setConfirmandoBaja(false)} />
-          <View style={[styles.modalContent, { backgroundColor: colors.blanco }]}>
-            <Text style={[styles.modalTitle, { color: p.text }]}>¿Eliminar este oficio?</Text>
+      <AppModal visible={confirmandoBaja} onClose={() => setConfirmandoBaja(false)} animationType="fade" overlayStyle={styles.modalOverlay} cardStyle={[styles.modalContent, { backgroundColor: colors.blanco }]}>
+                    <Text style={[styles.modalTitle, { color: p.text }]}>¿Eliminar este oficio?</Text>
             <Text style={[styles.modalSubtitle, { color: p.muted }]}>
               Se quitará {oficioLabel[profile.oficio.category]} de tu perfil y del directorio del barrio.
             </Text>
@@ -480,9 +448,7 @@ export default function OficioDetalle() {
                 onPress={() => setConfirmandoBaja(false)}
               />
             </View>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
 
       {/* Modal de éxito tras guardar oficio */}
       <Modal

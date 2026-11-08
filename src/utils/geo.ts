@@ -1,3 +1,5 @@
+import { CASTILLA_OUTLINE } from './castillaOutline';
+
 export type Coords = { lat: number; lng: number };
 
 // Redondea a 3 decimales (~110 m). Úsalo en reportes de vulnerabilidad para no exponer la casa exacta.
@@ -6,7 +8,7 @@ export function roundForReport(c: Coords): Coords {
 }
 
 // Centro aproximado de Castilla (Piura), para centrar el mapa antes de que el usuario elija un punto.
-export const CASTILLA_CENTER: Coords = { lat: -5.19, lng: -80.63 };
+export const CASTILLA_CENTER: Coords = { lat: -5.1116108, lng: -80.5354521 };
 
 // Límites geográficos del distrito de Castilla (Piura) para delimitar el mapa y la detección.
 export const CASTILLA_BOUNDS: [[number, number], [number, number]] = [
@@ -16,12 +18,29 @@ export const CASTILLA_BOUNDS: [[number, number], [number, number]] = [
 
 // Comprueba si una coordenada está dentro del distrito de Castilla.
 export function isWithinCastilla(coords: Coords): boolean {
-  return (
-    coords.lat >= CASTILLA_BOUNDS[0][0] &&
-    coords.lat <= CASTILLA_BOUNDS[1][0] &&
-    coords.lng >= CASTILLA_BOUNDS[0][1] &&
-    coords.lng <= CASTILLA_BOUNDS[1][1]
-  );
+  if (
+    coords.lat < CASTILLA_BOUNDS[0][0] ||
+    coords.lat > CASTILLA_BOUNDS[1][0] ||
+    coords.lng < CASTILLA_BOUNDS[0][1] ||
+    coords.lng > CASTILLA_BOUNDS[1][1]
+  ) {
+    return false;
+  }
+  return pointInPolygon(coords, CASTILLA_OUTLINE);
+}
+
+// Ray casting: cuenta cuántas aristas cruza un rayo horizontal desde el punto.
+export function pointInPolygon(coords: Coords, polygon: [number, number][]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    const cruza =
+      yi > coords.lat !== yj > coords.lat &&
+      coords.lng < ((xj - xi) * (coords.lat - yi)) / (yj - yi) + xi;
+    if (cruza) inside = !inside;
+  }
+  return inside;
 }
 
 // Distancia en metros mediante fórmula de Haversine.

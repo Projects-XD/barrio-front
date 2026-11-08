@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { Stack, router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
+import { AppModal } from '@/components/AppModal';
 import { MapPicker, type MapPickerHandle } from '@/components/MapPicker';
 import { Screen } from '@/components/Screen';
 import { reverseGeocodeCoords, useMySavedLocation, useSaveMyLocation } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import { colors, fonts, radius, spacing } from '@/theme';
-import { CASTILLA_CENTER, type Coords, roundForReport } from '@/utils/geo';
+import { CASTILLA_BOUNDS, CASTILLA_CENTER, type Coords, roundForReport } from '@/utils/geo';
+import { CASTILLA_OUTLINE } from '@/utils/castillaOutline';
 
 function formatPlace(place: Location.LocationGeocodedAddress | undefined) {
   if (!place) return '';
@@ -171,7 +173,16 @@ export default function Ubicacion() {
         Toca cualquier punto del mapa o usa tu ubicación actual. La dirección se completará automáticamente.
       </Text>
 
-      <MapPicker ref={mapRef} initial={coords} height={320} onChange={onMapChange} />
+      <MapPicker
+        ref={mapRef}
+        initial={coords}
+        height={320}
+        maxBounds={CASTILLA_BOUNDS}
+        outline={CASTILLA_OUTLINE}
+        minZoom={11}
+        maxZoom={18}
+        onChange={onMapChange}
+      />
 
       <AppButton
         label={buscando ? 'Buscando tu ubicación...' : 'Usar mi ubicación actual'}
@@ -216,10 +227,7 @@ export default function Ubicacion() {
       />
       <AppButton label="Cancelar y volver" variant="secondary" onPress={irAlPerfil} />
 
-      <Modal visible={modalExito} transparent animationType="fade" onRequestClose={irAlPerfil}>
-        <View style={styles.overlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={irAlPerfil} />
-          <View style={styles.tarjeta}>
+      <AppModal visible={modalExito} onClose={irAlPerfil} overlayStyle={styles.overlay} cardStyle={styles.tarjeta}>
             <View style={[styles.modalIcono, { backgroundColor: p.highlight }]}>
               <Ionicons name="checkmark-circle" size={34} color={colors.verdeExito} />
             </View>
@@ -231,9 +239,7 @@ export default function Ubicacion() {
               Posición aproximada para el barrio: {approx.lat}, {approx.lng}
             </Text>
             <AppButton label="Volver a mi perfil" icon="person-outline" onPress={irAlPerfil} />
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
     </Screen>
   );
 }

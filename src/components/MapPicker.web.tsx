@@ -12,6 +12,7 @@ type Props = {
   initial: Coords;
   height?: number;
   maxBounds?: [[number, number], [number, number]];
+  outline?: [number, number][];
   minZoom?: number;
   maxZoom?: number;
   initialZoom?: number;
@@ -27,12 +28,12 @@ type FrameWindow = Window & {
 
 // En navegador de escritorio el mapa va dentro de un iframe (el WebView es solo para móvil).
 export const MapPicker = forwardRef<MapPickerHandle, Props>(function MapPicker(
-  { initial, height = 300, maxBounds, minZoom, maxZoom, initialZoom, zones, onChange },
+  { initial, height = 300, maxBounds, outline, minZoom, maxZoom, initialZoom, zones, onChange },
   ref,
 ) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [srcDoc] = useState(() =>
-    buildMapHtml(initial, { maxBounds, minZoom, maxZoom, zoom: initialZoom, zones }),
+    buildMapHtml(initial, { maxBounds, outline, minZoom, maxZoom, zoom: initialZoom, zones }),
   );
   const onChangeRef = useRef(onChange);
   useEffect(() => {

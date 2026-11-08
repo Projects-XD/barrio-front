@@ -1,8 +1,10 @@
 import type { Coords } from '@/utils/geo';
+import { CASTILLA_OUTLINE } from '@/utils/castillaOutline';
 import type { FavorType, FavorUrgency, OficioCategory } from '@/types';
 
 export type MapHtmlOptions = {
   maxBounds?: [[number, number], [number, number]];
+  outline?: [number, number][];
   minZoom?: number;
   maxZoom?: number;
   zoom?: number;
@@ -16,6 +18,10 @@ export function buildMapHtml(initial: Coords, options?: MapHtmlOptions) {
   const minZoom = options?.minZoom ?? 10;
   const maxZoom = options?.maxZoom ?? 19;
   const boundsJson = options?.maxBounds ? JSON.stringify(options.maxBounds) : 'null';
+  // Leaflet usa [lat, lng]; el contorno llega como [lng, lat].
+  const outlineJson = options?.outline
+    ? JSON.stringify(options.outline.map(([lng, lat]) => [lat, lng]))
+    : 'null';
   const zonesJson =
     options?.zones && options.zones.length
       ? JSON.stringify(options.zones).replace(/</g, '\\u003c')
@@ -68,6 +74,25 @@ export function buildMapHtml(initial: Coords, options?: MapHtmlOptions) {
       maxZoom: ${maxZoom},
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
+
+    var outlineData = ${outlineJson};
+    function dentroDelContorno(ll) {
+      if (!outlineData) return true;
+      var inside = false;
+      for (var i = 0, j = outlineData.length - 1; i < outlineData.length; j = i++) {
+        var yi = outlineData[i][0], xi = outlineData[i][1];
+        var yj = outlineData[j][0], xj = outlineData[j][1];
+        if ((yi > ll.lat) !== (yj > ll.lat) && ll.lng < ((xj - xi) * (ll.lat - yi)) / (yj - yi) + xi) {
+          inside = !inside;
+        }
+      }
+      return inside;
+    }
+    if (outlineData) {
+      L.polygon(outlineData, { color: '#D32F2F', weight: 3, fill: false, interactive: false }).addTo(map);
+    } else if (bounds) {
+      L.rectangle(bounds, { color: '#D32F2F', weight: 3, fill: false, interactive: false }).addTo(map);
+    }
 
     var marker = L.circleMarker([${initial.lat}, ${initial.lng}], {
       radius: 9, color: '#132E66', fillColor: '#EA982B', fillOpacity: 1, weight: 3
@@ -135,6 +160,9 @@ export function buildMapHtml(initial: Coords, options?: MapHtmlOptions) {
       if (bounds && !bounds.contains(e.latlng)) {
         return;
       }
+      if (!dentroDelContorno(e.latlng)) {
+        return;
+      }
       send(e.latlng);
     });
 
@@ -163,6 +191,7 @@ export type BarrioPoint = {
 // Mapa de barrio: muestra un punto con icono SVG vectorial por cada publicación, oficio o reporte.
 export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] = []) {
   const initialJson = JSON.stringify(initialPoints).replace(/</g, '\\u003c');
+  const CASTILLA_OUTLINE_LEAFLET = JSON.stringify(CASTILLA_OUTLINE.map(([lng, lat]) => [lat, lng]));
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -210,6 +239,7 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
+    L.polygon(${CASTILLA_OUTLINE_LEAFLET}, { color: '#D32F2F', weight: 3, fill: false, interactive: false }).addTo(map);
     var layer = L.layerGroup().addTo(map);
     var userLayer = L.layerGroup().addTo(map);
     var currentPoints = [];

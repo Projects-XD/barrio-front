@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { listProfiles, upsertProfile } from '@/api/endpoints';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
+import { isWithinCastilla } from '@/utils/geo';
 import { FRESH_SLOW_MS } from './shared';
 import { profilesQuery } from './oficios';
 
@@ -110,6 +111,7 @@ export function useSaveMyLocation() {
   return useMutation({
     mutationFn: async (input: { lat: number; lng: number; address: string }): Promise<SavedUserLocation> => {
       if (!userId) throw new Error('Tu sesión no está activa.');
+      if (!isWithinCastilla(input)) throw new Error('Tu ubicación debe estar dentro del distrito de Castilla.');
       const cleanAddress = input.address.trim() || (await reverseGeocodeCoords(input));
 
       // 1. Guardar en Supabase Auth user_metadata (persiste en BD aunque no tenga oficios aún).

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
@@ -14,6 +14,7 @@ import { selectEmergencyActive, useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
 import type { VulnerabilityReport } from '@/types';
 import { shareReportWhatsApp } from '@/utils/share';
+import { AppModal } from '@/components/AppModal';
 
 function llamar(phone: string) {
   Linking.openURL(`tel:${phone}`).catch(() => Alert.alert('No se pudo llamar', `Marca manualmente: ${phone}`));
@@ -141,11 +142,8 @@ export default function Emergencia() {
         />
       )}
 
-      <Modal visible={menuReporte !== null} transparent animationType="fade" onRequestClose={() => setMenuReporte(null)}>
-        <View style={styles.overlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuReporte(null)} />
-          <View style={styles.menuCard}>
-            <Text style={[styles.nombre, { color: p.text, marginBottom: spacing.xs }]}>Opciones del reporte</Text>
+      <AppModal visible={menuReporte !== null} onClose={() => setMenuReporte(null)} animationType="fade" overlayStyle={styles.overlay} cardStyle={styles.menuCard}>
+                    <Text style={[styles.nombre, { color: p.text, marginBottom: spacing.xs }]}>Opciones del reporte</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
@@ -159,9 +157,7 @@ export default function Emergencia() {
               <Text style={[styles.menuRowText, { color: p.text }]}>Difundir en WhatsApp del barrio</Text>
             </Pressable>
             <AppButton label="Cancelar" variant="secondary" onPress={() => setMenuReporte(null)} />
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
     </Screen>
   );
 }

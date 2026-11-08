@@ -13,6 +13,7 @@ type Props = {
   initial: Coords;
   height?: number;
   maxBounds?: [[number, number], [number, number]];
+  outline?: [number, number][];
   minZoom?: number;
   maxZoom?: number;
   initialZoom?: number;
@@ -21,12 +22,12 @@ type Props = {
 };
 
 export const MapPicker = forwardRef<MapPickerHandle, Props>(function MapPicker(
-  { initial, height = 300, maxBounds, minZoom, maxZoom, initialZoom, zones, onChange },
+  { initial, height = 300, maxBounds, outline, minZoom, maxZoom, initialZoom, zones, onChange },
   ref,
 ) {
   const webRef = useRef<ElementRef<typeof WebView>>(null);
   const [html] = useState(() =>
-    buildMapHtml(initial, { maxBounds, minZoom, maxZoom, zoom: initialZoom, zones }),
+    buildMapHtml(initial, { maxBounds, outline, minZoom, maxZoom, zoom: initialZoom, zones }),
   );
 
   useEffect(() => {

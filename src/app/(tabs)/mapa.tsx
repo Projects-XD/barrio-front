@@ -3,10 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
@@ -37,6 +35,7 @@ import { CASTILLA_CENTER, formatDistanceAndWalk, isWithinCastilla, roundForRepor
 import { distanceKm, getRealPosition } from '@/utils/location';
 import { timeAgo } from '@/utils/time';
 import { styles } from '@/features/mapa/styles';
+import { AppModal } from '@/components/AppModal';
 
 type KindFilter = 'todos' | 'pedir' | 'ofrecer' | 'oficio' | 'emergencia';
 
@@ -1066,16 +1065,8 @@ export default function MapaBarrio() {
       )}
 
       {/* VENTANA FLOTANTE / MODAL DE FILTROS PRECISOS Y CAPAS */}
-      <Modal
-        visible={modalFiltros}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalFiltros(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalFiltros(false)} />
-          <View style={styles.floatingSheet}>
-            <View style={styles.sheetHeader}>
+      <AppModal visible={modalFiltros} onClose={() => setModalFiltros(false)} animationType="fade" overlayStyle={styles.modalOverlay} cardStyle={styles.floatingSheet}>
+                    <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>Filtros y capas del mapa</Text>
               <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalFiltros(false)} hitSlop={8}>
                 <Ionicons name="close-circle" size={26} color={colors.gris} />
@@ -1184,21 +1175,11 @@ export default function MapaBarrio() {
                 />
               ) : null}
             </View>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
 
       {/* VENTANA FLOTANTE DE RESULTADOS EN LISTA RÁPIDA (Móvil) */}
-      <Modal
-        visible={modalLista}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalLista(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalLista(false)} />
-          <View style={styles.floatingSheet}>
-            <View style={styles.sheetHeader}>
+      <AppModal visible={modalLista} onClose={() => setModalLista(false)} animationType="fade" overlayStyle={styles.modalOverlay} cardStyle={styles.floatingSheet}>
+                    <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>
                 Puntos en el mapa ({filteredItems.length})
               </Text>
@@ -1246,21 +1227,11 @@ export default function MapaBarrio() {
                 })
               )}
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
 
       {/* VENTANA FLOTANTE PARA PUBLICAR DIRECTAMENTE DESDE EL MAPA */}
-      <Modal
-        visible={modalPublicar}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalPublicar(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalPublicar(false)} />
-          <View style={styles.floatingSheet}>
-            <View style={styles.sheetHeader}>
+      <AppModal visible={modalPublicar} onClose={() => setModalPublicar(false)} animationType="fade" overlayStyle={styles.modalOverlay} cardStyle={styles.floatingSheet}>
+                    <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>¿Qué deseas publicar en el mapa?</Text>
               <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalPublicar(false)} hitSlop={8}>
                 <Ionicons name="close-circle" size={26} color={colors.gris} />
@@ -1309,9 +1280,7 @@ export default function MapaBarrio() {
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.azul} />
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
     </Screen>
   );
 }

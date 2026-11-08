@@ -3,6 +3,7 @@ import type { Database, Tables, OficioCategory } from '../types/database.types';
 import { AppError, dbError } from '../middlewares/errorHandler';
 import type { UpsertProfessionalProfileDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
+import { isWithinCastilla } from '../utils/castilla';
 
 export class ProfileService {
   /**
@@ -18,6 +19,14 @@ export class ProfileService {
     dto: UpsertProfessionalProfileDTO
   ): Promise<Tables<'professional_profiles'>> {
     const zoneId = await resolveUserZone(supabase, userId);
+
+    if (
+      dto.location_lat != null &&
+      dto.location_lng != null &&
+      !isWithinCastilla({ lat: dto.location_lat, lng: dto.location_lng })
+    ) {
+      throw new AppError('La ubicación debe estar dentro del distrito de Castilla.', 400);
+    }
 
     // 1. Determinar si ya existe un perfil para este usuario y oficio
     let existingId = dto.id;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/AppButton';
@@ -12,6 +12,7 @@ import { useFavorsPage } from '@/hooks/useData';
 import { favorTypeLabel } from '@/i18n/labels';
 import type { FavorIntent, FavorType } from '@/types';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
+import { AppModal } from '@/components/AppModal';
 
 const tipos = Object.keys(favorTypeLabel) as FavorType[];
 
@@ -263,16 +264,8 @@ export default function FavoresScreen() {
       )}
 
       {/* Modal para publicar (+), sin ocupar espacio en pantalla */}
-      <Modal
-        visible={modalPublicar}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalPublicar(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalPublicar(false)} />
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitulo}>¿Qué deseas publicar?</Text>
+      <AppModal visible={modalPublicar} onClose={() => setModalPublicar(false)} animationType="fade" overlayStyle={styles.modalOverlay} cardStyle={styles.modalCard}>
+                    <Text style={styles.modalTitulo}>¿Qué deseas publicar?</Text>
             <Text style={[styles.modalSub, { color: p.muted }]}>
               Elige si necesitas una colaboración o quieres compartir con tus vecinos.
             </Text>
@@ -314,21 +307,11 @@ export default function FavoresScreen() {
             >
               <Text style={styles.modalCloseText}>Cancelar</Text>
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
 
       {/* Modal inferior (Bottom Sheet) para filtrar categorías */}
-      <Modal
-        visible={modalFiltro}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalFiltro(false)}
-      >
-        <View style={styles.sheetOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalFiltro(false)} />
-          <View style={styles.sheetContent}>
-            <View style={styles.sheetHeader}>
+      <AppModal visible={modalFiltro} onClose={() => setModalFiltro(false)} animationType="slide" overlayStyle={styles.sheetOverlay} cardStyle={styles.sheetContent}>
+                    <View style={styles.sheetHeader}>
               <View>
                 <Text style={styles.sheetTitle}>Filtrar por categoría</Text>
                 <Text style={styles.sheetSub}>Selecciona una opción de ayuda</Text>
@@ -419,9 +402,7 @@ export default function FavoresScreen() {
                 <Text style={styles.sheetBtnPrimaryText}>Aplicar</Text>
               </Pressable>
             </View>
-          </View>
-        </View>
-      </Modal>
+      </AppModal>
     </Screen>
   );
 }

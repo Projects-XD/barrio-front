@@ -119,8 +119,15 @@ export function useUpdateAvatar() {
       if (uploadError) throw uploadError;
       const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
       const url = `${pub.publicUrl}?v=${Date.now()}`;
-      const { error: dbError } = await supabase.from('users').update({ avatar_url: url }).eq('id', userId);
+      const { data: updated, error: dbError } = await supabase
+        .from('users')
+        .update({ avatar_url: url })
+        .eq('id', userId)
+        .select('id');
       if (dbError) throw dbError;
+      if (!updated || updated.length === 0) {
+        throw new Error('No se pudo guardar la foto: tu sesión no tiene permiso para actualizar tu perfil. Cierra sesión y vuelve a entrar.');
+      }
       return url;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['myAvatar', userId] }),
