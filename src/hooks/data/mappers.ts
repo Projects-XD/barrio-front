@@ -114,6 +114,13 @@ export function mapReport(r: BackendReport): VulnerabilityReport {
     createdAt: r.created_at,
     resolvedAt: r.resolved_at,
     expiresAt: r.expires_at ?? null,
+    affectedName: r.affected_name ?? null,
+    locationDetail: r.location_detail ?? null,
+    detailHidden: Boolean(r.detail_hidden),
+    isMine: Boolean(r.is_mine),
+    responders: (r.responders ?? []).map((x) => ({ id: x.user_id, name: x.user?.full_name ?? 'Un vecino' })),
+    helpRequestedAt: r.help_requested_at ?? null,
+    escalatedAt: r.escalated_at ?? null,
   };
 }
 

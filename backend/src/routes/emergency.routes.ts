@@ -198,9 +198,87 @@ router.get('/reports', requireAuth, (req, res, next) => emergencyController.list
 
 /**
  * @openapi
+ * /emergency/reports/{id}/attend:
+ *   post:
+ *     summary: Sumarse a un reporte ("Voy a ayudar"); pueden acudir varios vecinos de la zona
+ *     tags:
+ *       - Módulo de Emergencia
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Reporte tomado; se avisa a quien reportó
+ *       403:
+ *         description: No puedes atender tu propio reporte
+ *       404:
+ *         description: No existe en tu zona o ya está cerrado
+ *   delete:
+ *     summary: Dejar de acudir a un reporte ("Ya no puedo ir"); quita solo al propio vecino
+ *     tags:
+ *       - Módulo de Emergencia
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Reporte liberado
+ *       404:
+ *         description: No lo estabas atendiendo
+ */
+/**
+ * @openapi
+ * /emergency/reports/{id}/request-help:
+ *   post:
+ *     summary: Pedir más ayuda en un reporte (solo quien ya acude; avisa a la zona, 1 vez cada 5 min)
+ *     tags:
+ *       - Módulo de Emergencia
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Refuerzo solicitado; se avisó a los vecinos de la zona
+ *       403:
+ *         description: No estás acudiendo a este reporte
+ *       404:
+ *         description: No existe en tu zona o ya está cerrado
+ *       429:
+ *         description: Ya pediste más ayuda hace menos de 5 minutos
+ */
+router.post('/reports/:id/request-help', requireAuth, (req, res, next) =>
+  emergencyController.requestBackup(req, res, next)
+);
+router.post('/reports/:id/attend', requireAuth, (req, res, next) =>
+  emergencyController.attendReport(req, res, next)
+);
+router.delete('/reports/:id/attend', requireAuth, (req, res, next) =>
+  emergencyController.releaseReport(req, res, next)
+);
+
+/**
+ * @openapi
  * /emergency/reports/{id}/resolve:
  *   patch:
- *     summary: Marcar un reporte como resuelto (admin o emergency_role)
+ *     summary: Marcar un reporte como resuelto (admin, emergency_role o quien lo reportó)
  *     tags:
  *       - Módulo de Emergencia
  *     security:
@@ -215,10 +293,8 @@ router.get('/reports', requireAuth, (req, res, next) => emergencyController.list
  *     responses:
  *       200:
  *         description: Reporte resuelto
- *       403:
- *         description: Sin permisos
  *       404:
- *         description: No existe en tu zona o ya estaba resuelto
+ *         description: No existe en tu zona, ya estaba resuelto o no es tuyo (si no eres comité)
  */
 router.patch('/reports/:id/resolve', requireAuth, (req, res, next) =>
   emergencyController.resolveReport(req, res, next)

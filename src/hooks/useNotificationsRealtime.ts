@@ -29,6 +29,10 @@ export function useNotificationsRealtime(onNueva?: (n: BackendNotification) => v
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
         (payload) => {
           void qc.invalidateQueries({ queryKey: ['notifications'] });
+          // Avisos de emergencia: la lista y el mapa de reportes también cambiaron.
+          if (String((payload.new as { type?: string }).type).startsWith('reporte_')) {
+            void qc.invalidateQueries({ queryKey: ['reports'] });
+          }
           callbackRef.current?.(payload.new as BackendNotification);
         }
       )

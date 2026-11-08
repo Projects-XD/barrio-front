@@ -97,6 +97,10 @@ export const notificationTypeSchema = z.enum([
   'reporte_actualizado',
   'emergencia_activada',
   'nueva_publicacion',
+  'reporte_emergencia',
+  'reporte_atendido',
+  'reporte_escalado',
+  'reporte_refuerzo',
   'sistema',
 ]);
 
@@ -339,6 +343,8 @@ export const createVulnerabilityReportSchema = z.object({
   description: z.string().min(5, 'La descripción debe tener al menos 5 caracteres').max(1000, 'La descripción no puede exceder 1000 caracteres'),
   needs: z.array(z.string().max(50)).max(20).default([]),
   is_anonymous: z.boolean().default(false),
+  affected_name: z.string().trim().max(100).nullable().optional(),
+  location_detail: z.string().trim().max(200).nullable().optional(),
 });
 export type CreateVulnerabilityReportDTO = z.infer<typeof createVulnerabilityReportSchema>;
 
@@ -380,6 +386,8 @@ export const createEmergencyReportSchema = z.object({
   description: z.string().min(5, 'La descripción debe tener al menos 5 caracteres').max(1000, 'La descripción no puede exceder 1000 caracteres'),
   needs: z.array(z.string().max(50)).max(20).default([]),
   is_anonymous: z.boolean().default(false),
+  affected_name: z.string().trim().max(100).nullable().optional(),
+  location_detail: z.string().trim().max(200).nullable().optional(),
 });
 export type CreateEmergencyReportDTO = z.infer<typeof createEmergencyReportSchema>;
 

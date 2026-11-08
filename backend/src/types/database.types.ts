@@ -63,7 +63,11 @@ export type NotificationType =
   | 'emergencia_activada'
   | 'nueva_publicacion'
   | 'sistema'
-  | 'nuevo_mensaje';
+  | 'nuevo_mensaje'
+  | 'reporte_emergencia'
+  | 'reporte_atendido'
+  | 'reporte_escalado'
+  | 'reporte_refuerzo';
 
 export interface Database {
   public: {
@@ -651,6 +655,10 @@ export interface Database {
           resolved_by_user_id: string | null;
           resolved_at: string | null;
           expires_at: string;
+          help_requested_at: string | null;
+          affected_name: string | null;
+          location_detail: string | null;
+          escalated_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -667,6 +675,10 @@ export interface Database {
           resolved_by_user_id?: string | null;
           resolved_at?: string | null;
           expires_at?: string;
+          help_requested_at?: string | null;
+          affected_name?: string | null;
+          location_detail?: string | null;
+          escalated_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -683,6 +695,10 @@ export interface Database {
           resolved_by_user_id?: string | null;
           resolved_at?: string | null;
           expires_at?: string;
+          help_requested_at?: string | null;
+          affected_name?: string | null;
+          location_detail?: string | null;
+          escalated_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -995,6 +1011,40 @@ export interface Database {
         ];
       };
 
+      report_responders: {
+        Row: {
+          report_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          report_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          report_id?: string;
+          user_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'report_responders_report_id_fkey';
+            columns: ['report_id'];
+            isOneToOne: false;
+            referencedRelation: 'vulnerability_reports';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'report_responders_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+
       push_tokens: {
         Row: {
           id: string;
@@ -1150,6 +1200,18 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
+      fn_atender_reporte: {
+        Args: { p_report_id: string; p_user_id: string };
+        Returns: { report_id: string; responders_count: number }[];
+      };
+      fn_pedir_refuerzo: {
+        Args: { p_report_id: string; p_user_id: string };
+        Returns: { report_id: string; responders_count: number }[];
+      };
+      fn_soltar_reporte: {
+        Args: { p_report_id: string; p_user_id: string };
+        Returns: boolean;
+      };
       fn_respond_to_favor: {
         Args: {
           p_favor_id: string;

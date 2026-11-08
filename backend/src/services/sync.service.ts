@@ -272,6 +272,8 @@ export class SyncService {
         needs: payload.needs || [],
         status: 'activo',
         is_anonymous: Boolean(payload.is_anonymous),
+        affected_name: payload.affected_name || null,
+        location_detail: payload.location_detail || null,
       })
       .select()
       .single();

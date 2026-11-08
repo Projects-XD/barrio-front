@@ -21,6 +21,8 @@ export default function Reportar() {
   const p = usePalette();
   const crear = useCreateReport();
   const [descripcion, setDescripcion] = useState('');
+  const [quien, setQuien] = useState('');
+  const [donde, setDonde] = useState('');
   const [needs, setNeeds] = useState<ResourceType[]>([]);
   const [otraNecesidad, setOtraNecesidad] = useState('');
   const [anonimo, setAnonimo] = useState(true);
@@ -52,6 +54,8 @@ export default function Reportar() {
             ? `${descripcion.trim()} (Otra necesidad: ${otraNecesidad.trim()})`
             : descripcion.trim(),
         needs,
+        affectedName: quien,
+        locationDetail: donde,
         isAnonymous: anonimo,
         location,
       });
@@ -73,6 +77,32 @@ export default function Reportar() {
         maxLength={500}
         style={[styles.input, { borderColor: p.border, color: p.text }]}
       />
+      <Text style={[styles.nota, { color: p.muted }]}>
+        Esta descripción la ve toda tu zona: no escribas aquí nombres ni direcciones, van en los campos de abajo.
+      </Text>
+
+      <Text style={[styles.label, { color: p.text }]}>¿Quién necesita ayuda? (opcional)</Text>
+      <TextInput
+        value={quien}
+        onChangeText={setQuien}
+        placeholder="Ej: Doña Rosa, adulta mayor"
+        placeholderTextColor={colors.gris}
+        maxLength={100}
+        style={[styles.inputLinea, { borderColor: p.border, color: p.text }]}
+      />
+
+      <Text style={[styles.label, { color: p.text }]}>¿Dónde está?</Text>
+      <TextInput
+        value={donde}
+        onChangeText={setDonde}
+        placeholder="Ej: Jr. Lima 123, casa azul frente a la bodega"
+        placeholderTextColor={colors.gris}
+        maxLength={200}
+        style={[styles.inputLinea, { borderColor: p.border, color: p.text }]}
+      />
+      <Text style={[styles.nota, { color: p.muted }]}>
+        El nombre y la dirección solo los ven los vecinos que se sumen a ayudar y el comité.
+      </Text>
 
       <Text style={[styles.label, { color: p.text }]}>¿Qué necesita?</Text>
       <View style={styles.chips}>
@@ -102,7 +132,7 @@ export default function Reportar() {
         label={crear.isPending ? 'Enviando...' : 'Enviar reporte'}
         variant="primary"
         onPress={enviar}
-        disabled={descripcion.trim().length < 5 || (needs.includes('otro') && otraNecesidad.trim().length < 3) || crear.isPending}
+        disabled={descripcion.trim().length < 5 || donde.trim().length < 5 || (needs.includes('otro') && otraNecesidad.trim().length < 3) || crear.isPending}
       />
 
       <AppModal visible={confirmacion !== null} onClose={cerrarConfirmacion} overlayStyle={styles.overlay} cardStyle={styles.modalCard}>
@@ -118,7 +148,7 @@ export default function Reportar() {
         <Text style={[styles.modalTexto, { color: p.body }]}>
           {confirmacion === 'queued'
             ? 'La alerta se enviará sola cuando vuelva la conexión.'
-            : 'Los vecinos de tu barrio y el comité de emergencia han sido notificados de esta situación.'}
+            : 'Los vecinos de tu zona y el comité de emergencia recibieron el aviso en la app. Te avisaremos cuando alguien vaya a ayudar.'}
         </Text>
         <AppButton label="Entendido" variant="primary" onPress={cerrarConfirmacion} />
       </AppModal>
@@ -136,6 +166,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 16,
     textAlignVertical: 'top',
+    backgroundColor: colors.blanco,
+  },
+  inputLinea: {
+    borderWidth: 1.5,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: fonts.regular,
+    fontSize: 16,
     backgroundColor: colors.blanco,
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap' },

@@ -126,9 +126,53 @@ export class EmergencyController {
     }
   }
 
+  private reportId(req: Request): string {
+    if (!req.user) {
+      throw new AppError('Usuario no autenticado', 401);
+    }
+    const id = String(req.params.id);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      throw new AppError('id debe ser un UUID válido', 400);
+    }
+    return id;
+  }
+
+  /** POST /api/emergency/reports/:id/attend ("Voy a ayudar") */
+  public async attendReport(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = this.reportId(req);
+      const report = await emergencyService.attendReport(getSupabaseClient(req), req.user!.id, id);
+      res.json({ success: true, data: report, code: 200 });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** POST /api/emergency/reports/:id/request-help ("Necesito más ayuda") */
+  public async requestBackup(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = this.reportId(req);
+      const report = await emergencyService.requestBackup(getSupabaseClient(req), req.user!.id, id);
+      res.json({ success: true, data: report, code: 200 });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** DELETE /api/emergency/reports/:id/attend ("Ya no puedo ir") */
+  public async releaseReport(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = this.reportId(req);
+      const report = await emergencyService.releaseReport(getSupabaseClient(req), req.user!.id, id);
+      res.json({ success: true, data: report, code: 200 });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   /**
    * PATCH /api/emergency/reports/:id/resolve
-   * Solo admin o emergency_role.
+   * Admin, emergency_role o quien reportó (solo el suyo).
    */
   public async resolveReport(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

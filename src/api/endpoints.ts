@@ -111,7 +111,15 @@ export interface BackendReport {
   created_at: string;
   resolved_at: string | null;
   expires_at?: string | null;
+  help_requested_at?: string | null;
+  escalated_at?: string | null;
   reporter?: { id: string; full_name: string } | null;
+  // Solo llegan a quien reportó, a los voluntarios y al comité; el resto recibe detail_hidden.
+  affected_name?: string | null;
+  location_detail?: string | null;
+  detail_hidden?: boolean;
+  is_mine?: boolean;
+  responders?: { user_id: string; user?: { id: string; full_name: string } | null }[];
 }
 
 export interface BackendResource {
@@ -269,7 +277,11 @@ export type BackendNotificationType =
   | 'emergencia_activada'
   | 'nueva_publicacion'
   | 'sistema'
-  | 'nuevo_mensaje';
+  | 'nuevo_mensaje'
+  | 'reporte_emergencia'
+  | 'reporte_atendido'
+  | 'reporte_escalado'
+  | 'reporte_refuerzo';
 
 export interface BackendNotification {
   id: string;
@@ -376,6 +388,16 @@ export interface ReportsPage {
 export const listReports = (zoneId: string, limit = 10, offset = 0) =>
   api.get<ReportsPage>(`/emergency/reports?zone_id=${zoneId}&limit=${limit}&offset=${offset}`);
 
+// "Voy a ayudar": se suma a quienes acuden (pueden ser varios) / deja de acudir.
+export const attendReport = (id: string) =>
+  api.post<{ report_id: string; responders_count: number }>(`/emergency/reports/${id}/attend`);
+
+// "Necesito más ayuda": solo quien ya acude; avisa al resto de la zona (429 si fue hace menos de 5 min).
+export const requestBackup = (id: string) =>
+  api.post<{ report_id: string; responders_count: number }>(`/emergency/reports/${id}/request-help`);
+
+export const releaseReport = (id: string) => api.delete<{ id: string }>(`/emergency/reports/${id}/attend`);
+
 export const resolveReport = (id: string) =>
   api.patch<{ id: string; status: string }>(`/emergency/reports/${id}/resolve`);
 
@@ -386,6 +408,8 @@ export interface CreateReportPayload {
   description: string;
   needs: ResourceType[];
   is_anonymous: boolean;
+  affected_name?: string | null;
+  location_detail?: string | null;
 }
 
 export const createReport = (payload: CreateReportPayload) =>

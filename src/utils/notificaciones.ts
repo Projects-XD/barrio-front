@@ -10,6 +10,10 @@ export const notificationIcon: Record<BackendNotification['type'], IconName> = {
   reporte_actualizado: 'document-text-outline',
   emergencia_activada: 'alert-circle-outline',
   nueva_publicacion: 'megaphone-outline',
+  reporte_emergencia: 'alert-circle-outline',
+  reporte_atendido: 'shield-checkmark-outline',
+  reporte_escalado: 'warning-outline',
+  reporte_refuerzo: 'people-outline',
   sistema: 'notifications-outline',
 };
 
@@ -34,9 +38,37 @@ export function describeNotification(n: BackendNotification): { title: string; d
     case 'visto_bueno_recibido':
       return { title: 'Recibiste un visto bueno', detail: null };
     case 'reporte_actualizado':
-      return { title: 'Tu reporte tuvo novedades', detail: null };
+      return n.payload.resolved
+        ? {
+            title: 'El reporte de emergencia fue resuelto',
+            detail: str(n.payload.resolved_by_name) ? `Lo cerró ${str(n.payload.resolved_by_name)}` : null,
+          }
+        : { title: 'Tu reporte tuvo novedades', detail: null };
     case 'emergencia_activada':
       return { title: 'Se activó una emergencia en tu zona', detail: null };
+    case 'reporte_emergencia':
+      return {
+        title: n.payload.urgent ? 'URGENTE: un vecino necesita ayuda' : 'Un vecino necesita ayuda',
+        detail: str(n.payload.description),
+      };
+    case 'reporte_atendido': {
+      const quien = str(n.payload.attendant_name) ?? 'Un vecino';
+      const total = Number(n.payload.responders_count) || 0;
+      return {
+        title: n.payload.joined ? `${quien} también va a ayudar` : `${quien} va a ayudar`,
+        detail: total > 1 ? `Ya son ${total} vecinos acudiendo` : null,
+      };
+    }
+    case 'reporte_refuerzo':
+      return {
+        title: `${str(n.payload.requester_name) ?? 'Un vecino'} pide más ayuda en el lugar`,
+        detail: str(n.payload.description),
+      };
+    case 'reporte_escalado':
+      return {
+        title: 'Reporte sin atender: se necesita ayuda ya',
+        detail: str(n.payload.description),
+      };
     case 'nueva_publicacion': {
       const autor = str(n.payload.author_name) ?? 'Un vecino';
       if (n.payload.kind === 'oficio') {
@@ -58,6 +90,7 @@ export function notificationRoute(n: BackendNotification): string | null {
   const conversationId = str(n.payload.conversation_id);
   const favorId = str(n.payload.favor_id);
   const profileId = str(n.payload.profile_id);
+  if (str(n.payload.report_id)) return '/emergencia';
   if (conversationId) return `/chat/${conversationId}`;
   if (favorId) return `/favores/${favorId}`;
   if (profileId) return `/oficio/${profileId}`;

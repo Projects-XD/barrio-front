@@ -88,6 +88,15 @@ export interface VulnerabilityReport {
   createdAt: string;
   resolvedAt: string | null;
   expiresAt: string | null;
+  affectedName: string | null;
+  locationDetail: string | null;
+  // true si hay nombre/dirección pero este vecino aún no puede verlos (debe sumarse como voluntario).
+  detailHidden: boolean;
+  // true si el reporte lo envió este mismo vecino (también cuando es anónimo).
+  isMine: boolean;
+  responders: { id: string; name: string }[];
+  helpRequestedAt: string | null;
+  escalatedAt: string | null;
 }
 
 export interface CriticalResource {

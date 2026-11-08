@@ -1,10 +1,13 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  attendReport,
   createReport,
   getEmergencyState,
   listReports,
   listResources,
   listServices,
+  releaseReport,
+  requestBackup,
   resolveReport,
 } from '@/api/endpoints';
 import { enqueue } from '@/offline/outbox';
@@ -80,6 +83,31 @@ export function useInfiniteReports() {
   });
 }
 
+// "Voy a ayudar" / "Ya no puedo ir". Siempre refresca: si otro vecino se adelantó (409), la lista lo muestra.
+export function useAttendReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => attendReport(id),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['reports'] }),
+  });
+}
+
+export function useReleaseReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => releaseReport(id),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['reports'] }),
+  });
+}
+
+export function useRequestBackup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => requestBackup(id),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['reports'] }),
+  });
+}
+
 export function useResolveReport() {
   const qc = useQueryClient();
   return useMutation({
@@ -105,6 +133,8 @@ export function useCreateReport() {
       description: string;
       needs: ResourceType[];
       isAnonymous: boolean;
+      affectedName?: string;
+      locationDetail?: string;
       location?: { lat: number; lng: number } | null;
     }) => {
       const { zoneId, isOnline } = useAppStore.getState();
@@ -117,6 +147,8 @@ export function useCreateReport() {
         description: input.description,
         needs: input.needs,
         is_anonymous: input.isAnonymous,
+        affected_name: input.affectedName?.trim() || null,
+        location_detail: input.locationDetail?.trim() || null,
       };
 
       if (isOnline) {

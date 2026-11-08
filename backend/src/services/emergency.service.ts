@@ -162,11 +162,14 @@ export class EmergencyService {
         needs: dto.needs || [],
         status: 'activo',
         is_anonymous: Boolean(dto.is_anonymous),
+        affected_name: dto.affected_name || null,
+        location_detail: dto.location_detail || null,
       })
       .select()
       .single();
 
     if (error) {
+      if (error.code === '54000') throw new AppError(error.message, 429); // límite de reportes por hora
       throw dbError('Error al crear reporte de vulnerabilidad', error);
     }
 
@@ -199,9 +202,10 @@ export class EmergencyService {
     const [{ data, error, count }, canResolve] = await Promise.all([
       supabase
         .from('vulnerability_reports')
-        .select('*, reporter:users!vulnerability_reports_reporter_user_id_fkey(id, full_name, avatar_url)', {
-          count: 'exact',
-        })
+        .select(
+          '*, reporter:users!vulnerability_reports_reporter_user_id_fkey(id, full_name, avatar_url), responders:report_responders(user_id, user:users(id, full_name))',
+          { count: 'exact' }
+        )
         .eq('zone_id', zoneId)
         .eq('status', 'activo')
         // TTL: los vencidos no se listan aunque el job de pg_cron aún no los haya archivado.
@@ -215,21 +219,94 @@ export class EmergencyService {
       throw dbError('Error al consultar reportes de emergencia', error);
     }
 
-    // REGLA DE PRIVACIDAD: Sanitización estricta para reportes anónimos
+    // REGLA DE PRIVACIDAD: nombre y dirección exacta solo para quien reportó, los voluntarios del
+    // reporte y el comité/admin. El resto recibe `detail_hidden` para saber que existen.
+    // Sanitización estricta para reportes anónimos.
     const sanitizedReports = (data || []).map((report: any) => {
+      const copy: Record<string, unknown> = { ...report };
+      const puedeVerDetalle =
+        canResolve ||
+        report.reporter_user_id === userId ||
+        (report.responders ?? []).some((x: { user_id: string }) => x.user_id === userId);
+      if (!puedeVerDetalle) {
+        copy.detail_hidden = Boolean(report.affected_name || report.location_detail);
+        delete copy.affected_name;
+        delete copy.location_detail;
+      }
+      copy.is_mine = report.reporter_user_id === userId; // antes de quitar reporter_user_id
       if (report.is_anonymous) {
-        const copy: Record<string, unknown> = { ...report };
         delete copy.reporter_user_id;
         delete copy.reporter;
-        return copy;
       }
-      return report;
+      return copy;
     });
 
     return { items: sanitizedReports, total: count ?? sanitizedReports.length, can_resolve: canResolve };
   }
 
-  /** Admin o comité de emergencia (emergency_role) pueden resolver reportes. */
+  /**
+   * Endpoint POST /api/emergency/reports/:id/attend ("Voy a ayudar").
+   * Varios vecinos de la zona pueden acudir al mismo caso; avisa a quien reportó y a quienes ya iban.
+   */
+  public async attendReport(
+    supabase: SupabaseClient<Database>,
+    userId: string,
+    reportId: string
+  ): Promise<{ report_id: string; responders_count: number }> {
+    const { data, error } = await supabase.rpc('fn_atender_reporte', {
+      p_report_id: reportId,
+      p_user_id: userId,
+    });
+    if (error) {
+      if (error.code === 'P0002') throw new AppError('Reporte no encontrado o ya cerrado', 404);
+      if (error.code === '42501') throw new AppError('No puedes atender tu propio reporte', 403);
+      throw dbError('Error al tomar el reporte', error);
+    }
+    const row = data?.[0];
+    if (!row) throw new AppError('Reporte no encontrado o ya cerrado', 404);
+    return row;
+  }
+
+  /**
+   * Endpoint POST /api/emergency/reports/:id/request-help ("Necesito más ayuda").
+   * Solo quien ya acude; avisa al resto de la zona. Límite: una vez cada 5 minutos.
+   */
+  public async requestBackup(
+    supabase: SupabaseClient<Database>,
+    userId: string,
+    reportId: string
+  ): Promise<{ report_id: string; responders_count: number }> {
+    const { data, error } = await supabase.rpc('fn_pedir_refuerzo', {
+      p_report_id: reportId,
+      p_user_id: userId,
+    });
+    if (error) {
+      if (error.code === 'P0002') throw new AppError('Reporte no encontrado o ya cerrado', 404);
+      if (error.code === '42501') throw new AppError('Solo quien está acudiendo puede pedir más ayuda', 403);
+      if (error.code === '54000') throw new AppError('Ya pediste más ayuda hace poco; espera unos minutos', 429);
+      throw dbError('Error al pedir más ayuda', error);
+    }
+    const row = data?.[0];
+    if (!row) throw new AppError('Reporte no encontrado o ya cerrado', 404);
+    return row;
+  }
+
+  /** Endpoint DELETE /api/emergency/reports/:id/attend ("Ya no puedo ir"): quita solo al propio vecino. */
+  public async releaseReport(
+    supabase: SupabaseClient<Database>,
+    userId: string,
+    reportId: string
+  ): Promise<{ id: string }> {
+    const { data, error } = await supabase.rpc('fn_soltar_reporte', {
+      p_report_id: reportId,
+      p_user_id: userId,
+    });
+    if (error) throw dbError('Error al soltar el reporte', error);
+    if (!data) throw new AppError('No estás atendiendo este reporte', 404);
+    return { id: reportId };
+  }
+
+  /** Admin o comité de emergencia (emergency_role) pueden resolver reportes; quien reportó, el suyo. */
   private async canResolveReports(supabase: SupabaseClient<Database>, userId: string): Promise<boolean> {
     const { data } = await supabase
       .from('users')
@@ -241,26 +318,25 @@ export class EmergencyService {
 
   /**
    * Endpoint PATCH /api/emergency/reports/:id/resolve
-   * REGLA DE SEGURIDAD: solo admin o emergency_role, y solo reportes de su propia zona.
+   * REGLA DE SEGURIDAD: admin/emergency_role (cualquier reporte de su zona) o quien reportó (solo el suyo).
    */
   public async resolveReport(
     supabase: SupabaseClient<Database>,
     userId: string,
     reportId: string
   ): Promise<{ id: string; status: string }> {
-    if (!(await this.canResolveReports(supabase, userId))) {
-      throw new AppError('Solo el administrador o el comité de emergencia pueden resolver reportes', 403);
-    }
+    const esComite = await this.canResolveReports(supabase, userId);
     const zoneId = await resolveUserZone(supabase, userId);
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('vulnerability_reports')
       .update({ status: 'resuelto', resolved_by_user_id: userId, resolved_at: new Date().toISOString() })
       .eq('id', reportId)
       .eq('zone_id', zoneId)
-      .eq('status', 'activo')
-      .select('id, status')
-      .maybeSingle();
+      .eq('status', 'activo');
+    // Quien no es comité solo puede cerrar su propio reporte (por ejemplo, una falsa alarma).
+    if (!esComite) query = query.eq('reporter_user_id', userId);
+    const { data, error } = await query.select('id, status').maybeSingle();
 
     if (error) {
       throw dbError('Error al resolver el reporte', error);
