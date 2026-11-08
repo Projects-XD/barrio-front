@@ -196,7 +196,7 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     .pin-selected .pin-core{transform:scale(1.36) !important;border-color:#132E66;box-shadow:0 5px 14px rgba(19,46,102,.55)}
     .pin-ring-sel{position:absolute;width:38px;height:38px;border-radius:50%;border:2.5px solid #132E66;background:rgba(234,152,43,.22);pointer-events:none}
     .pin-urg{position:absolute;width:36px;height:36px;border-radius:50%;border:2px solid #B8442F;animation:pulse 1.8s infinite;pointer-events:none}
-    .pin-wave{position:absolute;width:38px;height:38px;border-radius:50%;border:2px solid #B8442F;background:rgba(184,68,47,.28);opacity:0;pointer-events:none;animation:wave 2.4s ease-out infinite}
+    .pin-wave{position:absolute;width:38px;height:38px;border-radius:50%;border:2px solid #D32F2F;background:rgba(211,47,47,.28);opacity:0;pointer-events:none;animation:wave 2.4s ease-out infinite}
     .pin-wave.w2{animation-delay:.8s}
     .pin-wave.w3{animation-delay:1.6s}
     @keyframes wave{0%{transform:scale(.6);opacity:.8}100%{transform:scale(3.4);opacity:0}}
@@ -213,9 +213,9 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
   <div id="map"></div>
   <div class="leg">
     <span class="leg-item"><span class="dot" style="background:#132E66"></span>Piden</span>
-    <span class="leg-item"><span class="dot" style="background:#EA982B"></span>Ofrecen</span>
+    <span class="leg-item"><span class="dot" style="background:#2F6FDE"></span>Ofrecen</span>
     <span class="leg-item"><span class="dot" style="background:#2E7D5B"></span>Oficios</span>
-    <span class="leg-item"><span class="dot" style="background:#B8442F"></span>Alertas</span>
+    <span class="leg-item"><span class="dot" style="background:#D32F2F"></span>Alertas</span>
   </div>
   <div class="vacio" id="vacio">No hay puntos con estos filtros</div>
   <script>
@@ -285,13 +285,13 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
       var bg = '#132E66';
       var fg = '#ffffff';
       if (p.kind === 'ofrecer') {
-        bg = '#EA982B';
-        fg = '#132E66';
+        bg = '#2F6FDE';
+        fg = '#ffffff';
       } else if (p.kind === 'oficio') {
         bg = '#2E7D5B';
         fg = '#ffffff';
       } else if (p.kind === 'emergencia') {
-        bg = '#B8442F';
+        bg = '#D32F2F';
         fg = '#ffffff';
       }
 

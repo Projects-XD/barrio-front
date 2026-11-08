@@ -441,13 +441,13 @@ export default function MapaBarrio() {
 
   const badgeConfig = (kind: MapEntry['kind']) => {
     if (kind === 'ofrecer') {
-      return { bg: colors.naranjaSuave, dot: colors.naranja, fg: colors.azul, text: 'Ofrece ayuda' };
+      return { bg: colors.azulSuave, dot: '#2F6FDE', fg: colors.azul, text: 'Ofrece ayuda' };
     }
     if (kind === 'oficio') {
       return { bg: colors.verdeExitoSuave, dot: colors.verdeExito, fg: colors.verdeExito, text: 'Oficio vecinal' };
     }
     if (kind === 'emergencia') {
-      return { bg: colors.rojoSuave, dot: colors.rojo, fg: colors.rojo, text: 'Alerta comunitaria' };
+      return { bg: colors.rojoSuave, dot: '#D32F2F', fg: '#D32F2F', text: 'Alerta comunitaria' };
     }
     return { bg: colors.azulSuave, dot: colors.azul, fg: colors.azul, text: 'Pide ayuda' };
   };
@@ -798,11 +798,11 @@ export default function MapaBarrio() {
                       styles.dot,
                       {
                         backgroundColor:
-                          filtroIntencion === 'ofrecer' ? colors.azul : colors.naranja,
+                          filtroIntencion === 'ofrecer' ? colors.blanco : '#2F6FDE',
                       },
                     ]}
                   />
-                  <Text style={[styles.pillText, { color: colors.azul }]}>
+                  <Text style={[styles.pillText, { color: filtroIntencion === 'ofrecer' ? colors.blanco : colors.azul }]}>
                     {totalOfrecidos} ofrecen
                   </Text>
                 </Pressable>
