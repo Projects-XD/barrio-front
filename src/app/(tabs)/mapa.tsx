@@ -88,7 +88,6 @@ export default function MapaBarrio() {
   const { width } = useWindowDimensions();
   const isWide = width >= 920;
 
-  const zoneId = useAppStore((s) => s.zoneId);
   const emergencyActive = useAppStore(selectEmergencyActive);
   const { data: zonas = [] } = useZones();
   const { data: favores = [], isLoading, isError, refetch } = useFavors();
