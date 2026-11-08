@@ -154,17 +154,7 @@ export default function Ubicacion() {
         options={{
           headerShown: true,
           title: 'Mi ubicación',
-          headerLeft: () => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Volver a mi perfil"
-              onPress={irAlPerfil}
-              hitSlop={10}
-              style={styles.headerBackBtn}
-            >
-              <Ionicons name="arrow-back" size={22} color={p.primary} />
-            </Pressable>
-          ),
+          headerBackVisible: true,
         }}
       />
 
