@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type ComponentRef } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -103,6 +103,7 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const passwordInputRef = useRef<ComponentRef<typeof TextInput>>(null);
   const [nombre, setNombre] = useState('');
   // Las zonas vienen del backend (/zones): con RLS activo, la clave anon no puede leer la tabla.
   const zonesQuery = useZones();
@@ -478,6 +479,9 @@ export default function Register() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordInputRef.current?.focus()}
+            blurOnSubmit={false}
             style={[
               styles.input,
               { borderColor: p.border, color: p.text, backgroundColor: colors.blanco },
@@ -487,6 +491,7 @@ export default function Register() {
           <Text style={[styles.label, { color: p.text }]}>Contraseña</Text>
           <View style={styles.passwordRow}>
             <TextInput
+              ref={passwordInputRef}
               value={password}
               onChangeText={setPassword}
               placeholder="Mínimo 6 caracteres"
@@ -494,6 +499,8 @@ export default function Register() {
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={canSubmit ? handleSubmit : undefined}
               style={[
                 styles.input,
                 styles.passwordInput,
@@ -633,30 +640,30 @@ const styles = StyleSheet.create({
   passwordRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   passwordInput: { flex: 1 },
   eyeButton: { width: 52, height: 52, borderRadius: radius.md, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  marca: { width: 64, height: 64, borderRadius: 18, marginBottom: spacing.md },
+  marca: { width: 48, height: 48, borderRadius: 14, marginBottom: spacing.xs },
   container: {
     flex: 1,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   header: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     marginTop: spacing.xs,
   },
   titulo: {
-    fontSize: 28,
+    fontSize: 24,
     fontFamily: fonts.bold,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   sub: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: fonts.regular,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   tabContainer: {
     flexDirection: 'row',
     borderRadius: radius.md,
-    padding: 4,
-    marginBottom: spacing.md,
+    padding: 3,
+    marginBottom: spacing.sm,
   },
   tabButton: {
     flex: 1,
