@@ -69,7 +69,6 @@ export function useFavorsPage(
   const zoneId = useAppStore((s) => s.zoneId);
   const userId = useAppStore((s) => s.userId);
   const userName = useAppStore((s) => s.userFullName);
-  const isFocused = useIsFocused();
 
   return useQuery({
     queryKey: ['favors', zoneId, type ?? 'todos', intent ?? 'todos', mine ? 'mine' : 'all', 'page', page],

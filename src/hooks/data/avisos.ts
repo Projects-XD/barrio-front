@@ -11,8 +11,6 @@ const UNREAD_POLL_MS = 30_000;
 
 export function useNotifications() {
   const userId = useAppStore((s) => s.userId);
-  // Al volver a la pantalla se actualiza solo si los datos ya no están frescos.
-  const isFocused = useIsFocused();
   return useQuery<BackendNotification[]>({
     queryKey: ['notifications', userId, 'list'],
     staleTime: FRESH_LIVE_MS,
