@@ -16,7 +16,6 @@ export function useNotifications() {
   return useQuery<BackendNotification[]>({
     queryKey: ['notifications', userId, 'list'],
     staleTime: FRESH_LIVE_MS,
-    subscribed: isFocused,
     enabled: Boolean(userId),
     queryFn: () => listNotifications(),
   });
@@ -29,9 +28,8 @@ export function useUnreadNotificationCount() {
   return useQuery({
     queryKey: ['notifications', userId, 'unread'],
     staleTime: FRESH_LIVE_MS,
-    subscribed: isFocused,
     enabled: Boolean(userId) && isOnline,
-    refetchInterval: UNREAD_POLL_MS,
+    refetchInterval: isFocused ? UNREAD_POLL_MS : false,
     queryFn: async () => (await getUnreadNotificationCount()).count,
   });
 }

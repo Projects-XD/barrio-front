@@ -21,10 +21,9 @@ export function useFavors(type?: FavorType) {
   return useQuery({
     queryKey: ['favors', zoneId, type ?? 'todos'],
     // Respaldo del Realtime (useFavorRealtime): si el canal se cae, la lista se refresca cada 30 s.
-    refetchInterval: 30_000,
+    refetchInterval: isFocused ? 30_000 : false,
     staleTime: FRESH_LIVE_MS,
     gcTime: KEEP_LONG_MS,
-    subscribed: isFocused,
     enabled: Boolean(zoneId),
     queryFn: async (): Promise<Favor[]> => {
       const pending = (await listPending('create_favor'))
@@ -75,7 +74,6 @@ export function useFavorsPage(
   return useQuery({
     queryKey: ['favors', zoneId, type ?? 'todos', intent ?? 'todos', mine ? 'mine' : 'all', 'page', page],
     staleTime: FRESH_LIVE_MS,
-    subscribed: isFocused,
     enabled: Boolean(zoneId),
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<{ items: Favor[]; hasNext: boolean }> => {
