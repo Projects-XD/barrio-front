@@ -7,7 +7,7 @@ import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
-import { useAttendReport, useInfiniteReports, useReleaseReport, useRequestBackup, useResolveReport, useResources, useServices } from '@/hooks/useData';
+import { useAttendReport, useInfiniteReports, useReleaseReport, useRequestBackup, useResolveReport, useServices } from '@/hooks/useData';
 import type { IconName } from '@/i18n/icons';
 import { resourceLabel, serviceLabel } from '@/i18n/labels';
 import { selectEmergencyActive, useAppStore } from '@/store/app-store';
@@ -22,15 +22,6 @@ const NUMEROS_EMERGENCIA = [
   { phone: '116', label: 'Bomberos (116)', icon: 'flame-outline' as IconName },
   { phone: '105', label: 'Policía (105)', icon: 'shield-outline' as IconName },
 ];
-
-// Abre el punto en el mapa del teléfono: usa las coordenadas aproximadas si hay, si no, la dirección escrita.
-function abrirEnMapa(r: VulnerabilityReport) {
-  const query = r.approxLat && r.approxLng ? `${r.approxLat},${r.approxLng}` : (r.locationDetail ?? '');
-  if (!query) return;
-  Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`).catch(() =>
-    Alert.alert('No se pudo abrir el mapa', 'Busca la dirección manualmente.')
-  );
-}
 
 function llamar(phone: string) {
   Linking.openURL(`tel:${phone}`).catch(() => Alert.alert('No se pudo llamar', `Marca manualmente: ${phone}`));
@@ -64,7 +55,6 @@ export default function Emergencia() {
   // Reporte al que otro vecino ya acude: se confirma antes de sumarse.
   const [confirmarUnirse, setConfirmarUnirse] = useState<VulnerabilityReport | null>(null);
   const userId = useAppStore((s) => s.userId);
-  const recursos = useResources();
   const [menuReporte, setMenuReporte] = useState<VulnerabilityReport | null>(null);
   const items = reportes.data?.items ?? [];
   const total = reportes.data?.total ?? 0;
@@ -129,34 +119,9 @@ export default function Emergencia() {
     </>
   );
 
-  const pie = (
-    <>
-      {reportes.isFetchingNextPage ? (
-        <ActivityIndicator color={p.primary} style={{ marginVertical: spacing.md }} />
-      ) : null}
-
-      <Text style={[styles.seccion, { color: p.text }]}>Recursos críticos</Text>
-      {recursos.data?.length ? (
-        recursos.data.map((r) => (
-          <Card key={r.id}>
-            <View style={styles.fila}>
-              <Text style={[styles.nombre, { color: p.text }]}>{resourceLabel[r.resource]}</Text>
-              <Text style={[styles.detalle, { color: p.muted }]}>
-                {r.kind === 'pedido' ? 'Se necesita' : 'Se ofrece'}
-              </Text>
-            </View>
-            {r.notes ? <Text style={[styles.detalle, { color: p.muted }]}>{r.notes}</Text> : null}
-          </Card>
-        ))
-      ) : (
-        <Estado
-          loading={recursos.isLoading}
-          error={recursos.error}
-          vacio={{ icon: 'water-outline', title: 'Sin recursos', message: 'Todavía no hay pedidos ni ofertas de recursos.' }}
-        />
-      )}
-    </>
-  );
+  const pie = reportes.isFetchingNextPage ? (
+    <ActivityIndicator color={p.primary} style={{ marginVertical: spacing.md }} />
+  ) : <View />;
 
   return (
     <Screen scroll={false}>
@@ -209,9 +174,6 @@ export default function Emergencia() {
               <Text style={[styles.detalle, { color: p.muted, marginTop: 4 }]}>
                 Toca «Voy a ayudar» para ver el nombre y la dirección exacta.
               </Text>
-            ) : null}
-            {r.locationDetail || (!r.detailHidden && r.approxLat && r.approxLng) ? (
-              <AppButton label="Abrir en el mapa" variant="secondary" icon="map-outline" onPress={() => abrirEnMapa(r)} />
             ) : null}
             {r.needs.length ? (
               <Text style={[styles.detalle, { color: p.muted, marginTop: 4 }]}>
