@@ -9,6 +9,7 @@ import type {
 import { AppError, dbError } from '../middlewares/errorHandler';
 import type { CreateFavorDTO, UpdateFavorDTO, CreateFavorInterestDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
+import { logger } from '../utils/logger';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EDIT_WINDOW_MS = DAY_MS;
@@ -429,9 +430,55 @@ export class FavorService {
           },
         });
       }
+
+      if (dto.status === 'cerrada') {
+        await this.closeFavorConversations(supabase, userId, favorId, dto.assigned_to_user_id ?? null);
+      }
     }
 
     return data;
+  }
+
+  /**
+   * Al resolver un favor: agradece en el chat del vecino que ayudó y cierra los chats abiertos del favor.
+   * El favor ya quedó cerrado, así que un fallo aquí se registra pero no se le devuelve al autor.
+   */
+  private async closeFavorConversations(
+    supabase: SupabaseClient<Database>,
+    authorId: string,
+    favorId: string,
+    helperId: string | null
+  ): Promise<void> {
+    const { data: conversations, error } = await supabase
+      .from('conversations')
+      .select('id, responder_id')
+      .eq('favor_id', favorId)
+      .eq('author_id', authorId)
+      .is('closed_at', null);
+
+    if (error || !Array.isArray(conversations) || conversations.length === 0) {
+      if (error) logger.error('No se pudieron consultar los chats del favor', { favorId, error: error.message });
+      return;
+    }
+
+    const helperChat = conversations.find((c) => c.responder_id === helperId);
+    if (helperChat) {
+      const { error: msgError } = await supabase.from('messages').insert({
+        conversation_id: helperChat.id,
+        sender_id: authorId,
+        body: '¡Muchas gracias por tu ayuda! He marcado el favor como resuelto en el barrio.',
+      });
+      if (msgError) logger.error('No se pudo enviar el agradecimiento', { favorId, error: msgError.message });
+    }
+
+    const { error: closeError } = await supabase
+      .from('conversations')
+      .update({ closed_at: new Date().toISOString() })
+      .in(
+        'id',
+        conversations.map((c) => c.id)
+      );
+    if (closeError) logger.error('No se pudieron cerrar los chats del favor', { favorId, error: closeError.message });
   }
 
   /**

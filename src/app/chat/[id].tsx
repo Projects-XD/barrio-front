@@ -25,10 +25,10 @@ import {
   useSendMessage,
   useUnblockConversationUser,
   useUpdateConversation,
+  useUpdateFavor,
 } from '@/hooks/useData';
-import { updateFavor, type BackendMessage, type ReportReason } from '@/api/endpoints';
+import { type BackendMessage, type ReportReason } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
-import { queryClient } from '@/lib/queryClient';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
 import { AppModal } from '@/components/AppModal';
@@ -78,14 +78,13 @@ export default function Chat() {
   const block = useBlockConversationUser(id);
   const unblock = useUnblockConversationUser(id);
   const report = useReportConversationUser(id);
+  const resolverFavor = useUpdateFavor(conversation.data?.favor_id ?? '');
 
   const [text, setText] = useState('');
   const [panel, setPanel] = useState<Panel>(null);
   const [reason, setReason] = useState<ReportReason>('acoso');
   const [details, setDetails] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
-  const [favorResuelto, setFavorResuelto] = useState(false);
-  const [resolviendo, setResolviendo] = useState(false);
 
   // La lista está invertida (lo más nuevo abajo), así que recibe los mensajes del más nuevo al más viejo.
   const data = useMemo(() => [...(messages.data ?? [])].reverse(), [messages.data]);
@@ -96,7 +95,8 @@ export default function Chat() {
   const other = conv ? (iAmAuthor ? conv.responder : conv.author) : null;
   const otherName = other?.full_name ?? 'Vecino';
   const muted = conv ? (iAmAuthor ? conv.author_muted : conv.responder_muted) : false;
-  const closed = Boolean(conv?.closed_at);
+  // Finalizada si se cerró el chat o si el favor ya se resolvió (también desde la pantalla del favor).
+  const closed = Boolean(conv?.closed_at) || conv?.favor?.status === 'cerrada';
   // Solo quien bloqueó ve la opción de desbloquear; el bloqueado no se entera.
   const blockedByMe = Boolean(conv?.blocked_by_me);
   const canWrite = isOnline && !closed;
@@ -177,7 +177,7 @@ export default function Chat() {
               Favor: {conv.favor.title}
             </Text>
           </Pressable>
-          {iAmAuthor && !closed && !favorResuelto ? (
+          {iAmAuthor && !closed ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Marcar favor como resuelto y agradecer a ${otherName}`}
@@ -187,10 +187,10 @@ export default function Chat() {
               <Ionicons name="checkmark-circle-outline" size={15} color={colors.verdeExito} />
               <Text style={styles.resolverChatBtnText}>Marcar resuelto</Text>
             </Pressable>
-          ) : favorResuelto ? (
+          ) : closed ? (
             <View style={styles.resueltoTag}>
               <Ionicons name="checkmark-circle" size={15} color={colors.verdeExito} />
-              <Text style={styles.resolverChatBtnText}>Resuelto</Text>
+              <Text style={styles.resolverChatBtnText}>Conversación finalizada</Text>
             </View>
           ) : null}
         </View>
@@ -207,7 +207,7 @@ export default function Chat() {
         </Text>
       ) : closed ? (
         <Text style={[styles.banner, { backgroundColor: colors.grisBorde, color: colors.texto }]}>
-          Esta conversación está cerrada.
+          Esta conversación ha finalizado.
         </Text>
       ) : null}
 
@@ -244,7 +244,7 @@ export default function Chat() {
         <TextInput
           value={text}
           onChangeText={setText}
-          placeholder={closed ? 'Conversación cerrada' : isOnline ? 'Escribe un mensaje' : 'Sin conexión'}
+          placeholder={closed ? 'Conversación finalizada' : isOnline ? 'Escribe un mensaje' : 'Sin conexión'}
           placeholderTextColor={colors.gris}
           editable={canWrite}
           multiline
@@ -286,15 +286,17 @@ export default function Chat() {
                     onPress={() => setPanel('cerrar')}
                   />
                 ) : null}
-                <AppButton
-                  label={`Reportar a ${otherName}`}
-                  variant="secondary"
-                  icon="flag-outline"
-                  onPress={() => {
-                    report.reset();
-                    setPanel('reportar');
-                  }}
-                />
+                {!closed ? (
+                  <AppButton
+                    label={`Reportar a ${otherName}`}
+                    variant="secondary"
+                    icon="flag-outline"
+                    onPress={() => {
+                      report.reset();
+                      setPanel('reportar');
+                    }}
+                  />
+                ) : null}
                 {blockedByMe ? (
                   <AppButton
                     label={unblock.isPending ? 'Desbloqueando...' : `Desbloquear a ${otherName}`}
@@ -414,30 +416,13 @@ export default function Chat() {
                 </Text>
                 {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
                 <AppButton
-                  label={resolviendo ? 'Guardando...' : `Resolver y agradecer a ${otherName}`}
+                  label={resolverFavor.isPending ? 'Guardando...' : `Resolver y agradecer a ${otherName}`}
                   variant="accent"
                   icon="checkmark-circle-outline"
-                  disabled={resolviendo}
+                  disabled={resolverFavor.isPending || closed}
                   onPress={() =>
-                    run(async () => {
-                      setResolviendo(true);
-                      try {
-                        await updateFavor(conv.favor_id, {
-                          status: 'cerrada',
-                          assigned_to_user_id: conv.responder_id,
-                        });
-                        if (canWrite) {
-                          send.mutate(
-                            `¡Muchas gracias por tu ayuda, ${otherName}! He marcado el favor como resuelto en el barrio.`,
-                          );
-                        }
-                        setFavorResuelto(true);
-                        queryClient.invalidateQueries({ queryKey: ['favor', conv.favor_id] });
-                        queryClient.invalidateQueries({ queryKey: ['favors'] });
-                      } finally {
-                        setResolviendo(false);
-                      }
-                    })
+                    // El backend deja el agradecimiento y cierra el chat; el hook refresca chat y mensajes.
+                    run(() => resolverFavor.mutateAsync({ status: 'cerrada', assigned_to_user_id: conv.responder_id }))
                   }
                 />
                 <AppButton label="Cancelar" variant="secondary" onPress={closePanel} />

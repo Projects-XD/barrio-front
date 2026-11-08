@@ -134,6 +134,12 @@ test('silenciar solo cambia la marca de quien lo pide', async () => {
   assert.deepEqual(update?.values, { responder_muted: true });
 });
 
+test('cerrar una conversación ya cerrada da 409 y no escribe', async () => {
+  const { client, writes } = fakeSupabase(baseAnswer({ conversations: { ...conversation, closed_at: '2026-01-01' } }));
+  await assert.rejects(service.updateConversation(client, AUTHOR, 'c1', { closed: true }), rejectsWith(409));
+  assert.equal(writes.length, 0);
+});
+
 test('bloquear registra el bloqueo al otro vecino y cierra las conversaciones', async () => {
   const { client, writes } = fakeSupabase(baseAnswer());
   const result = await service.blockOtherUser(client, AUTHOR, 'c1');

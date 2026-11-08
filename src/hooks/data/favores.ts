@@ -205,6 +205,10 @@ export function useOutboxPending() {
 function invalidateFavor(qc: QueryClient, id: string) {
   qc.invalidateQueries({ queryKey: ['favor', id] });
   qc.invalidateQueries({ queryKey: ['favors'] });
+  // Resolver el favor cierra sus chats y deja un agradecimiento (backend): refrescar chat, lista y mensajes.
+  qc.invalidateQueries({ queryKey: ['conversation'] });
+  qc.invalidateQueries({ queryKey: ['conversations'] });
+  qc.invalidateQueries({ queryKey: ['messages'] });
 }
 
 export function useUpdateFavor(id: string) {

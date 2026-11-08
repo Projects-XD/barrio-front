@@ -60,7 +60,11 @@ export function useUpdateConversation(conversationId: string) {
       qc.setQueryData(['conversation', conversationId], (prev: BackendConversation | undefined) =>
         prev ? { ...prev, ...updated } : updated,
       );
+      qc.invalidateQueries({ queryKey: ['conversation', conversationId] });
       qc.invalidateQueries({ queryKey: ['conversations'] });
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      if (updated.favor_id) qc.invalidateQueries({ queryKey: ['favor', updated.favor_id] });
+      qc.invalidateQueries({ queryKey: ['favors'] });
     },
   });
 }

@@ -289,6 +289,10 @@ export const getUnreadNotificationCount = () =>
 export const markNotificationRead = (id: string) =>
   api.patch<BackendNotification>(`/notifications/${id}/read`);
 
+export const deleteNotification = (id: string) => api.delete<{ id: string }>(`/notifications/${id}`);
+
+export const deleteReadNotifications = () => api.delete<{ deleted: number }>('/notifications/read');
+
 // ============================================================================
 // CHAT
 // ============================================================================
@@ -311,7 +315,7 @@ export interface BackendConversation {
   created_at: string;
   // Solo viene en el detalle: indica si quien consulta bloqueó al otro vecino.
   blocked_by_me?: boolean;
-  favor: { id: string; title: string } | null;
+  favor: { id: string; title: string; status?: string } | null;
   author: BackendChatUser | null;
   responder: BackendChatUser | null;
 }
