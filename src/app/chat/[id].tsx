@@ -31,6 +31,7 @@ import {
   useUnblockConversationUser,
   useUpdateConversation,
   useUpdateFavor,
+  useVouch,
 } from '@/hooks/useData';
 import { type BackendMessage, type ReportReason } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
@@ -105,6 +106,7 @@ export default function Chat() {
   const unblock = useUnblockConversationUser(id);
   const report = useReportConversationUser(id);
   const resolverFavor = useUpdateFavor(conversation.data?.favor_id ?? '');
+  const vouch = useVouch(conversation.data?.other_profile_id ?? '');
 
   const [text, setText] = useState('');
   const [images, setImages] = useState<string[]>([]);
@@ -269,6 +271,14 @@ export default function Chat() {
 
       {messages.isLoading && isOnline ? (
         <ActivityIndicator size="large" color={p.primary} style={{ marginTop: spacing.xl }} />
+      ) : data.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <EmptyState
+            icon="chatbubble-ellipses-outline"
+            title={`Escríbele a ${otherName}`}
+            message="Coordinen aquí los detalles del favor."
+          />
+        </View>
       ) : (
         <FlatList
           inverted
@@ -280,15 +290,6 @@ export default function Chat() {
               onOpenImage={setViewerUri}
             />
           )}
-          ListEmptyComponent={
-            <View style={{ transform: [{ scaleY: -1 }] }}>
-              <EmptyState
-                icon="chatbubble-ellipses-outline"
-                title={`Escríbele a ${otherName}`}
-                message="Coordinen aquí los detalles del favor."
-              />
-            </View>
-          }
         />
       )}
 
@@ -503,19 +504,37 @@ export default function Chat() {
 
             {panel === 'resolver' ? (
               <>
-                <Text style={[styles.cardTitle, { color: p.text }]}>¿Se resolvió tu favor?</Text>
+                <Text style={[styles.cardTitle, { color: p.text }]}>
+                  {conv?.other_profile_id ? '¿Se completó el trabajo?' : '¿Se resolvió tu favor?'}
+                </Text>
                 <Text style={[styles.cardText, { color: p.body }]}>
-                  Se marcará el favor como resuelto y enviaremos un mensaje de agradecimiento comunitario a {otherName}.
+                  {conv?.other_profile_id
+                    ? `Se marcará la coordinación como finalizada y registrarás un visto bueno vecinal a ${otherName} para respaldar su oficio en Castilla.`
+                    : `Se marcará el favor como resuelto y enviaremos un mensaje de agradecimiento comunitario a ${otherName}.`}
                 </Text>
                 {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
                 <AppButton
-                  label={resolverFavor.isPending ? 'Guardando...' : `Resolver y agradecer a ${otherName}`}
+                  label={
+                    resolverFavor.isPending || vouch.isPending
+                      ? 'Guardando...'
+                      : conv?.other_profile_id
+                        ? `Completar y dar visto bueno`
+                        : `Resolver y agradecer a ${otherName}`
+                  }
                   variant="accent"
                   icon="checkmark-circle-outline"
-                  disabled={resolverFavor.isPending || closed}
+                  disabled={resolverFavor.isPending || vouch.isPending || closed}
                   onPress={() =>
-                    // El backend deja el agradecimiento y cierra el chat; el hook refresca chat y mensajes.
-                    run(() => resolverFavor.mutateAsync({ status: 'cerrada', assigned_to_user_id: conv.responder_id }))
+                    run(async () => {
+                      if (conv?.other_profile_id) {
+                        try {
+                          await vouch.mutateAsync();
+                        } catch {
+                          // Si ya tenía visto bueno previo (409) o no aplica, continúa
+                        }
+                      }
+                      await resolverFavor.mutateAsync({ status: 'cerrada', assigned_to_user_id: conv?.responder_id });
+                    })
                   }
                 />
                 <AppButton label="Cancelar" variant="secondary" onPress={closePanel} />
@@ -555,6 +574,7 @@ const styles = StyleSheet.create({
     color: colors.verdeExito,
   },
   banner: { fontFamily: fonts.medium, fontSize: 14, paddingHorizontal: 16, paddingVertical: 10, textAlign: 'center' },
+  emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { paddingHorizontal: 16, paddingVertical: 12, flexGrow: 1 },
   bubbleRow: { flexDirection: 'row', marginBottom: 8 },
   rowMine: { justifyContent: 'flex-end' },

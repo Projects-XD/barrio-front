@@ -20,6 +20,8 @@ export type ConversationView = Tables<'conversations'> & {
   responder: UserLite | null;
   // Solo lo calcula getConversation: indica si quien consulta bloqueó al otro vecino.
   blocked_by_me?: boolean;
+  // ID del perfil profesional del otro vecino si ofrece algún oficio en el barrio
+  other_profile_id?: string | null;
 };
 
 const CONVERSATION_SELECT =
@@ -101,18 +103,31 @@ export class ConversationService {
       throw new AppError('Conversación no encontrada', 404);
     }
 
-    const { data: block, error: blockError } = await supabase
-      .from('user_blocks')
-      .select('id')
-      .eq('blocker_id', userId)
-      .eq('blocked_id', this.otherUserId(data, userId))
-      .maybeSingle();
+    const otherId = this.otherUserId(data, userId);
+
+    const [{ data: block, error: blockError }, { data: proProfile }] = await Promise.all([
+      supabase
+        .from('user_blocks')
+        .select('id')
+        .eq('blocker_id', userId)
+        .eq('blocked_id', otherId)
+        .maybeSingle(),
+      supabase
+        .from('professional_profiles')
+        .select('id')
+        .eq('user_id', otherId)
+        .maybeSingle(),
+    ]);
 
     if (blockError) {
       throw dbError('Error al validar bloqueos', blockError);
     }
 
-    return { ...(data as unknown as ConversationView), blocked_by_me: Boolean(block) };
+    return {
+      ...(data as unknown as ConversationView),
+      blocked_by_me: Boolean(block),
+      other_profile_id: proProfile?.id ?? null,
+    };
   }
 
   /**

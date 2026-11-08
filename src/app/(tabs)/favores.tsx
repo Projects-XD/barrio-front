@@ -102,22 +102,12 @@ export default function FavoresScreen() {
 
   return (
     <Screen scroll={false}>
-      {/* Cabecera limpia con acceso a Mis aportes */}
+      {/* Cabecera limpia */}
       <View style={styles.header}>
         <View style={styles.headerTextWrap}>
           <Text style={[styles.titulo, { color: p.text }]}>Ayuda comunitaria</Text>
           <Text style={[styles.sub, { color: p.muted }]}>Colaboración solidaria entre vecinos</Text>
         </View>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Ir a mis aportes"
-          onPress={() => router.push('/favores/mis-publicaciones')}
-          style={({ pressed }) => [styles.misAportesBtn, pressed && { opacity: 0.8 }]}
-        >
-          <Ionicons name="folder-outline" size={15} color={colors.azul} />
-          <Text style={styles.misAportesText}>Mis aportes</Text>
-        </Pressable>
       </View>
 
       {/* Barra de control: Segmento (Todos | Piden | Ofrecen) + Botón modal de Filtro */}
@@ -416,20 +406,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.regular,
     marginTop: 2,
-  },
-  misAportesBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: colors.azulSuave,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-  },
-  misAportesText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-    color: colors.azul,
   },
 
   // Fila de controles: Segmented bar + Botón de filtro

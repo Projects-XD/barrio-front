@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { Stack, router } from 'expo-router';
@@ -154,17 +154,7 @@ export default function Ubicacion() {
         options={{
           headerShown: true,
           title: 'Mi ubicación',
-          headerLeft: () => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Volver a mi perfil"
-              onPress={irAlPerfil}
-              hitSlop={10}
-              style={styles.headerBackBtn}
-            >
-              <Ionicons name="arrow-back" size={22} color={p.primary} />
-            </Pressable>
-          ),
+          headerBackVisible: true,
         }}
       />
 

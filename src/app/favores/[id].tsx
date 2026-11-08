@@ -92,8 +92,11 @@ export default function FavorDetalle() {
     [favor?.location, savedLocation],
   );
 
+  const esMio = Boolean(favor && userId && favor.authorId === userId);
+
   const sugerencias = useMemo(() => {
-    if (!favor || favor.isDeactivated) return [];
+    // Solo sugerir a quien solicita ayuda (pedidos propios del usuario)
+    if (!favor || favor.isDeactivated || !esMio || favor.intent === 'ofrecer') return [];
     const esOferta = /^(ofrezco|ofrece|tengo\s+para\s+prestar|presto|dono|regalo|puedo\s+ayudar|puedo\s+enseñar)/i.test(
       favor.title,
     );
@@ -108,7 +111,7 @@ export default function FavorDetalle() {
       favors: allFavors.filter((f) => f.id !== favor.id),
       limit: 3,
     });
-  }, [favor, refCoords, allProfiles, allFavors]);
+  }, [favor, esMio, refCoords, allProfiles, allFavors]);
 
   const abrirReporte = () => {
     reportar.reset();
@@ -144,7 +147,6 @@ export default function FavorDetalle() {
     );
   }
 
-  const esMio = favor.authorId === userId;
   const abierto = favor.status === 'abierta' || favor.status === 'en_curso';
   const resuelto = favor.status === 'cerrada';
 

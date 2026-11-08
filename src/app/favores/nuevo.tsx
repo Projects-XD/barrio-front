@@ -148,34 +148,12 @@ export default function NuevoFavor() {
         options={{
           headerShown: true,
           title: ofrecer ? 'Ofrecer ayuda' : 'Pedir ayuda',
-          headerBackVisible: false,
-          headerLeft: () => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Retroceder"
-              onPress={handleRetroceder}
-              hitSlop={12}
-              style={styles.headerBackBtn}
-            >
-              <Ionicons name="arrow-back" size={24} color={p.primary} />
-            </Pressable>
-          ),
+          headerBackVisible: true,
         }}
       />
-      <View style={styles.topNavRow}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Retroceder"
-          onPress={handleRetroceder}
-          hitSlop={10}
-          style={styles.inlineBackBtn}
-        >
-          <Ionicons name="arrow-back" size={20} color={p.text} />
-        </Pressable>
-        <Text style={[styles.pasoTexto, { color: p.muted }]}>
-          Paso {paso} de 3 · {PASOS[paso - 1]}
-        </Text>
-      </View>
+      <Text style={[styles.pasoTexto, { color: p.muted }]}>
+        Paso {paso} de 3 · {PASOS[paso - 1]}
+      </Text>
       <View style={styles.progreso}>
         {[1, 2, 3].map((n) => (
           <View key={n} style={[styles.barra, { backgroundColor: n <= paso ? p.cta : p.border }]} />
