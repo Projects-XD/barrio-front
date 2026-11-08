@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Alert,
   Image,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -95,6 +96,40 @@ export default function Chat() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
   const insets = useSafeAreaInsets();
+
+  // Android: en pantalla completa el sistema no siempre achica la ventana al abrir el teclado y la barra
+  // de escribir quedaba tapada. Se mide cuánto cubre el teclado la parte de abajo y se empuja esa cantidad.
+  // Si Android sí achicó la ventana, la medida da 0 y no se suma nada.
+  const contenedorRef = useRef<ComponentRef<typeof View>>(null);
+  const tecladoArriba = useRef<number | null>(null);
+  const [solape, setSolape] = useState(0);
+
+  const medirSolape = useCallback(() => {
+    const arriba = tecladoArriba.current;
+    if (arriba === null) {
+      setSolape(0);
+      return;
+    }
+    contenedorRef.current?.measureInWindow((_x, y, _w, alto) => {
+      setSolape(Math.max(0, Math.round(y + alto - arriba)));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const mostrar = Keyboard.addListener('keyboardDidShow', (e) => {
+      tecladoArriba.current = e.endCoordinates.screenY;
+      medirSolape();
+    });
+    const ocultar = Keyboard.addListener('keyboardDidHide', () => {
+      tecladoArriba.current = null;
+      setSolape(0);
+    });
+    return () => {
+      mostrar.remove();
+      ocultar.remove();
+    };
+  }, [medirSolape]);
   const userId = useAppStore((s) => s.userId);
   const isOnline = useAppStore((s) => s.isOnline);
 
@@ -202,6 +237,12 @@ export default function Chat() {
   }
 
   return (
+    <View
+      ref={contenedorRef}
+      collapsable={false}
+      onLayout={medirSolape}
+      style={{ flex: 1, paddingBottom: Platform.OS === 'android' ? solape : 0 }}
+    >
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: p.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -318,7 +359,7 @@ export default function Chat() {
         </View>
       ) : null}
 
-      <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 10), borderTopColor: p.border }]}>
+      <View style={[styles.composer, { paddingBottom: solape > 0 ? 10 : Math.max(insets.bottom, 10), borderTopColor: p.border }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Adjuntar imagen"
@@ -542,6 +583,7 @@ export default function Chat() {
             ) : null}
       </AppModal>
     </KeyboardAvoidingView>
+    </View>
   );
 }
 
