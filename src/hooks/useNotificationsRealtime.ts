@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { BackendNotification } from '@/api/endpoints';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
+import { logger } from '@/utils/logger';
 
 // Número de canal único por montaje, para no chocar con otro canal del mismo nombre.
 let channelSeq = 0;
@@ -28,11 +29,14 @@ export function useNotificationsRealtime(onNueva?: (n: BackendNotification) => v
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
         (payload) => {
+          logger.info('AVISOS', 'Aviso recibido por Realtime', { type: (payload.new as BackendNotification).type });
           void qc.invalidateQueries({ queryKey: ['notifications'] });
           callbackRef.current?.(payload.new as BackendNotification);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        logger.info('AVISOS', 'Estado del canal de avisos', { status });
+      });
 
     return () => {
       void supabase.removeChannel(channel);

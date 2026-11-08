@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BackendNotification } from '@/api/endpoints';
@@ -18,11 +19,13 @@ export function NotificationHost() {
   const hayBotonEmergencia = /\/(inicio|oficios|favores)$/.test(pathname);
 
   return (
-    <NotificationToast
-      notification={aviso}
-      onClose={cerrar}
-      top={insets.top + 8}
-      rightInset={hayBotonEmergencia ? 80 : 16}
-    />
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+      <NotificationToast
+        notification={aviso}
+        onClose={cerrar}
+        top={insets.top + 8}
+        rightInset={hayBotonEmergencia ? 80 : 16}
+      />
+    </View>
   );
 }

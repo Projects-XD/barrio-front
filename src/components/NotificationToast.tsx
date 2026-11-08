@@ -99,7 +99,7 @@ export function NotificationToast({ notification, onClose, top, rightInset = 80 
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', left: 16, zIndex: 20 },
+  wrap: { position: 'absolute', left: 16, zIndex: 1000, elevation: 1000 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
