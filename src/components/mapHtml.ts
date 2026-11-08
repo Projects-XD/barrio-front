@@ -295,8 +295,9 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
         fg = '#ffffff';
       }
 
-      var isEmergency = p.kind === 'emergencia' || p.urgency === 'emergencia';
-      var isUrgent = !isEmergency && p.urgency === 'urgente';
+      // Las ondas son solo para reportes de emergencia; las ayudas urgentes conservan el anillo simple.
+      var isEmergency = p.kind === 'emergencia';
+      var isUrgent = !isEmergency && (p.urgency === 'urgente' || p.urgency === 'emergencia');
       var svg = svgIconFor(p, fg);
       var safeId = String(p.id).replace(/"/g, '');
       var html = '<div class="pin-wrap ' + (isSelected ? 'pin-selected' : '') + '" data-pin-id="' + safeId + '">' +
