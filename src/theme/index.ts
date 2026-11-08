@@ -33,6 +33,8 @@ export const fonts = {
   semiBold: 'InstrumentSans_600SemiBold',
   semibold: 'InstrumentSans_600SemiBold',
   bold: 'InstrumentSans_700Bold',
+  // Serif cálida para títulos de pantalla; el resto del texto sigue en Instrument Sans.
+  display: 'Fraunces_700Bold',
 };
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };

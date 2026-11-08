@@ -12,6 +12,7 @@ import {
   InstrumentSans_700Bold,
   useFonts,
 } from '@expo-google-fonts/instrument-sans';
+import { Fraunces_700Bold } from '@expo-google-fonts/fraunces';
 import { Ionicons } from '@expo/vector-icons';
 import { usePalette } from '@/hooks/usePalette';
 import { useOfflineSync } from '@/offline/sync';
@@ -69,6 +70,7 @@ export default function RootLayout() {
     InstrumentSans_500Medium,
     InstrumentSans_600SemiBold,
     InstrumentSans_700Bold,
+    Fraunces_700Bold,
     ...Ionicons.font, // Asegura que la fuente vectorial de Ionicons esté cargada antes de renderizar
   });
 
