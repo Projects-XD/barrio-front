@@ -137,7 +137,8 @@ export default function MapaBarrio() {
   const [locating, setLocating] = useState(false);
 
   const activeUserLocation: Coords | null = useMemo(
-    () => userLocation ?? (savedLocation ? { lat: savedLocation.lat, lng: savedLocation.lng } : null),
+    // La ubicación del perfil manda: es la que el vecino eligió. El GPS solo cubre a quien no guardó ninguna.
+    () => (savedLocation ? { lat: savedLocation.lat, lng: savedLocation.lng } : userLocation),
     [userLocation, savedLocation],
   );
 
@@ -149,6 +150,11 @@ export default function MapaBarrio() {
 
   const ubicarmeEnMapa = async () => {
     if (locating) return;
+    // Con ubicación guardada en el perfil, el botón centra ahí y no consulta el GPS del dispositivo.
+    if (savedLocation) {
+      setUserFocusTrigger((n) => n + 1);
+      return;
+    }
     setLocating(true);
     try {
       const pos = await getRealPosition();
