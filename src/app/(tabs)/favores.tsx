@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/AppButton';
 import { EmptyState } from '@/components/EmptyState';
@@ -32,6 +32,12 @@ export default function FavoresScreen() {
   const [tipoTemporal, setTipoTemporal] = useState<FavorType | undefined>(undefined);
   const [pagina, setPagina] = useState(0);
   const [modalPublicar, setModalPublicar] = useState(false);
+  const { publicar } = useLocalSearchParams<{ publicar?: string }>();
+  const abiertoDesdeBurbuja = publicar === '1';
+  const cerrarModalPublicar = () => {
+    setModalPublicar(false);
+    if (abiertoDesdeBurbuja) router.setParams({ publicar: undefined });
+  };
   const [modalFiltro, setModalFiltro] = useState(false);
 
   const intent: FavorIntent | undefined =
@@ -70,7 +76,7 @@ export default function FavoresScreen() {
   };
 
   const irACrear = (modo: 'pedir' | 'ofrecer') => {
-    setModalPublicar(false);
+    cerrarModalPublicar();
     router.push(`/favores/nuevo?modo=${modo}`);
   };
 
@@ -230,7 +236,7 @@ export default function FavoresScreen() {
       )}
 
       {/* Modal para publicar (+), sin ocupar espacio en pantalla */}
-      <AppModal visible={modalPublicar} onClose={() => setModalPublicar(false)} animationType="fade" overlayStyle={styles.modalOverlay} cardStyle={styles.modalCard}>
+      <AppModal visible={modalPublicar || abiertoDesdeBurbuja} onClose={cerrarModalPublicar} animationType="fade" overlayStyle={styles.modalOverlay} cardStyle={styles.modalCard}>
                     <Text style={styles.modalTitulo}>¿Qué deseas publicar?</Text>
             <Text style={[styles.modalSub, { color: p.muted }]}>
               Elige si necesitas una colaboración o quieres compartir con tus vecinos.
@@ -268,7 +274,7 @@ export default function FavoresScreen() {
 
             <Pressable
               accessibilityRole="button"
-              onPress={() => setModalPublicar(false)}
+              onPress={cerrarModalPublicar}
               style={styles.modalCloseBtn}
             >
               <Text style={styles.modalCloseText}>Cancelar</Text>

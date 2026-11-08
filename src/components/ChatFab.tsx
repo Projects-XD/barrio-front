@@ -13,7 +13,7 @@ export function ChatFab({ bottomOffset = 88 }: ChatFabProps) {
 
   const irAAgregarAyuda = () => {
     setAbierto(false);
-    router.push('/favores/nuevo');
+    router.navigate({ pathname: '/(tabs)/favores', params: { publicar: '1' } });
   };
 
   const irAChats = () => {
