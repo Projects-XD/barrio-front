@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import type { BackendNotification } from '@/api/endpoints';
+import { useCallback, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { listNotifications, type BackendNotification } from '@/api/endpoints';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
 import { logger } from '@/utils/logger';
@@ -8,18 +8,40 @@ import { logger } from '@/utils/logger';
 // Número de canal único por montaje, para no chocar con otro canal del mismo nombre.
 let channelSeq = 0;
 
-// Escucha los avisos nuevos del vecino por Realtime: actualiza al instante el contador y la lista,
-// y entrega cada aviso nuevo a `onNueva` (por ejemplo, para mostrar un aviso emergente).
-// Requiere la migración 0028 (política de lectura y tabla en la publicación de Realtime).
+// Respaldo de Realtime: si el canal no entrega el aviso, esta consulta lo detecta en poco tiempo.
+const POLL_MS = 15_000;
+
+// Entrega cada aviso nuevo a `onNueva` (por ejemplo, para mostrar una ventana flotante), una sola vez.
+// Tiene dos vías que comparten el registro de avisos ya entregados:
+//   1. Realtime: instantáneo. Requiere la migración 0028 y permiso de lectura de `authenticated`.
+//   2. Consulta cada 15 s: respaldo por si Realtime no llega.
+// También actualiza al instante el contador y la lista de Avisos.
 export function useNotificationsRealtime(onNueva?: (n: BackendNotification) => void) {
   const qc = useQueryClient();
   const userId = useAppStore((s) => s.userId);
+  const isOnline = useAppStore((s) => s.isOnline);
 
   const callbackRef = useRef(onNueva);
+  const vistos = useRef(new Set<string>());
+  const sembrado = useRef(false);
+
   useEffect(() => {
     callbackRef.current = onNueva;
   });
 
+  // Al cambiar de vecino se empieza de cero.
+  useEffect(() => {
+    vistos.current = new Set();
+    sembrado.current = false;
+  }, [userId]);
+
+  const anunciar = useCallback((n: BackendNotification) => {
+    if (vistos.current.has(n.id)) return;
+    vistos.current.add(n.id);
+    callbackRef.current?.(n);
+  }, []);
+
+  // Vía 1: Realtime.
   useEffect(() => {
     if (!userId) return;
     channelSeq += 1;
@@ -29,9 +51,10 @@ export function useNotificationsRealtime(onNueva?: (n: BackendNotification) => v
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
         (payload) => {
-          logger.info('AVISOS', 'Aviso recibido por Realtime', { type: (payload.new as BackendNotification).type });
+          const nueva = payload.new as BackendNotification;
+          logger.info('AVISOS', 'Aviso recibido por Realtime', { type: nueva.type });
           void qc.invalidateQueries({ queryKey: ['notifications'] });
-          callbackRef.current?.(payload.new as BackendNotification);
+          anunciar(nueva);
         }
       )
       .subscribe((status) => {
@@ -41,5 +64,28 @@ export function useNotificationsRealtime(onNueva?: (n: BackendNotification) => v
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [userId, qc]);
+  }, [userId, qc, anunciar]);
+
+  // Vía 2: consulta periódica. La primera respuesta solo registra lo que ya existía, para no
+  // mostrar de golpe los avisos viejos; después se entrega cada aviso sin leer que no se haya visto.
+  useQuery({
+    queryKey: ['notifications', userId, 'poll'],
+    enabled: Boolean(userId) && isOnline,
+    refetchInterval: POLL_MS,
+    staleTime: 0,
+    queryFn: async () => {
+      const lista = await listNotifications();
+      if (!sembrado.current) {
+        lista.forEach((n) => vistos.current.add(n.id));
+        sembrado.current = true;
+      } else {
+        // De la más antigua a la más nueva, para que salgan en orden.
+        [...lista].reverse().forEach((n) => {
+          if (n.read_at) vistos.current.add(n.id);
+          else anunciar(n);
+        });
+      }
+      return lista;
+    },
+  });
 }
