@@ -1,12 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, usePathname } from 'expo-router';
 import { AgregarOficioModal } from '@/components/AgregarOficioModal';
 import { ChatFab } from '@/components/ChatFab';
 import { EmergencyFab } from '@/components/EmergencyFab';
-import { NotificationToast } from '@/components/NotificationToast';
-import type { BackendNotification } from '@/api/endpoints';
-import { useNotificationsRealtime } from '@/hooks/useNotificationsRealtime';
 import { useFavorRealtime } from '@/hooks/useFavorRealtime';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,10 +27,6 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { data: emergency } = useEmergencyState();
   useFavorRealtime();
-  // Aviso emergente cuando llega una notificación nueva (publicaciones, mensajes, intereses...).
-  const [aviso, setAviso] = useState<BackendNotification | null>(null);
-  const cerrarAviso = useCallback(() => setAviso(null), []);
-  useNotificationsRealtime(setAviso);
   const pathname = usePathname();
   const enPerfil = pathname.endsWith('/perfil');
   const enMapa = pathname.endsWith('/mapa');
@@ -111,12 +104,6 @@ export default function TabsLayout() {
           />
         </>
       )}
-      <NotificationToast
-        notification={aviso}
-        onClose={cerrarAviso}
-        top={insets.top + 8}
-        rightInset={enPerfil || enMapa ? 16 : 80}
-      />
       <AgregarOficioModal
         key={oficioModal.n}
         visible={oficioModal.abierto}
