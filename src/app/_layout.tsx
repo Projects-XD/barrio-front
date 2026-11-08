@@ -25,13 +25,26 @@ import { colors, fonts } from '@/theme';
 // Los errores de API ya se muestran en pantalla; en desarrollo no deben tapar la demo con avisos rojos.
 LogBox.ignoreLogs(['[API_CLIENT]']);
 
+// Publica la sesión con la mejor zona que ya se conoce, sin esperar a la red. Así cualquier ruta
+// abierta directamente (recargar /mapa, /oficios...) encuentra token y zona desde el primer render.
+function publicarSesion(session: Session): string {
+  const zoneId = session.user.user_metadata?.zone_id || useAppStore.getState().zoneId || '';
+  useAppStore.getState().setSession({
+    token: session.access_token,
+    userId: session.user.id,
+    zoneId,
+    userFullName: session.user.user_metadata?.full_name as string | undefined,
+    userEmail: session.user.email,
+  });
+  return zoneId;
+}
+
 // La metadata de Auth (session.user.user_metadata.zone_id) es solo la zona que el vecino eligió
 // al registrarse y nunca se actualiza después (ej. tras la migración 0024 que unificó todo bajo
 // Castilla). public.users.zone_id es la fuente real: la misma que usa el backend para autorizar
-// cada petición, así que siempre se relee desde ahí al iniciar o restaurar sesión.
-async function sessionToStore(session: Session) {
-  const prevZoneId = useAppStore.getState().zoneId;
-  let zoneId = session.user.user_metadata?.zone_id || prevZoneId || '';
+// cada petición, así que se relee desde ahí y corrige lo publicado si no coincide.
+async function refinarZona(session: Session, zonaPublicada: string) {
+  let zoneId = zonaPublicada;
   let userFullName = session.user.user_metadata?.full_name as string | undefined;
 
   try {
@@ -43,27 +56,27 @@ async function sessionToStore(session: Session) {
     if (dbUser?.zone_id) zoneId = dbUser.zone_id;
     if (dbUser?.full_name) userFullName = dbUser.full_name;
   } catch {
-    // Sin red: se mantiene la última zona conocida (metadata o store previo) en vez de bloquear la sesión.
+    // Sin red: se mantiene la zona ya publicada en vez de bloquear la sesión.
   }
 
   useAppStore.getState().setSession({
-    token: session.access_token,
+    token: useAppStore.getState().token ?? session.access_token,
     userId: session.user.id,
     zoneId,
     userFullName,
     userEmail: session.user.email,
   });
 
-  // Si la zona cambió respecto a lo que ya había en el store (ej. el interceptor de api/client.ts
-  // u otra petición concurrente alcanzó a guardar la zona vieja antes de que termináramos de leer
-  // la real), se descarta toda la caché para que nadie quede viendo datos de la zona equivocada.
-  if (zoneId !== prevZoneId) {
+  // Si la zona real difiere de la publicada, se descarta la caché para que nadie quede viendo
+  // datos de la zona equivocada.
+  if (zonaPublicada && zoneId !== zonaPublicada) {
     queryClient.clear();
   }
 }
 
 export default function RootLayout() {
   const p = usePalette();
+  const hydrated = useAppStore((s) => s.hydrated);
   useOfflineSync();
 
   const [fontsLoaded] = useFonts({
@@ -81,8 +94,12 @@ export default function RootLayout() {
 
     supabase.auth
       .getSession()
-      .then(({ data: { session } }) => {
-        if (session?.user && session.access_token) return sessionToStore(session);
+      .then(async ({ data: { session } }) => {
+        if (session?.user && session.access_token) {
+          const zonaPublicada = publicarSesion(session);
+          setHydrated();
+          await refinarZona(session, zonaPublicada);
+        }
       })
       .finally(setHydrated);
 
@@ -90,7 +107,7 @@ export default function RootLayout() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user && session.access_token) {
-        void sessionToStore(session);
+        void refinarZona(session, publicarSesion(session));
       } else if (!session) {
         clearSession();
         queryClient.clear();
@@ -100,7 +117,7 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || !hydrated) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.fondo }}>
         <Image
