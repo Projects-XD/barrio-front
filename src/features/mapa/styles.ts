@@ -451,38 +451,6 @@ export const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  publishSub: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: spacing.md,
-  },
-  publishOptionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1.5,
-    borderRadius: radius.lg,
-    padding: 14,
-    marginBottom: 10,
-  },
-  publishIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  publishOptionTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-  },
-  publishOptionDesc: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 2,
-  },
 });
 
 
