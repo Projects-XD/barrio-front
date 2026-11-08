@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
   },
   seccionTitulo: {
     fontSize: 15,
-    fontFamily: fonts.bold,
+    fontFamily: fonts.section,
     marginBottom: spacing.xs,
   },
   descripcion: {

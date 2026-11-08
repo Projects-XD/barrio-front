@@ -101,7 +101,7 @@ export const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: 8,
   },
-  seccionLabel: { fontSize: 16, fontFamily: fonts.bold },
+  seccionLabel: { fontSize: 16, fontFamily: fonts.section },
   addOficioPill: {
     flexDirection: 'row',
     alignItems: 'center',

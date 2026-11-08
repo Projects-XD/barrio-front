@@ -167,7 +167,7 @@ const iconEmergencia = require('../../assets/brand/icon-emergencia.png');
 const styles = StyleSheet.create({
   cabecera: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.md },
   iconoEmergencia: { width: 64, height: 64, borderRadius: 14 },
-  seccion: { fontSize: 22, fontFamily: fonts.bold, marginTop: spacing.md, marginBottom: spacing.sm },
+  seccion: { fontSize: 22, fontFamily: fonts.section, marginTop: spacing.md, marginBottom: spacing.sm },
   nombre: { fontSize: 18, fontFamily: fonts.bold, marginBottom: 2 },
   cuerpo: { fontSize: 16, fontFamily: fonts.regular, lineHeight: 22 },
   detalle: { fontSize: 15, fontFamily: fonts.regular },

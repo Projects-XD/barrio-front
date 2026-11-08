@@ -26,6 +26,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
-  title: { fontFamily: fonts.bold, fontSize: 20 },
+  title: { fontFamily: fonts.section, fontSize: 20 },
   action: { fontFamily: fonts.semiBold, fontSize: 15 },
 });

@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
   meta: { marginTop: spacing.md, gap: 4 },
   metaText: { fontFamily: fonts.medium, fontSize: 14, color: colors.texto },
   nota: { fontFamily: fonts.medium, fontSize: 15, textAlign: 'center', marginTop: spacing.md },
-  seccion: { fontFamily: fonts.bold, fontSize: 18, marginBottom: spacing.sm },
+  seccion: { fontFamily: fonts.section, fontSize: 18, marginBottom: spacing.sm },
   vecinoFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   vecinoMainArea: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   vecinoNombre: { fontFamily: fonts.bold, fontSize: 16 },
