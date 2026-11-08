@@ -26,7 +26,7 @@ export function FavorCard({ favor, onPress }: Props) {
   const esOfrecimiento = favor.intent === 'ofrecer';
 
   const intentColor = esOfrecimiento ? colors.verdeExito : colors.naranja;
-  const intentLabel = esOfrecimiento ? 'Ofrecimiento' : 'Pedido de ayuda';
+  const intentLabel = esOfrecimiento ? 'Ofrecimiento' : 'Pedido';
   const categoryLabel = favorTypeLabel[favor.type];
   const titleText = cleanDisplayTitle(favor.title);
   const authorName = esMio ? 'Tú' : favor.author.fullName;
@@ -39,15 +39,17 @@ export function FavorCard({ favor, onPress }: Props) {
         <View style={[styles.accentBar, { backgroundColor: intentColor }]} />
 
         <View style={styles.content}>
-          {/* Fila superior: Kicker minimalista y tiempo */}
+          {/* Fila superior: Kicker minimalista inline (nunca se sobrepone a la fecha) */}
           <View style={styles.topRow}>
-            <View style={styles.kickerWrap}>
-              <Text style={[styles.kickerIntent, { color: intentColor }]}>
-                {intentLabel}
-              </Text>
-              <Text style={[styles.kickerSeparator, { color: p.muted }]}>·</Text>
-              <Text style={[styles.kickerCategory, { color: p.muted }]}>
-                {categoryLabel}
+            <View style={styles.kickerContainer}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.kickerText}>
+                <Text style={[styles.kickerIntent, { color: intentColor }]}>
+                  {intentLabel.toUpperCase()}
+                </Text>
+                <Text style={[styles.kickerSeparator, { color: p.muted }]}> · </Text>
+                <Text style={[styles.kickerCategory, { color: p.muted }]}>
+                  {categoryLabel}
+                </Text>
               </Text>
               {esMio ? (
                 <View style={styles.mineTag}>
@@ -112,19 +114,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
     marginBottom: 6,
   },
-  kickerWrap: {
+  kickerContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    overflow: 'hidden',
+  },
+  kickerText: {
     flexShrink: 1,
+    fontSize: 12,
   },
   kickerIntent: {
-    fontFamily: fonts.semiBold,
+    fontFamily: fonts.bold,
     fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
   },
   kickerSeparator: {
     fontSize: 12,
@@ -138,6 +145,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 1.5,
     borderRadius: radius.pill,
+    flexShrink: 0,
   },
   mineText: {
     fontFamily: fonts.semiBold,
@@ -147,6 +155,7 @@ const styles = StyleSheet.create({
   time: {
     fontFamily: fonts.regular,
     fontSize: 12,
+    flexShrink: 0,
   },
   title: {
     fontFamily: fonts.bold,

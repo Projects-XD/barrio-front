@@ -3,8 +3,6 @@ import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/AppButton';
-import { Chip } from '@/components/Chip';
-import { EmergencyButton } from '@/components/EmergencyButton';
 import { EmptyState } from '@/components/EmptyState';
 import { FavorCard } from '@/components/FavorCard';
 import { Screen } from '@/components/Screen';
@@ -29,8 +27,10 @@ export default function FavoresScreen() {
   const p = usePalette();
   const [tabFiltro, setTabFiltro] = useState<TabFiltro>('todos');
   const [tipo, setTipo] = useState<FavorType | undefined>(undefined);
+  const [tipoTemporal, setTipoTemporal] = useState<FavorType | undefined>(undefined);
   const [pagina, setPagina] = useState(0);
   const [modalPublicar, setModalPublicar] = useState(false);
+  const [modalFiltro, setModalFiltro] = useState(false);
 
   const intent: FavorIntent | undefined =
     tabFiltro === 'pedir' ? 'pedir' : tabFiltro === 'ofrecer' ? 'ofrecer' : undefined;
@@ -49,9 +49,22 @@ export default function FavoresScreen() {
     setPagina(0);
   };
 
-  const cambiarTipo = (t: FavorType | undefined) => {
-    setTipo(t);
+  const abrirModalFiltro = () => {
+    setTipoTemporal(tipo);
+    setModalFiltro(true);
+  };
+
+  const aplicarFiltro = () => {
+    setTipo(tipoTemporal);
     setPagina(0);
+    setModalFiltro(false);
+  };
+
+  const borrarFiltro = () => {
+    setTipo(undefined);
+    setTipoTemporal(undefined);
+    setPagina(0);
+    setModalFiltro(false);
   };
 
   const irACrear = (modo: 'pedir' | 'ofrecer') => {
@@ -76,13 +89,14 @@ export default function FavoresScreen() {
 
   return (
     <Screen scroll={false}>
-      {/* Cabecera limpia */}
+      {/* Cabecera limpia sin alerta estorbando y con botón + compacto */}
       <View style={styles.header}>
         <View style={styles.headerTextWrap}>
           <Text style={[styles.titulo, { color: p.text }]}>Ayuda comunitaria</Text>
           <Text style={[styles.sub, { color: p.muted }]}>Colaboración solidaria entre vecinos</Text>
         </View>
-        <View style={styles.headerRight}>
+
+        <View style={styles.headerActions}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Ir a mis publicaciones"
@@ -92,69 +106,88 @@ export default function FavoresScreen() {
             <Ionicons name="folder-outline" size={15} color={colors.azul} />
             <Text style={styles.misPubsText}>Mis ayudas</Text>
           </Pressable>
-          <EmergencyButton />
+
+          {/* Botón compacto solo con el icono + para publicar sin ocupar espacio */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Publicar nueva ayuda"
+            onPress={() => setModalPublicar(true)}
+            style={({ pressed }) => [styles.addFabBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.94 }] }]}
+          >
+            <Ionicons name="add" size={24} color={colors.blanco} />
+          </Pressable>
         </View>
       </View>
 
-      {/* Barra de acción única para publicar (sin ruido de tarjetas permanentes) */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Publicar ayuda"
-        onPress={() => setModalPublicar(true)}
-        style={({ pressed }) => [styles.publishBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}
-      >
-        <Ionicons name="add-circle" size={19} color={colors.blanco} />
-        <Text style={styles.publishBtnText}>Publicar ayuda</Text>
-      </Pressable>
-
-      {/* Selector de pestañas minimalista tipo segmento */}
-      <View style={styles.segmentContainer}>
-        {TABS.map((tab) => {
-          const selected = tabFiltro === tab.id;
-          return (
-            <Pressable
-              key={tab.id}
-              accessibilityRole="tab"
-              accessibilityState={{ selected }}
-              onPress={() => cambiarTab(tab.id)}
-              style={[
-                styles.segmentBtn,
-                selected && styles.segmentBtnSelected,
-              ]}
-            >
-              <Text
+      {/* Barra de control: Segmento (Todos | Piden | Ofrecen) + Botón modal de Filtro */}
+      <View style={styles.controlsRow}>
+        <View style={styles.segmentContainer}>
+          {TABS.map((tab) => {
+            const selected = tabFiltro === tab.id;
+            return (
+              <Pressable
+                key={tab.id}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                onPress={() => cambiarTab(tab.id)}
                 style={[
-                  styles.segmentLabel,
-                  {
-                    color: selected ? colors.azul : p.muted,
-                    fontFamily: selected ? fonts.bold : fonts.medium,
-                  },
+                  styles.segmentBtn,
+                  selected && styles.segmentBtnSelected,
                 ]}
               >
-                {tab.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+                <Text
+                  style={[
+                    styles.segmentLabel,
+                    {
+                      color: selected ? colors.azul : p.muted,
+                      fontFamily: selected ? fonts.bold : fonts.medium,
+                    },
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Botón que abre el modal inferior para filtrar categoría */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Abrir filtro por categoría"
+          onPress={abrirModalFiltro}
+          style={[
+            styles.filterTriggerBtn,
+            tipo !== undefined && styles.filterTriggerBtnActive,
+          ]}
+        >
+          <Ionicons
+            name="options-outline"
+            size={17}
+            color={tipo !== undefined ? colors.azul : colors.gris}
+          />
+          {tipo !== undefined ? (
+            <View style={styles.filterActiveDot} />
+          ) : null}
+        </Pressable>
       </View>
 
-      {/* Chips horizontales de categorías */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.chipsScroll}
-        contentContainerStyle={{ paddingRight: 8 }}
-      >
-        <Chip label="Todas" selected={!tipo} onPress={() => cambiarTipo(undefined)} />
-        {tipos.map((t) => (
-          <Chip
-            key={t}
-            label={favorTypeLabel[t]}
-            selected={tipo === t}
-            onPress={() => cambiarTipo(t)}
-          />
-        ))}
-      </ScrollView>
+      {/* Indicador de categoría activa (si se aplicó filtro) con botón rápido para limpiarlo */}
+      {tipo !== undefined ? (
+        <View style={styles.activeFilterBar}>
+          <Text style={styles.activeFilterText}>
+            Filtro: <Text style={{ fontFamily: fonts.bold }}>{favorTypeLabel[tipo]}</Text>
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Quitar filtro de categoría"
+            onPress={borrarFiltro}
+            hitSlop={8}
+          >
+            <Ionicons name="close-circle" size={18} color={colors.azul} />
+          </Pressable>
+        </View>
+      ) : null}
 
       {/* Lista de publicaciones */}
       {isLoading ? (
@@ -229,7 +262,7 @@ export default function FavoresScreen() {
         />
       )}
 
-      {/* Modal limpio para elegir qué publicar (sin ruido permanente en pantalla) */}
+      {/* Modal para publicar (+), sin ocupar espacio en pantalla */}
       <Modal
         visible={modalPublicar}
         transparent
@@ -284,6 +317,111 @@ export default function FavoresScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal inferior (Bottom Sheet) para filtrar categorías */}
+      <Modal
+        visible={modalFiltro}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalFiltro(false)}
+      >
+        <View style={styles.sheetOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalFiltro(false)} />
+          <View style={styles.sheetContent}>
+            <View style={styles.sheetHeader}>
+              <View>
+                <Text style={styles.sheetTitle}>Filtrar por categoría</Text>
+                <Text style={styles.sheetSub}>Selecciona una opción de ayuda</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setModalFiltro(false)}
+                style={styles.sheetCloseIcon}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={22} color={colors.gris} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
+              {/* Opción Todas */}
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setTipoTemporal(undefined)}
+                style={[
+                  styles.sheetRow,
+                  tipoTemporal === undefined && styles.sheetRowSelected,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.sheetRowText,
+                    tipoTemporal === undefined && styles.sheetRowTextSelected,
+                  ]}
+                >
+                  Todas las categorías
+                </Text>
+                {tipoTemporal === undefined ? (
+                  <Ionicons name="checkmark-circle" size={20} color={colors.azul} />
+                ) : (
+                  <View style={styles.sheetRadioCircle} />
+                )}
+              </Pressable>
+
+              {/* Categorías específicas */}
+              {tipos.map((t) => {
+                const isSelected = tipoTemporal === t;
+                return (
+                  <Pressable
+                    key={t}
+                    accessibilityRole="button"
+                    onPress={() => setTipoTemporal(t)}
+                    style={[
+                      styles.sheetRow,
+                      isSelected && styles.sheetRowSelected,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.sheetRowText,
+                        isSelected && styles.sheetRowTextSelected,
+                      ]}
+                    >
+                      {favorTypeLabel[t]}
+                    </Text>
+                    {isSelected ? (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.azul} />
+                    ) : (
+                      <View style={styles.sheetRadioCircle} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {/* Acciones del modal inferior: Borrar filtro y Aplicar */}
+            <View style={styles.sheetActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Borrar filtro"
+                onPress={borrarFiltro}
+                style={styles.sheetBtnSecondary}
+              >
+                <Text style={styles.sheetBtnSecondaryText}>Borrar filtro</Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Aplicar filtro"
+                onPress={aplicarFiltro}
+                style={styles.sheetBtnPrimary}
+              >
+                <Text style={styles.sheetBtnPrimaryText}>Aplicar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -292,7 +430,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginTop: spacing.xs,
     marginBottom: spacing.xs,
   },
@@ -301,16 +439,16 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   titulo: {
-    fontSize: 26,
+    fontSize: 23,
     fontFamily: fonts.bold,
-    lineHeight: 32,
+    lineHeight: 28,
   },
   sub: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.regular,
     marginTop: 2,
   },
-  headerRight: {
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -318,7 +456,7 @@ const styles = StyleSheet.create({
   misPubsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     backgroundColor: colors.azulSuave,
     paddingHorizontal: 10,
     paddingVertical: 7,
@@ -329,35 +467,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.azul,
   },
-
-  // Botón principal de publicación compacto y elegante
-  publishBtn: {
-    flexDirection: 'row',
+  addFabBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.naranja,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.azul,
-    borderRadius: radius.md,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginVertical: spacing.xs,
     ...shadow,
   },
-  publishBtnText: {
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    color: colors.blanco,
-    letterSpacing: 0.2,
-  },
 
-  // Segmented control moderno y limpio
+  // Fila de controles: Segmented bar + Botón de filtro
+  controlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
   segmentContainer: {
+    flex: 1,
     flexDirection: 'row',
     backgroundColor: colors.azulSuave,
     borderRadius: radius.md,
     padding: 3,
-    marginTop: spacing.xs,
-    marginBottom: spacing.xs,
   },
   segmentBtn: {
     flex: 1,
@@ -377,12 +510,46 @@ const styles = StyleSheet.create({
   segmentLabel: {
     fontSize: 13,
   },
+  filterTriggerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.blanco,
+    borderWidth: 1.5,
+    borderColor: colors.grisBorde,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  filterTriggerBtnActive: {
+    backgroundColor: colors.azulSuave,
+    borderColor: colors.azul,
+  },
+  filterActiveDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.azul,
+  },
 
-  // Scroll de chips de categorías
-  chipsScroll: {
-    flexGrow: 0,
-    flexShrink: 0,
+  // Barra de filtro activo
+  activeFilterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.azulSuave,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.sm,
     marginBottom: spacing.xs,
+  },
+  activeFilterText: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.azul,
   },
 
   // Paginación
@@ -395,7 +562,7 @@ const styles = StyleSheet.create({
   paginaBtn: { flex: 1 },
   paginaNum: { fontSize: 14, fontFamily: fonts.medium },
 
-  // Modal para publicar
+  // Modal para publicar (+)
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(19, 46, 102, 0.45)',
@@ -460,5 +627,110 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     fontSize: 15,
     color: colors.gris,
+  },
+
+  // Modal inferior (Bottom Sheet)
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(19, 46, 102, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  sheetContent: {
+    backgroundColor: colors.blanco,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.lg,
+    maxHeight: '80%',
+    ...shadow,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.grisBorde,
+  },
+  sheetTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 19,
+    color: colors.azul,
+  },
+  sheetSub: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.gris,
+    marginTop: 2,
+  },
+  sheetCloseIcon: {
+    padding: 4,
+  },
+  sheetScroll: {
+    maxHeight: 300,
+  },
+  sheetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 10,
+    borderRadius: radius.md,
+    marginBottom: 4,
+  },
+  sheetRowSelected: {
+    backgroundColor: colors.azulSuave,
+  },
+  sheetRowText: {
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    color: colors.texto,
+  },
+  sheetRowTextSelected: {
+    fontFamily: fonts.bold,
+    color: colors.azul,
+  },
+  sheetRadioCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: colors.grisBorde,
+  },
+  sheetActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.grisBorde,
+  },
+  sheetBtnSecondary: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: radius.md,
+    backgroundColor: colors.fondo,
+    borderWidth: 1,
+    borderColor: colors.grisBorde,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetBtnSecondaryText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
+    color: colors.gris,
+  },
+  sheetBtnPrimary: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: radius.md,
+    backgroundColor: colors.azul,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetBtnPrimaryText: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    color: colors.blanco,
   },
 });
