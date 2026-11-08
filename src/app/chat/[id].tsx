@@ -281,13 +281,11 @@ export default function Chat() {
             />
           )}
           ListEmptyComponent={
-            <View style={{ transform: [{ scaleY: -1 }] }}>
-              <EmptyState
-                icon="chatbubble-ellipses-outline"
-                title={`Escríbele a ${otherName}`}
-                message="Coordinen aquí los detalles del favor."
-              />
-            </View>
+            <EmptyState
+              icon="chatbubble-ellipses-outline"
+              title={`Escríbele a ${otherName}`}
+              message="Coordinen aquí los detalles del favor."
+            />
           }
         />
       )}
