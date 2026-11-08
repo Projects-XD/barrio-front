@@ -269,6 +269,14 @@ export default function Chat() {
 
       {messages.isLoading && isOnline ? (
         <ActivityIndicator size="large" color={p.primary} style={{ marginTop: spacing.xl }} />
+      ) : data.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <EmptyState
+            icon="chatbubble-ellipses-outline"
+            title={`Escríbele a ${otherName}`}
+            message="Coordinen aquí los detalles del favor."
+          />
+        </View>
       ) : (
         <FlatList
           inverted
@@ -280,13 +288,6 @@ export default function Chat() {
               onOpenImage={setViewerUri}
             />
           )}
-          ListEmptyComponent={
-            <EmptyState
-              icon="chatbubble-ellipses-outline"
-              title={`Escríbele a ${otherName}`}
-              message="Coordinen aquí los detalles del favor."
-            />
-          }
         />
       )}
 
@@ -553,6 +554,7 @@ const styles = StyleSheet.create({
     color: colors.verdeExito,
   },
   banner: { fontFamily: fonts.medium, fontSize: 14, paddingHorizontal: 16, paddingVertical: 10, textAlign: 'center' },
+  emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { paddingHorizontal: 16, paddingVertical: 12, flexGrow: 1 },
   bubbleRow: { flexDirection: 'row', marginBottom: 8 },
   rowMine: { justifyContent: 'flex-end' },
