@@ -67,12 +67,11 @@ export default function Reportar() {
     };
   }, [donde]);
 
-  // Alert.alert no se ve en la web: la confirmación va en un modal propio.
+  // Modal de confirmación al enviar reporte exitosamente
   const [confirmacion, setConfirmacion] = useState<'sent' | 'queued' | null>(null);
   const cerrarConfirmacion = () => {
     setConfirmacion(null);
-    if (router.canGoBack()) router.back();
-    else router.replace('/emergencia');
+    router.replace('/emergencia');
   };
 
   const toggleNeed = (n: ResourceType) =>
@@ -236,19 +235,19 @@ export default function Reportar() {
       <AppModal visible={confirmacion !== null} onClose={cerrarConfirmacion} overlayStyle={styles.overlay} cardStyle={styles.modalCard}>
         <Ionicons
           name={confirmacion === 'queued' ? 'cloud-offline-outline' : 'checkmark-circle'}
-          size={48}
-          color={confirmacion === 'queued' ? colors.gris : colors.rojo}
+          size={52}
+          color={confirmacion === 'queued' ? colors.azul : colors.verdeExito}
           style={{ alignSelf: 'center' }}
         />
         <Text style={[styles.modalTitulo, { color: p.text }]}>
-          {confirmacion === 'queued' ? 'Guardado sin conexión' : 'Alerta enviada'}
+          {confirmacion === 'queued' ? 'Guardado sin conexión' : 'Reporte enviado correctamente'}
         </Text>
         <Text style={[styles.modalTexto, { color: p.body }]}>
           {confirmacion === 'queued'
-            ? 'La alerta se enviará sola cuando vuelva la conexión.'
-            : 'Los vecinos de tu zona y el comité de emergencia recibieron el aviso en la app. Te avisaremos cuando alguien vaya a ayudar.'}
+            ? 'El reporte se enviará automáticamente en cuanto vuelva la conexión.'
+            : 'Tu reporte ha sido publicado. Los vecinos de tu zona y el comité de emergencia ya pueden verlo para coordinar apoyo.'}
         </Text>
-        <AppButton label="Entendido" variant="primary" onPress={cerrarConfirmacion} />
+        <AppButton label="Ver reportes" variant="primary" onPress={cerrarConfirmacion} />
       </AppModal>
     </Screen>
   );
