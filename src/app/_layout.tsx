@@ -126,8 +126,9 @@ export default function RootLayout() {
           <Stack.Screen name="welcome" options={{ headerShown: false }} />
           <Stack.Screen name="register" options={{ headerShown: true, title: 'Mi cuenta', headerBackTitle: 'Atrás' }} />
           <Stack.Screen name="oficio/[id]" options={{ headerShown: true, title: 'Perfil profesional' }} />
-          <Stack.Screen name="favores/nuevo" options={{ presentation: 'card', headerShown: true, title: 'Publicar favor', headerBackTitle: 'Atrás' }} />
-          <Stack.Screen name="favores/[id]" options={{ headerShown: true, title: 'Detalle del favor' }} />
+          <Stack.Screen name="favores/nuevo" options={{ presentation: 'card', headerShown: true, title: 'Publicar ayuda', headerBackTitle: 'Atrás' }} />
+          <Stack.Screen name="favores/[id]" options={{ headerShown: true, title: 'Detalle de la ayuda', headerBackTitle: 'Atrás' }} />
+          <Stack.Screen name="favores/mis-publicaciones" options={{ headerShown: true, title: 'Mis publicaciones', headerBackTitle: 'Atrás' }} />
           <Stack.Screen name="chat/[id]" options={{ headerShown: true, title: 'Chat' }} />
           <Stack.Screen name="emergencia" options={{ headerShown: true, title: 'Apoyo en emergencia' }} />
           <Stack.Screen name="reportar" options={{ headerShown: true, title: 'Reportar vecino en riesgo' }} />

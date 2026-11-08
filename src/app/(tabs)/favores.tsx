@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/AppButton';
@@ -17,13 +17,12 @@ import { colors, fonts, radius, shadow, spacing } from '@/theme';
 
 const tipos = Object.keys(favorTypeLabel) as FavorType[];
 
-type TabFiltro = 'todos' | 'pedir' | 'ofrecer' | 'mias';
+type TabFiltro = 'todos' | 'pedir' | 'ofrecer';
 
-const TABS: { id: TabFiltro; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'todos', label: 'Todos', icon: 'grid-outline' },
-  { id: 'pedir', label: 'Piden ayuda', icon: 'hand-left-outline' },
-  { id: 'ofrecer', label: 'Ofrecen ayuda', icon: 'heart-outline' },
-  { id: 'mias', label: 'Mis publicaciones', icon: 'person-outline' },
+const TABS: { id: TabFiltro; label: string }[] = [
+  { id: 'todos', label: 'Todos' },
+  { id: 'pedir', label: 'Piden ayuda' },
+  { id: 'ofrecer', label: 'Ofrecen ayuda' },
 ];
 
 export default function FavoresScreen() {
@@ -31,15 +30,15 @@ export default function FavoresScreen() {
   const [tabFiltro, setTabFiltro] = useState<TabFiltro>('todos');
   const [tipo, setTipo] = useState<FavorType | undefined>(undefined);
   const [pagina, setPagina] = useState(0);
+  const [modalPublicar, setModalPublicar] = useState(false);
 
   const intent: FavorIntent | undefined =
     tabFiltro === 'pedir' ? 'pedir' : tabFiltro === 'ofrecer' ? 'ofrecer' : undefined;
-  const mine: boolean | undefined = tabFiltro === 'mias' ? true : undefined;
 
   const { data, isLoading, isError, error, refetch, isRefetching, isPlaceholderData } = useFavorsPage({
     type: tipo,
     intent,
-    mine,
+    mine: undefined,
     page: pagina,
   });
 
@@ -55,9 +54,13 @@ export default function FavoresScreen() {
     setPagina(0);
   };
 
+  const irACrear = (modo: 'pedir' | 'ofrecer') => {
+    setModalPublicar(false);
+    router.push(`/favores/nuevo?modo=${modo}`);
+  };
+
   const emptyTitle = () => {
     if (isError) return 'No pudimos cargar las publicaciones';
-    if (tabFiltro === 'mias') return 'Aún no tienes publicaciones';
     if (tabFiltro === 'pedir') return tipo ? 'Sin pedidos en esta categoría' : 'No hay pedidos de ayuda activos';
     if (tabFiltro === 'ofrecer') return tipo ? 'Sin ofrecimientos en esta categoría' : 'No hay ofrecimientos activos';
     if (tipo) return 'Nada en esta categoría';
@@ -66,7 +69,6 @@ export default function FavoresScreen() {
 
   const emptyMessage = () => {
     if (isError) return (error as Error)?.message || 'Revisa tu conexión e inténtalo de nuevo.';
-    if (tabFiltro === 'mias') return 'Aquí podrás ver y gestionar las ayudas que pidas u ofrezcas a tu barrio.';
     if (tabFiltro === 'pedir') return 'Cuando algún vecino necesite una herramienta o una mano, aparecerá aquí.';
     if (tabFiltro === 'ofrecer') return 'Sé el primero en compartir herramientas o brindar tu apoyo a la comunidad.';
     return 'Sé el primero en pedir una mano o en ofrecer algo que puedas compartir con tus vecinos.';
@@ -74,57 +76,39 @@ export default function FavoresScreen() {
 
   return (
     <Screen scroll={false}>
-      {/* Cabecera */}
-      <View style={styles.headerTop}>
-        <Text style={[styles.titulo, { color: p.text }]}>Ayuda comunitaria</Text>
-        <EmergencyButton />
-      </View>
-      <Text style={[styles.sub, { color: p.muted }]}>
-        Pedidos y colaboraciones entre vecinos, sin dinero de por medio.
-      </Text>
-
-      {/* Botones de acción rápida: Pedir ayuda y Ofrecer ayuda */}
-      <View style={styles.actionRow}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Pedir ayuda a vecinos"
-          onPress={() => router.push('/favores/nuevo?modo=pedir')}
-          style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
-        >
-          <View style={[styles.actionIconWrap, { backgroundColor: colors.naranjaSuave }]}>
-            <Ionicons name="hand-left" size={20} color={colors.naranja} />
-          </View>
-          <View style={styles.actionTextWrap}>
-            <Text style={[styles.actionTitle, { color: p.text }]}>Pedir ayuda</Text>
-            <Text style={[styles.actionDesc, { color: p.muted }]}>Necesito una mano</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.gris} />
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Ofrecer ayuda a vecinos"
-          onPress={() => router.push('/favores/nuevo?modo=ofrecer')}
-          style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
-        >
-          <View style={[styles.actionIconWrap, { backgroundColor: colors.verdeExitoSuave }]}>
-            <Ionicons name="heart" size={20} color={colors.verdeExito} />
-          </View>
-          <View style={styles.actionTextWrap}>
-            <Text style={[styles.actionTitle, { color: p.text }]}>Ofrecer ayuda</Text>
-            <Text style={[styles.actionDesc, { color: p.muted }]}>Puedo colaborar</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.gris} />
-        </Pressable>
+      {/* Cabecera limpia */}
+      <View style={styles.header}>
+        <View style={styles.headerTextWrap}>
+          <Text style={[styles.titulo, { color: p.text }]}>Ayuda comunitaria</Text>
+          <Text style={[styles.sub, { color: p.muted }]}>Colaboración solidaria entre vecinos</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Ir a mis publicaciones"
+            onPress={() => router.push('/favores/mis-publicaciones')}
+            style={({ pressed }) => [styles.misPubsBtn, pressed && { opacity: 0.8 }]}
+          >
+            <Ionicons name="folder-outline" size={15} color={colors.azul} />
+            <Text style={styles.misPubsText}>Mis ayudas</Text>
+          </Pressable>
+          <EmergencyButton />
+        </View>
       </View>
 
-      {/* Selector de orden / filtro principal: Todos | Piden ayuda | Ofrecen ayuda | Mis publicaciones */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabScroll}
-        contentContainerStyle={styles.tabScrollContent}
+      {/* Barra de acción única para publicar (sin ruido de tarjetas permanentes) */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Publicar ayuda"
+        onPress={() => setModalPublicar(true)}
+        style={({ pressed }) => [styles.publishBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}
       >
+        <Ionicons name="add-circle" size={19} color={colors.blanco} />
+        <Text style={styles.publishBtnText}>Publicar ayuda</Text>
+      </Pressable>
+
+      {/* Selector de pestañas minimalista tipo segmento */}
+      <View style={styles.segmentContainer}>
         {TABS.map((tab) => {
           const selected = tabFiltro === tab.id;
           return (
@@ -134,22 +118,15 @@ export default function FavoresScreen() {
               accessibilityState={{ selected }}
               onPress={() => cambiarTab(tab.id)}
               style={[
-                styles.tabItem,
-                selected
-                  ? { backgroundColor: colors.azul, borderColor: colors.azul }
-                  : { backgroundColor: colors.blanco, borderColor: p.border },
+                styles.segmentBtn,
+                selected && styles.segmentBtnSelected,
               ]}
             >
-              <Ionicons
-                name={tab.icon}
-                size={16}
-                color={selected ? colors.blanco : p.text}
-              />
               <Text
                 style={[
-                  styles.tabLabel,
+                  styles.segmentLabel,
                   {
-                    color: selected ? colors.blanco : p.text,
+                    color: selected ? colors.azul : p.muted,
                     fontFamily: selected ? fonts.bold : fonts.medium,
                   },
                 ]}
@@ -159,16 +136,16 @@ export default function FavoresScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
-      {/* Chips de sub-categoría */}
+      {/* Chips horizontales de categorías */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.chips}
+        style={styles.chipsScroll}
         contentContainerStyle={{ paddingRight: 8 }}
       >
-        <Chip label="Todas las categorías" selected={!tipo} onPress={() => cambiarTipo(undefined)} />
+        <Chip label="Todas" selected={!tipo} onPress={() => cambiarTipo(undefined)} />
         {tipos.map((t) => (
           <Chip
             key={t}
@@ -179,7 +156,7 @@ export default function FavoresScreen() {
         ))}
       </ScrollView>
 
-      {/* Lista de tarjetas */}
+      {/* Lista de publicaciones */}
       {isLoading ? (
         <SkeletonFavores count={4} />
       ) : (
@@ -201,37 +178,29 @@ export default function FavoresScreen() {
                 icon={
                   isError
                     ? 'cloud-offline-outline'
-                    : tabFiltro === 'mias'
-                      ? 'person-outline'
-                      : tabFiltro === 'ofrecer'
-                        ? 'heart-outline'
-                        : tabFiltro === 'pedir'
-                          ? 'hand-left-outline'
-                          : 'help-buoy-outline'
+                    : tabFiltro === 'ofrecer'
+                      ? 'heart-outline'
+                      : tabFiltro === 'pedir'
+                        ? 'hand-left-outline'
+                        : 'help-buoy-outline'
                 }
                 title={emptyTitle()}
                 message={emptyMessage()}
               />
               {isError ? (
                 <AppButton label="Reintentar" variant="secondary" icon="refresh" onPress={() => refetch()} />
-              ) : tabFiltro === 'mias' ? (
-                <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
+              ) : (
+                <View style={{ marginTop: spacing.md }}>
                   <AppButton
-                    label="Pedir ayuda"
-                    icon="hand-left-outline"
-                    onPress={() => router.push('/favores/nuevo?modo=pedir')}
-                  />
-                  <AppButton
-                    label="Ofrecer ayuda"
-                    variant="secondary"
-                    icon="heart-outline"
-                    onPress={() => router.push('/favores/nuevo?modo=ofrecer')}
+                    label="Publicar ayuda"
+                    icon="add-circle-outline"
+                    onPress={() => setModalPublicar(true)}
                   />
                 </View>
-              ) : null}
+              )}
             </View>
           }
-          contentContainerStyle={{ paddingBottom: spacing.md, paddingTop: spacing.xs }}
+          contentContainerStyle={{ paddingBottom: spacing.lg, paddingTop: spacing.xs }}
           ListFooterComponent={
             pagina > 0 || data?.hasNext ? (
               <View style={styles.paginacion}>
@@ -259,91 +228,237 @@ export default function FavoresScreen() {
           }
         />
       )}
+
+      {/* Modal limpio para elegir qué publicar (sin ruido permanente en pantalla) */}
+      <Modal
+        visible={modalPublicar}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalPublicar(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalPublicar(false)} />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitulo}>¿Qué deseas publicar?</Text>
+            <Text style={[styles.modalSub, { color: p.muted }]}>
+              Elige si necesitas una colaboración o quieres compartir con tus vecinos.
+            </Text>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => irACrear('pedir')}
+              style={({ pressed }) => [styles.modalOption, pressed && { opacity: 0.85, backgroundColor: colors.naranjaSuave }]}
+            >
+              <View style={[styles.modalOptionAccent, { backgroundColor: colors.naranja }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalOptionTitle}>Pedir ayuda</Text>
+                <Text style={styles.modalOptionDesc}>
+                  Solicita una herramienta prestada, una mano por un rato o apoyo vecinal.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.gris} />
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => irACrear('ofrecer')}
+              style={({ pressed }) => [styles.modalOption, pressed && { opacity: 0.85, backgroundColor: colors.verdeExitoSuave }]}
+            >
+              <View style={[styles.modalOptionAccent, { backgroundColor: colors.verdeExito }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalOptionTitle}>Ofrecer ayuda</Text>
+                <Text style={styles.modalOptionDesc}>
+                  Comparte una herramienta que tengas, brinda tu tiempo o conocimientos.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.gris} />
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setModalPublicar(false)}
+              style={styles.modalCloseBtn}
+            >
+              <Text style={styles.modalCloseText}>Cancelar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  headerTop: {
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginTop: spacing.xs,
+    marginBottom: spacing.xs,
   },
-  titulo: { fontSize: 28, fontFamily: fonts.bold },
-  sub: { fontSize: 15, fontFamily: fonts.regular, marginTop: 4, marginBottom: spacing.sm },
-
-  // Tarjetas de acción
-  actionRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  actionCard: {
+  headerTextWrap: {
     flex: 1,
+    paddingRight: 8,
+  },
+  titulo: {
+    fontSize: 26,
+    fontFamily: fonts.bold,
+    lineHeight: 32,
+  },
+  sub: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    marginTop: 2,
+  },
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.blanco,
-    borderRadius: radius.md,
-    padding: spacing.sm,
     gap: 8,
-    borderWidth: 1,
-    borderColor: colors.grisBorde,
-    ...shadow,
   },
-  actionCardPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.98 }],
+  misPubsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.azulSuave,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
   },
-  actionIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  misPubsText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    color: colors.azul,
+  },
+
+  // Botón principal de publicación compacto y elegante
+  publishBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.azul,
+    borderRadius: radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginVertical: spacing.xs,
+    ...shadow,
   },
-  actionTextWrap: {
-    flex: 1,
-  },
-  actionTitle: {
+  publishBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 14,
-    lineHeight: 18,
-  },
-  actionDesc: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 15,
+    color: colors.blanco,
+    letterSpacing: 0.2,
   },
 
-  // Tabs de filtro principal
-  tabScroll: {
+  // Segmented control moderno y limpio
+  segmentContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.azulSuave,
+    borderRadius: radius.md,
+    padding: 3,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.sm,
+  },
+  segmentBtnSelected: {
+    backgroundColor: colors.blanco,
+    shadowColor: '#132E66',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  segmentLabel: {
+    fontSize: 13,
+  },
+
+  // Scroll de chips de categorías
+  chipsScroll: {
     flexGrow: 0,
     flexShrink: 0,
     marginBottom: spacing.xs,
   },
-  tabScrollContent: {
-    paddingRight: 8,
-    gap: 8,
-  },
-  tabItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-  },
-  tabLabel: {
-    fontSize: 14,
-  },
-
-  // Chips de sub-categoría
-  chips: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.xs },
 
   // Paginación
-  paginacion: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
+  paginacion: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
   paginaBtn: { flex: 1 },
   paginaNum: { fontSize: 14, fontFamily: fonts.medium },
+
+  // Modal para publicar
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(19, 46, 102, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.md,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: colors.blanco,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    ...shadow,
+  },
+  modalTitulo: {
+    fontFamily: fonts.bold,
+    fontSize: 20,
+    color: colors.azul,
+    marginBottom: 4,
+  },
+  modalSub: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: spacing.md,
+    backgroundColor: colors.fondo,
+    borderRadius: radius.lg,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.grisBorde,
+  },
+  modalOptionAccent: {
+    width: 4,
+    height: 38,
+    borderRadius: 2,
+  },
+  modalOptionTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    color: colors.azul,
+    marginBottom: 2,
+  },
+  modalOptionDesc: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.gris,
+    lineHeight: 18,
+  },
+  modalCloseBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: spacing.xs,
+  },
+  modalCloseText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
+    color: colors.gris,
+  },
 });

@@ -226,41 +226,26 @@ export default function FavorDetalle() {
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderInfo}>
               <View style={styles.badgeRow}>
-                <View
+                <Text
                   style={[
-                    styles.tag,
-                    favor.intent === 'ofrecer'
-                      ? { backgroundColor: colors.verdeExitoSuave, borderColor: colors.verdeExito }
-                      : { backgroundColor: colors.naranjaSuave, borderColor: colors.naranja },
+                    styles.tagText,
+                    {
+                      color: favor.intent === 'ofrecer' ? colors.verdeExito : colors.naranja,
+                      fontFamily: fonts.semiBold,
+                    },
                   ]}
                 >
-                  <Ionicons
-                    name={favor.intent === 'ofrecer' ? 'heart' : 'hand-left'}
-                    size={12}
-                    color={favor.intent === 'ofrecer' ? colors.verdeExito : colors.azul}
-                  />
-                  <Text
-                    style={[
-                      styles.tagText,
-                      { color: favor.intent === 'ofrecer' ? colors.verdeExito : colors.azul },
-                    ]}
-                  >
-                    {favor.intent === 'ofrecer' ? 'Ofrecimiento' : 'Pedido de ayuda'}
-                  </Text>
-                </View>
+                  {favor.intent === 'ofrecer' ? 'OFRECIMIENTO' : 'PEDIDO'} · {favorTypeLabel[favor.type].toUpperCase()}
+                </Text>
 
                 {esMio ? (
-                  <View style={[styles.tag, styles.mineTag]}>
-                    <Ionicons name="person" size={12} color={colors.azulMedio} />
-                    <Text style={[styles.tagText, { color: colors.azulMedio, fontFamily: fonts.bold }]}>
-                      Tu publicación
-                    </Text>
+                  <View style={styles.mineTag}>
+                    <Text style={styles.mineText}>Tuya</Text>
                   </View>
                 ) : null}
 
                 {favor.moderationStatus === 'aprobado' ? <UrgencyBadge urgency={favor.urgency} /> : null}
               </View>
-              <Text style={[styles.tipo, { color: p.muted }]}>{favorTypeLabel[favor.type]}</Text>
             </View>
             {!favor.isDeactivated ? (
               <Pressable
@@ -679,11 +664,19 @@ const styles = StyleSheet.create({
   },
   mineTag: {
     backgroundColor: colors.azulSuave,
-    borderColor: colors.azulMedio,
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
+    borderRadius: radius.pill,
+  },
+  mineText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 10,
+    color: colors.azul,
   },
   tagText: {
     fontFamily: fonts.semiBold,
     fontSize: 12,
+    letterSpacing: 0.4,
   },
   cardHeaderRow: {
     flexDirection: 'row',
