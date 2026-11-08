@@ -4,9 +4,22 @@ import { aiService } from '../services/ai.service';
 import { getSupabaseClient } from '../config/supabase';
 import { AppError } from '../middlewares/errorHandler';
 import type { OficioCategory } from '../types/database.types';
-import type { SuggestDescriptionDTO } from '../utils/validators';
+import type { SaveMyLocationDTO, SuggestDescriptionDTO } from '../utils/validators';
 
 export class ProfileController {
+  /** PATCH /api/v1/profiles/me/location */
+  public async saveMyLocation(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+      const saved = await profileService.saveUserLocation(req.user.id, req.body as SaveMyLocationDTO);
+      res.json({ success: true, data: saved, code: 200 });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   /** POST /api/profiles/suggest-description */
   public async suggestDescription(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

@@ -172,6 +172,13 @@ export const upsertProfessionalProfileSchema = z.object({
 });
 export type UpsertProfessionalProfileDTO = z.infer<typeof upsertProfessionalProfileSchema>;
 
+export const saveMyLocationSchema = z.object({
+  lat: latitudeSchema,
+  lng: longitudeSchema,
+  address: z.string().max(300, 'La dirección no puede exceder 300 caracteres').default(''),
+});
+export type SaveMyLocationDTO = z.infer<typeof saveMyLocationSchema>;
+
 export const listProfilesQuerySchema = z.object({
   zone_id: z.string().uuid('zone_id debe ser un UUID válido').optional(),
   zoneId: z.string().uuid('zoneId debe ser un UUID válido').optional(),

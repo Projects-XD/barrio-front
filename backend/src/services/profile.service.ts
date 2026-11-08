@@ -1,11 +1,50 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables, OficioCategory } from '../types/database.types';
 import { AppError, dbError } from '../middlewares/errorHandler';
-import type { UpsertProfessionalProfileDTO } from '../utils/validators';
+import type { SaveMyLocationDTO, UpsertProfessionalProfileDTO } from '../utils/validators';
 import { resolveUserZone } from './zoneAccess';
 import { isWithinCastilla } from '../utils/castilla';
+import { supabaseAdmin } from '../config/supabase';
 
 export class ProfileService {
+  /**
+   * Guarda la ubicación del vecino en su cuenta y en sus perfiles profesionales.
+   * La ubicación se escribe con service_role, así que el cliente nunca toca user_metadata.
+   * Solo se acepta un punto dentro de Castilla.
+   */
+  public async saveUserLocation(userId: string, dto: SaveMyLocationDTO): Promise<SaveMyLocationDTO> {
+    if (!isWithinCastilla({ lat: dto.lat, lng: dto.lng })) {
+      throw new AppError('La ubicación debe estar dentro del distrito de Castilla.', 400);
+    }
+
+    const { data: current, error: getError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (getError || !current.user) {
+      throw new AppError('No se encontró tu cuenta.', 404);
+    }
+
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        ...current.user.user_metadata,
+        location_lat: dto.lat,
+        location_lng: dto.lng,
+        location_address: dto.address.trim(),
+      },
+    });
+    if (authError) {
+      throw new AppError('No se pudo guardar tu ubicación.', 500);
+    }
+
+    const { error: profileError } = await supabaseAdmin
+      .from('professional_profiles')
+      .update({ location_lat: dto.lat, location_lng: dto.lng, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+    if (profileError) {
+      throw dbError('Error al actualizar la ubicación de tus oficios', profileError);
+    }
+
+    return { lat: dto.lat, lng: dto.lng, address: dto.address.trim() };
+  }
+
   /**
    * Crea o actualiza el perfil profesional de un usuario autenticado.
    * Si ya existe un perfil para la dupla (user_id, oficio_id), actualiza los datos;

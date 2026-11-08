@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { listProfiles, upsertProfile } from '@/api/endpoints';
+import { saveMyLocation } from '@/api/endpoints';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
 import { isWithinCastilla } from '@/utils/geo';
@@ -114,42 +114,9 @@ export function useSaveMyLocation() {
       if (!isWithinCastilla(input)) throw new Error('Tu ubicación debe estar dentro del distrito de Castilla.');
       const cleanAddress = input.address.trim() || (await reverseGeocodeCoords(input));
 
-      // 1. Guardar en Supabase Auth user_metadata (persiste en BD aunque no tenga oficios aún).
-      // No se toca zone_id aquí: la zona del vecino la asigna siempre el backend (trigger
-      // handle_new_user, migraciones 0024/0025), nunca el cliente, para no reabrir el mismo
-      // 403 "zona no es la tuya" que ya se corrigió en zoneAccess.ts/_layout.tsx/register.tsx.
-      const { error: authErr } = await supabase.auth.updateUser({
-        data: {
-          location_lat: input.lat,
-          location_lng: input.lng,
-          location_address: cleanAddress,
-        },
-      });
-      if (authErr) throw new Error(authErr.message);
-
-      // 2. Si tiene oficios registrados en su zona, actualizar también sus coordenadas en professional_profiles
-      // La ubicación ya quedó guardada en Auth; los oficios son un extra que no debe bloquear el guardado.
-      if (zoneId) {
-        try {
-          const profiles = await listProfiles({ zoneId });
-          const mine = profiles.filter((p) => p.user_id === userId);
-          for (const prof of mine) {
-            await upsertProfile({
-              id: prof.id,
-              oficio_id: prof.oficio_id,
-              zone_id: zoneId,
-              description: prof.description,
-              years_experience: prof.years_experience,
-              location_lat: input.lat,
-              location_lng: input.lng,
-            });
-          }
-        } catch {
-          // Sin oficios visibles (o zona no válida): se conserva la ubicación en Auth.
-        }
-      }
-
-      return { lat: input.lat, lng: input.lng, address: cleanAddress };
+      // El backend valida el punto, guarda la ubicación en la cuenta y en tus oficios.
+      const saved = await saveMyLocation({ lat: input.lat, lng: input.lng, address: cleanAddress });
+      return { lat: saved.lat, lng: saved.lng, address: saved.address };
     },
     onSuccess: (saved) => {
       qc.setQueryData(['mySavedLocation', userId, zoneId], saved);

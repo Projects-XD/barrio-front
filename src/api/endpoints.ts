@@ -168,6 +168,15 @@ export interface UpsertProfilePayload {
 export const upsertProfile = (payload: UpsertProfilePayload) =>
   api.post<BackendProfile>('/profiles', payload);
 
+export interface SaveMyLocationPayload {
+  lat: number;
+  lng: number;
+  address: string;
+}
+
+export const saveMyLocation = (payload: SaveMyLocationPayload) =>
+  api.patch<SaveMyLocationPayload>('/profiles/me/location', payload);
+
 export interface SuggestDescriptionPayload {
   category: OficioCategory;
   oficio_name?: string;

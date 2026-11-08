@@ -6,6 +6,7 @@ import {
   listProfilesQuerySchema,
   upsertProfessionalProfileSchema,
   suggestDescriptionSchema,
+  saveMyLocationSchema,
 } from '../utils/validators';
 
 const router = Router();
@@ -22,6 +23,13 @@ const router = Router();
  *         description: Lista de oficios registrados en el sistema
  */
 router.get('/oficios', (req, res, next) => profileController.listOficios(req, res, next));
+
+router.patch(
+  '/me/location',
+  requireAuth,
+  validate(saveMyLocationSchema),
+  (req, res, next) => profileController.saveMyLocation(req, res, next)
+);
 
 /**
  * @openapi
