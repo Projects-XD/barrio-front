@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, radius } from '@/theme';
+import { FadeInView } from './FadeInView';
 
 interface ChatFabProps {
   bottomOffset?: number;
@@ -61,58 +62,64 @@ export function ChatFab({ bottomOffset = 88, onAgregarOficio }: ChatFabProps) {
           {/* Opciones emergentes ancladas sobre la posición del botón */}
           <View style={[styles.menuContainer, { bottom: bottomOffset + 68 }]}>
             {/* Opción: Agregar ayuda */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Agregar ayuda"
-              onPress={irAAgregarAyuda}
-              style={({ pressed }) => [
-                styles.actionItem,
-                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-              ]}
-            >
-              <View style={styles.labelPill}>
-                <Text style={styles.actionLabel}>Agregar ayuda</Text>
-              </View>
-              <View style={[styles.actionCircle, styles.actionCircleAyuda]}>
-                <Ionicons name="add" size={24} color={colors.blanco} />
-              </View>
-            </Pressable>
+            <FadeInView delay={120}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Agregar ayuda"
+                onPress={irAAgregarAyuda}
+                style={({ pressed }) => [
+                  styles.actionItem,
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                <View style={styles.labelPill}>
+                  <Text style={styles.actionLabel}>Agregar ayuda</Text>
+                </View>
+                <View style={[styles.actionCircle, styles.actionCircleAyuda]}>
+                  <Ionicons name="add" size={24} color={colors.blanco} />
+                </View>
+              </Pressable>
+            </FadeInView>
 
             {/* Opción: Agregar oficio */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Agregar oficio"
-              onPress={irAAgregarOficio}
-              style={({ pressed }) => [
-                styles.actionItem,
-                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-              ]}
-            >
-              <View style={styles.labelPill}>
-                <Text style={styles.actionLabel}>Agregar oficio</Text>
-              </View>
-              <View style={[styles.actionCircle, styles.actionCircleOficio]}>
-                <Ionicons name="construct" size={22} color={colors.blanco} />
-              </View>
-            </Pressable>
+            <FadeInView delay={60}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Agregar oficio"
+                onPress={irAAgregarOficio}
+                style={({ pressed }) => [
+                  styles.actionItem,
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                <View style={styles.labelPill}>
+                  <Text style={styles.actionLabel}>Agregar oficio</Text>
+                </View>
+                <View style={[styles.actionCircle, styles.actionCircleOficio]}>
+                  <Ionicons name="construct" size={22} color={colors.blanco} />
+                </View>
+              </Pressable>
+            </FadeInView>
 
             {/* Opción: Mis Chats */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Ir a mis chats"
-              onPress={irAChats}
-              style={({ pressed }) => [
-                styles.actionItem,
-                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-              ]}
-            >
-              <View style={styles.labelPill}>
-                <Text style={styles.actionLabel}>Mis chats</Text>
-              </View>
-              <View style={[styles.actionCircle, styles.actionCircleChat]}>
-                <Ionicons name="chatbubble-ellipses" size={22} color={colors.blanco} />
-              </View>
-            </Pressable>
+            <FadeInView delay={0}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Ir a mis chats"
+                onPress={irAChats}
+                style={({ pressed }) => [
+                  styles.actionItem,
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                <View style={styles.labelPill}>
+                  <Text style={styles.actionLabel}>Mis chats</Text>
+                </View>
+                <View style={[styles.actionCircle, styles.actionCircleChat]}>
+                  <Ionicons name="chatbubble-ellipses" size={22} color={colors.blanco} />
+                </View>
+              </Pressable>
+            </FadeInView>
           </View>
         </View>
       </Modal>

@@ -14,6 +14,7 @@ import type { FavorIntent, FavorType } from '@/types';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
 import { AppModal } from '@/components/AppModal';
 import { PaginationControls } from '@/components/PaginationControls';
+import { FadeInView } from '@/components/FadeInView';
 
 const tipos = Object.keys(favorTypeLabel) as FavorType[];
 
@@ -186,11 +187,13 @@ export default function FavoresScreen() {
           refreshing={isRefetching}
           onRefresh={refetch}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <FavorCard
-              favor={item}
-              onPress={item.syncStatus === 'enviado' ? () => router.push(`/favores/${item.id}`) : undefined}
-            />
+          renderItem={({ item, index }) => (
+            <FadeInView index={index}>
+              <FavorCard
+                favor={item}
+                onPress={item.syncStatus === 'enviado' ? () => router.push(`/favores/${item.id}`) : undefined}
+              />
+            </FadeInView>
           )}
           ListEmptyComponent={
             <View>

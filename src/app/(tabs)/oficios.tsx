@@ -21,6 +21,7 @@ import { colors, fonts, radius, shadow, spacing } from '@/theme';
 import { distanceMetersBetween } from '@/utils/geo';
 import { AppModal } from '@/components/AppModal';
 import { PaginationControls } from '@/components/PaginationControls';
+import { FadeInView } from '@/components/FadeInView';
 
 const categorias = Object.keys(oficioLabel) as OficioCategory[];
 const ITEMS_PER_PAGE = 6;
@@ -206,12 +207,14 @@ export default function Oficios() {
           keyExtractor={(item) => item.prof.id}
           refreshing={isRefetching}
           onRefresh={refetch}
-          renderItem={({ item }) => (
-            <ProfessionalCard
-              profile={item.prof}
-              distanceMeters={item.distanceMeters}
-              onPress={() => router.push(`/oficio/${item.prof.id}`)}
-            />
+          renderItem={({ item, index }) => (
+            <FadeInView index={index}>
+              <ProfessionalCard
+                profile={item.prof}
+                distanceMeters={item.distanceMeters}
+                onPress={() => router.push(`/oficio/${item.prof.id}`)}
+              />
+            </FadeInView>
           )}
           ListEmptyComponent={
             <View style={styles.emptyWrapper}>
