@@ -470,7 +470,7 @@ export default function MapaBarrio() {
   return (
     <Screen scroll={false}>
       {/* CABECERA COMPACTA Y RESPONSIVA */}
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { marginRight: 64 }]}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.titulo, { color: p.text }]}>Mapa del barrio</Text>
           <Text style={[styles.sub, { color: p.muted }]} numberOfLines={1}>

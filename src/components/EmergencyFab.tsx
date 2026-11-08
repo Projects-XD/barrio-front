@@ -1,26 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, fonts, radius } from '@/theme';
+import { Pressable, StyleSheet } from 'react-native';
+import { colors } from '@/theme';
 
 interface EmergencyFabProps {
-  bottomOffset?: number;
-  right?: number;
+  top: number;
 }
 
-export function EmergencyFab({ bottomOffset = 88, right = 16 }: EmergencyFabProps) {
+// Botón circular de emergencia, arriba a la derecha, siempre visible.
+export function EmergencyFab({ top }: EmergencyFabProps) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Emergencia: ver apoyos disponibles"
       onPress={() => router.push('/emergencia')}
-      style={({ pressed }) => [
-        styles.fab,
-        { bottom: bottomOffset, right, opacity: pressed ? 0.85 : 1 },
-      ]}
+      style={({ pressed }) => [styles.fab, { top, opacity: pressed ? 0.85 : 1 }]}
     >
-      <Ionicons name="alert-circle" size={22} color={colors.blanco} />
-      <Text style={styles.label}>Emergencia</Text>
+      <Ionicons name="alert-circle" size={26} color={colors.blanco} />
     </Pressable>
   );
 }
@@ -29,13 +25,12 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 16,
-    flexDirection: 'row',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
     backgroundColor: colors.rojo,
-    borderRadius: radius.pill,
-    paddingHorizontal: 16,
-    minHeight: 48,
     shadowColor: '#000',
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -43,5 +38,4 @@ const styles = StyleSheet.create({
     elevation: 6,
     zIndex: 10,
   },
-  label: { color: colors.blanco, fontFamily: fonts.bold, fontSize: 15 },
 });

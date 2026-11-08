@@ -92,7 +92,7 @@ export default function TabsLayout() {
       </Tabs>
       {enPerfil ? null : (
         <>
-          <EmergencyFab bottomOffset={totalBarHeight + 12} right={82} />
+          <EmergencyFab top={insets.top + 8} />
           <ChatFab bottomOffset={totalBarHeight + 12} />
         </>
       )}
