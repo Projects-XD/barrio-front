@@ -1,10 +1,12 @@
-import type { ReactNode } from 'react';
+import type { ComponentRef, ReactNode, RefObject } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleProp,
   StyleSheet,
   View,
+  ViewStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePalette } from '@/hooks/usePalette';
@@ -13,13 +15,24 @@ type Props = {
   children: ReactNode;
   scroll?: boolean;
   keyboardAvoiding?: boolean;
+  topInset?: boolean;
+  scrollViewRef?: RefObject<ComponentRef<typeof ScrollView> | null>;
+  contentStyle?: StyleProp<ViewStyle>;
 };
 
-export function Screen({ children, scroll = true, keyboardAvoiding = true }: Props) {
+export function Screen({
+  children,
+  scroll = true,
+  keyboardAvoiding = true,
+  topInset = true,
+  scrollViewRef,
+  contentStyle,
+}: Props) {
   const p = usePalette();
   const content = scroll ? (
     <ScrollView
-      contentContainerStyle={styles.content}
+      ref={scrollViewRef}
+      contentContainerStyle={[styles.content, !topInset && styles.noTopInset, contentStyle]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
@@ -27,7 +40,7 @@ export function Screen({ children, scroll = true, keyboardAvoiding = true }: Pro
       {children}
     </ScrollView>
   ) : (
-    <View style={[styles.content, styles.fixed]}>{children}</View>
+    <View style={[styles.content, styles.fixed, !topInset && styles.noTopInset, contentStyle]}>{children}</View>
   );
 
   const body = keyboardAvoiding ? (
@@ -42,7 +55,10 @@ export function Screen({ children, scroll = true, keyboardAvoiding = true }: Pro
   );
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.root, { backgroundColor: p.background }]}>
+    <SafeAreaView
+      edges={topInset ? ['top', 'left', 'right'] : ['left', 'right']}
+      style={[styles.root, { backgroundColor: p.background }]}
+    >
       {body}
     </SafeAreaView>
   );
@@ -50,8 +66,7 @@ export function Screen({ children, scroll = true, keyboardAvoiding = true }: Pro
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  // 80 px abajo: asegura que el teclado o elementos inferiores nunca tapen inputs ni botones.
   content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 80, flexGrow: 1 },
-  // Sin scroll propio, el contenido se limita a la pantalla para que las listas internas (FlatList) hagan scroll.
+  noTopInset: { paddingTop: 4 },
   fixed: { flex: 1, paddingBottom: 0 },
 });

@@ -5,6 +5,7 @@ import {
   Image,
   Alert,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -92,6 +93,7 @@ export default function Register() {
   const mapRef = useRef<MapPickerHandle>(null);
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const scrollViewRef = useRef<ComponentRef<typeof ScrollView>>(null);
   // Desliza el formulario desde la derecha al ir a registro, y desde la izquierda al ir a login.
   const [slide] = useState(() => new Animated.Value(0));
   const switchMode = (next: 'login' | 'register') => {
@@ -99,6 +101,7 @@ export default function Register() {
     slide.setValue(next === 'register' ? 48 : -48);
     Animated.spring(slide, { toValue: 0, useNativeDriver: true, friction: 9, tension: 70 }).start();
     setMode(next);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
   };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -224,6 +227,7 @@ export default function Register() {
             logger.error('AUTH_LOGIN', `Error retornado por supabase.auth.signInWithPassword para ${cleanEmail}`, error);
           }
           setErrorMsg(userMessage);
+          scrollViewRef.current?.scrollTo({ y: 0, animated: true });
           return;
         }
 
@@ -379,25 +383,31 @@ export default function Register() {
         });
       }
       setErrorMsg(userMessage);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Screen scroll={true}>
+    <Screen
+      scroll={true}
+      topInset={false}
+      scrollViewRef={scrollViewRef}
+      contentStyle={mode === 'login' ? styles.loginScreenContent : undefined}
+    >
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Image source={iconApp} style={styles.marca} accessibilityLabel="Barrio" />
+        <View style={styles.headerRow}>
+          <Image source={iconApp} style={styles.marcaMini} accessibilityLabel="Barrio" />
           <Text style={[styles.titulo, { color: p.text }]}>
             {mode === 'login' ? 'Bienvenido a Barrio' : 'Únete a tu Barrio'}
           </Text>
-          <Text style={[styles.sub, { color: p.muted }]}>
-            {mode === 'login'
-              ? 'Ingresa tus credenciales para conectar con tu comunidad.'
-              : 'Conéctate con tus vecinos de forma cercana, transparente y segura.'}
-          </Text>
         </View>
+        {mode === 'register' ? (
+          <Text style={[styles.sub, { color: p.muted }]}>
+            Conéctate con tus vecinos de forma cercana, transparente y segura.
+          </Text>
+        ) : null}
 
         {/* Selector de modo Login / Registro */}
         <View style={[styles.tabContainer, { backgroundColor: colors.fondo, borderColor: colors.grisBorde, borderWidth: 1 }]}>
@@ -448,6 +458,7 @@ export default function Register() {
 
         {errorMsg ? (
           <View style={styles.errorBox}>
+            <Ionicons name="alert-circle" size={16} color="#DC2626" style={styles.errorIcon} />
             <Text style={styles.errorText}>{errorMsg}</Text>
           </View>
         ) : null}
@@ -612,10 +623,6 @@ export default function Register() {
         </Animated.View>
 
         <View style={styles.footer}>
-          <Text style={[styles.privacyNote, { color: p.muted }]}>
-            Tus datos vecinales están protegidos mediante autenticación segura Supabase.
-          </Text>
-
           {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={p.primary} />
@@ -628,6 +635,12 @@ export default function Register() {
               disabled={!canSubmit}
             />
           )}
+
+          {mode === 'register' ? (
+            <Text style={[styles.privacyNote, { color: p.muted }]}>
+              Tus datos vecinales están protegidos mediante autenticación segura Supabase.
+            </Text>
+          ) : null}
         </View>
       </View>
     </Screen>
@@ -637,37 +650,47 @@ export default function Register() {
 const iconApp = require('../../assets/brand/icon-app.png');
 
 const styles = StyleSheet.create({
-  passwordRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  passwordRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   passwordInput: { flex: 1 },
-  eyeButton: { width: 52, height: 52, borderRadius: radius.md, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  marca: { width: 48, height: 48, borderRadius: 14, marginBottom: spacing.xs },
+  eyeButton: { width: 44, height: 44, borderRadius: radius.md, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  marcaMini: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    marginRight: 10,
+  },
   container: {
     flex: 1,
-    paddingVertical: spacing.xs,
+    paddingVertical: 2,
   },
-  header: {
-    marginBottom: spacing.sm,
-    marginTop: spacing.xs,
+  loginScreenContent: {
+    paddingBottom: 24,
   },
   titulo: {
-    fontSize: 24,
+    fontSize: 21,
     fontFamily: fonts.bold,
-    marginBottom: 4,
   },
   sub: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.regular,
-    lineHeight: 20,
+    lineHeight: 18,
+    marginBottom: 8,
   },
   tabContainer: {
     flexDirection: 'row',
     borderRadius: radius.md,
-    padding: 3,
-    marginBottom: spacing.sm,
+    padding: 2,
+    marginBottom: 6,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 7,
     alignItems: 'center',
     borderRadius: radius.sm,
   },
@@ -679,42 +702,51 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.medium,
   },
   tabTextActive: {
     fontFamily: fonts.bold,
   },
   errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FEE2E2',
     borderWidth: 1,
     borderColor: '#F87171',
-    borderRadius: radius.md,
-    padding: 12,
-    marginBottom: spacing.sm,
+    borderRadius: radius.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 6,
+  },
+  errorIcon: {
+    marginRight: 6,
   },
   errorText: {
+    flex: 1,
     color: '#991B1B',
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fonts.medium,
+    lineHeight: 16,
   },
   form: {
-    marginBottom: spacing.md,
+    marginBottom: 4,
   },
   label: {
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: fonts.semiBold,
-    marginBottom: 8,
-    marginTop: spacing.xs,
+    marginBottom: 3,
+    marginTop: 3,
   },
   input: {
-    minHeight: 50,
+    minHeight: 44,
+    height: 44,
     borderWidth: 1.5,
     borderRadius: radius.md,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    paddingHorizontal: 12,
+    fontSize: 15,
     fontFamily: fonts.regular,
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
   chips: {
     flexDirection: 'row',
@@ -723,14 +755,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   footer: {
-    marginTop: spacing.sm,
-    paddingBottom: spacing.lg,
+    marginTop: 6,
+    paddingBottom: 16,
   },
   privacyNote: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fonts.regular,
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginTop: 8,
+    marginBottom: 4,
   },
   helpText: {
     fontSize: 13,
