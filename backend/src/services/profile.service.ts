@@ -111,14 +111,14 @@ export class ProfileService {
 
   /**
    * Obtiene la lista de perfiles profesionales de la zona del usuario y opcionalmente oficio_id o category.
-   * REGLA DE ZONA: 403 si pidió otra zona.
+   * REGLA DE ZONA: siempre la zona real del usuario; cualquier zoneId que mande el cliente se ignora.
    */
   public async listProfiles(
     supabase: SupabaseClient<Database>,
     userId: string,
-    params: { zoneId?: string; oficioId?: string; category?: OficioCategory }
+    params: { oficioId?: string; category?: OficioCategory }
   ): Promise<Tables<'professional_profiles'>[]> {
-    const zoneId = await resolveUserZone(supabase, userId, params.zoneId);
+    const zoneId = await resolveUserZone(supabase, userId);
 
     // Con !inner el filtro por oficios.category descarta perfiles; sin él solo deja oficio en null.
     const oficioColumns = 'id, category, name, is_active';

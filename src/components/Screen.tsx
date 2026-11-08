@@ -1,30 +1,72 @@
-import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import type { ComponentRef, ReactNode, RefObject } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePalette } from '@/hooks/usePalette';
 
-type Props = { children: ReactNode; scroll?: boolean };
+type Props = {
+  children: ReactNode;
+  scroll?: boolean;
+  keyboardAvoiding?: boolean;
+  topInset?: boolean;
+  scrollViewRef?: RefObject<ComponentRef<typeof ScrollView> | null>;
+  contentStyle?: StyleProp<ViewStyle>;
+};
 
-export function Screen({ children, scroll = true }: Props) {
+export function Screen({
+  children,
+  scroll = true,
+  keyboardAvoiding = true,
+  topInset = true,
+  scrollViewRef,
+  contentStyle,
+}: Props) {
   const p = usePalette();
   const content = scroll ? (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      ref={scrollViewRef}
+      contentContainerStyle={[styles.content, !topInset && styles.noTopInset, contentStyle]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+    >
       {children}
     </ScrollView>
   ) : (
-    <View style={[styles.content, styles.fixed]}>{children}</View>
+    <View style={[styles.content, styles.fixed, !topInset && styles.noTopInset, contentStyle]}>{children}</View>
   );
-  return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.root, { backgroundColor: p.background }]}>
+
+  const body = keyboardAvoiding ? (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.root}
+    >
       {content}
+    </KeyboardAvoidingView>
+  ) : (
+    content
+  );
+
+  return (
+    <SafeAreaView
+      edges={topInset ? ['top', 'left', 'right'] : ['left', 'right']}
+      style={[styles.root, { backgroundColor: p.background }]}
+    >
+      {body}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  // 120 px abajo: el botón flotante de emergencia no tapa el último elemento.
-  content: { paddingHorizontal: 20, paddingTop: 12, flexGrow: 1 },
-  // Sin scroll propio, el contenido se limita a la pantalla para que las listas internas (FlatList) hagan scroll.
-  fixed: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 80, flexGrow: 1 },
+  noTopInset: { paddingTop: 4 },
+  fixed: { flex: 1, paddingBottom: 0 },
 });

@@ -145,7 +145,7 @@ export default function NuevoFavor() {
           <Text style={[styles.titulo, { color: p.text }]}>
             {ofrecer ? '¿Qué ofreces a tus vecinos?' : '¿Qué necesitas de tus vecinos?'}
           </Text>
-          <Text style={[styles.sub, { color: p.muted }]}>Toca la opción que mejor describe tu favor.</Text>
+          <Text style={[styles.sub, { color: p.muted }]}>Toca la opción que mejor describe tu publicación.</Text>
           <View style={styles.grid}>
             {tipos.map((t) => {
               const activo = tipo === t;
@@ -174,10 +174,10 @@ export default function NuevoFavor() {
           <View style={{ marginTop: spacing.md }}>
             {tipo === 'otros' ? (
             <OtroInput
-              label="Escribe qué tipo de favor es"
+              label={ofrecer ? 'Escribe qué puedes ofrecer' : 'Escribe qué necesitas'}
               value={otroNombre}
               onChangeText={setOtroNombre}
-              placeholder="Ej: Cuidar plantas mientras viajo"
+              placeholder={ofrecer ? 'Ej: Reparar enchufes básicos' : 'Ej: Cuidar plantas mientras viajo'}
             />
           ) : null}
           <AppButton
@@ -226,7 +226,7 @@ export default function NuevoFavor() {
             ))}
           </View>
           <Text style={[styles.urgenciaNota, { color: p.muted }]}>
-            Tu favor se publica al instante en el barrio.
+            Tu publicación se comparte al instante en el barrio.
           </Text>
 
           <View style={{ marginTop: spacing.md }}>
@@ -290,8 +290,9 @@ export default function NuevoFavor() {
       )}
 
       <Modal visible={confirmando} transparent animationType="fade" onRequestClose={() => setConfirmando(false)}>
-        <Pressable style={styles.overlay} onPress={() => setConfirmando(false)}>
-          <Pressable onPress={() => {}} style={styles.tarjeta}>
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setConfirmando(false)} />
+          <View style={styles.tarjeta}>
             <View style={[styles.modalIcono, { backgroundColor: p.highlight }]}>
               <Ionicons name="paper-plane" size={28} color={p.text} />
             </View>
@@ -311,8 +312,8 @@ export default function NuevoFavor() {
               }}
             />
             <AppButton label="Revisar otra vez" variant="secondary" onPress={() => setConfirmando(false)} />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal y no Alert.alert, que en web (react-native-web) no hace nada. */}

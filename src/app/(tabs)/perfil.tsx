@@ -6,6 +6,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -21,6 +22,7 @@ import { Screen } from '@/components/Screen';
 import { ToggleRow } from '@/components/ToggleRow';
 import { ValidationBadge } from '@/components/ValidationBadge';
 import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 import { logger } from '@/utils/logger';
 import { usePalette } from '@/hooks/usePalette';
 import { useAppStore } from '@/store/app-store';
@@ -32,6 +34,7 @@ import {
   useMyProfiles,
   useMySavedLocation,
   useOutboxPending,
+  useSuggestDescription,
   useUpdateAvatar,
   useUpsertMyProfile,
   useZones,
@@ -85,6 +88,7 @@ export default function Perfil() {
   const misFavores = favors.filter((f) => f.authorId === userId).length;
   const totalVistosBuenos = misOficios.reduce((acc, o) => acc + (o.validatedCount ?? 0), 0);
   const upsertProfile = useUpsertMyProfile();
+  const suggestDescription = useSuggestDescription();
   const { data: avatarUrl } = useMyAvatarUrl();
   const updateAvatar = useUpdateAvatar();
   const initials = userFullName
@@ -136,7 +140,22 @@ export default function Perfil() {
     setSelectedCat(oficio ? oficio.oficio.category : libre);
     setDescripcion(oficio?.description ?? '');
     setExperiencia(oficio?.yearsExperience ? String(oficio.yearsExperience) : '2');
+    suggestDescription.reset();
     setModalVisible(true);
+  };
+
+  // Lo escrito en la descripción sirve de notas para la IA; el resultado reemplaza el texto y se puede editar.
+  const handleSuggestDescription = () => {
+    if (suggestDescription.isPending) return;
+    suggestDescription.mutate(
+      {
+        category: selectedCat,
+        ...(selectedCat === 'otro' && otroOficio.trim() ? { oficio_name: otroOficio.trim() } : {}),
+        ...(parseInt(experiencia, 10) >= 0 ? { years_experience: parseInt(experiencia, 10) } : {}),
+        ...(descripcion.trim() ? { notes: descripcion.trim().slice(0, 300) } : {}),
+      },
+      { onSuccess: (r) => setDescripcion(r.description) }
+    );
   };
 
   const handleSaveProfile = () => {
@@ -179,6 +198,9 @@ export default function Perfil() {
   };
 
   const handleLogout = async () => {
+    // Evita que consultas en curso/reintentos salgan sin token mientras se cierra la sesión.
+    await queryClient.cancelQueries();
+    queryClient.clear();
     try {
       await supabase.auth.signOut();
     } catch (err) {
@@ -511,8 +533,9 @@ export default function Perfil() {
         animationType="fade"
         onRequestClose={() => setMenuOficio(null)}
       >
-        <Pressable style={styles.centerOverlay} onPress={() => setMenuOficio(null)}>
-          <Pressable onPress={() => {}} style={styles.contextSheet}>
+        <View style={styles.centerOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuOficio(null)} />
+          <View style={styles.contextSheet}>
             <View style={styles.contextSheetHeader}>
               <View style={[styles.oficioCatIcon, { backgroundColor: p.highlight }]}>
                 <Ionicons
@@ -571,8 +594,8 @@ export default function Perfil() {
             <View style={{ marginTop: spacing.xs }}>
               <AppButton label="Cancelar" variant="secondary" onPress={() => setMenuOficio(null)} />
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal para registrar o editar oficio */}
@@ -582,8 +605,9 @@ export default function Perfil() {
         animationType="slide"
         onRequestClose={() => setModalVisible(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
-          <Pressable onPress={() => {}} style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalVisible(false)} />
+          <View style={[styles.modalCard, { backgroundColor: colors.blanco }]}>
             <View style={styles.modalHeaderRow}>
               <Text style={[styles.modalTitle, { color: p.text, flex: 1, marginBottom: 0 }]}>
                 {editingId ? 'Editar mi oficio' : 'Agregar otro oficio'}
@@ -647,6 +671,23 @@ export default function Perfil() {
                   { minHeight: 80, textAlignVertical: 'top', borderColor: p.border, color: p.text },
                 ]}
               />
+              <Text style={[styles.modalSub, { color: p.muted, marginTop: spacing.xs }]}>
+                {isOnline
+                  ? 'Escribe unas palabras (ej. "arreglo caños, atiendo fines de semana") y mejóralas con IA. Siempre puedes editar el resultado.'
+                  : 'La sugerencia con IA necesita conexión a internet.'}
+              </Text>
+              <AppButton
+                label={suggestDescription.isPending ? 'Generando...' : 'Mejorar con IA'}
+                variant="secondary"
+                icon="sparkles-outline"
+                disabled={!isOnline || suggestDescription.isPending || upsertProfile.isPending}
+                onPress={handleSuggestDescription}
+              />
+              {suggestDescription.error ? (
+                <Text accessibilityRole="alert" style={styles.modalError}>
+                  {suggestDescription.error.message}
+                </Text>
+              ) : null}
 
               {upsertProfile.error ? (
                 <Text accessibilityRole="alert" style={styles.modalError}>
@@ -669,8 +710,8 @@ export default function Perfil() {
                 />
               </View>
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal de confirmación para eliminar oficio */}
@@ -680,8 +721,9 @@ export default function Perfil() {
         animationType="fade"
         onRequestClose={() => setConfirmDeleteOficio(null)}
       >
-        <Pressable style={styles.centerOverlay} onPress={() => setConfirmDeleteOficio(null)}>
-          <Pressable onPress={() => {}} style={styles.centerDialog}>
+        <View style={styles.centerOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setConfirmDeleteOficio(null)} />
+          <View style={styles.centerDialog}>
             <View style={[styles.dialogIconWrap, { backgroundColor: colors.rojoSuave }]}>
               <Ionicons name="trash-outline" size={28} color={colors.rojo} />
             </View>
@@ -709,8 +751,8 @@ export default function Perfil() {
               disabled={deleteProfile.isPending}
               onPress={() => setConfirmDeleteOficio(null)}
             />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal de éxito al guardar/publicar oficio */}
@@ -720,16 +762,17 @@ export default function Perfil() {
         animationType="fade"
         onRequestClose={() => setExitoOficioMsg(null)}
       >
-        <Pressable style={styles.centerOverlay} onPress={() => setExitoOficioMsg(null)}>
-          <Pressable onPress={() => {}} style={styles.centerDialog}>
+        <View style={styles.centerOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setExitoOficioMsg(null)} />
+          <View style={styles.centerDialog}>
             <View style={[styles.dialogIconWrap, { backgroundColor: p.highlight }]}>
               <Ionicons name="checkmark-circle" size={32} color={colors.verdeExito} />
             </View>
             <Text style={[styles.dialogTitle, { color: p.text }]}>¡Oficio guardado!</Text>
             <Text style={[styles.dialogBody, { color: p.body }]}>{exitoOficioMsg}</Text>
             <AppButton label="Listo" icon="checkmark" onPress={() => setExitoOficioMsg(null)} />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </Screen>
   );

@@ -365,6 +365,18 @@ export const styles = StyleSheet.create({
   aviso: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: spacing.md },
   avisoTexto: { fontFamily: fonts.semiBold, fontSize: 15, textDecorationLine: 'underline' },
 
+  zoneNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.azulSuave,
+    borderRadius: radius.md,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: spacing.xs,
+  },
+  zoneNoticeText: { flex: 1, fontFamily: fonts.medium, fontSize: 12.5, lineHeight: 16 },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(19, 46, 102, 0.48)',

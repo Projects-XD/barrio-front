@@ -3,6 +3,7 @@ import type {
   Database,
   Tables,
   FavorType,
+  FavorIntent,
   ReportReason,
 } from '../types/database.types';
 import { AppError, dbError } from '../middlewares/errorHandler';
@@ -53,9 +54,9 @@ export class FavorService {
   public async listActiveFavors(
     supabase: SupabaseClient<Database>,
     userId: string,
-    params: { zoneId?: string; type?: FavorType; limit?: number; offset?: number }
+    params: { type?: FavorType; intent?: FavorIntent; mine?: boolean; limit?: number; offset?: number }
   ): Promise<Tables<'favors'>[]> {
-    const zoneId = await resolveUserZone(supabase, userId, params.zoneId);
+    const zoneId = await resolveUserZone(supabase, userId);
 
     let query = supabase
       .from('favors')
@@ -70,6 +71,14 @@ export class FavorService {
 
     if (params.type) {
       query = query.eq('type', params.type);
+    }
+
+    if (params.intent) {
+      query = query.eq('intent', params.intent);
+    }
+
+    if (params.mine) {
+      query = query.eq('author_id', userId);
     }
 
     if (params.limit !== undefined) {

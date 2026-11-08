@@ -2,12 +2,13 @@ import type { Request, Response, NextFunction } from 'express';
 import { favorService } from '../services/favor.service';
 import { getSupabaseClient } from '../config/supabase';
 import { AppError } from '../middlewares/errorHandler';
-import type { FavorType } from '../types/database.types';
+import type { FavorType, FavorIntent } from '../types/database.types';
 
 export class FavorController {
   /**
    * GET /api/favors
-   * Listar favores activos (status = abierta o en_curso) por zone_id.
+   * Listar favores activos (status = abierta o en_curso) de la zona real del usuario
+   * (resuelta en el backend; cualquier zoneId que mande el cliente se ignora).
    */
   public async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -15,20 +16,18 @@ export class FavorController {
         throw new AppError('Usuario no autenticado', 401);
       }
 
-      const zoneId = (req.query.zone_id || req.query.zoneId) as string;
       const type = req.query.type as FavorType | undefined;
+      const intent = req.query.intent as FavorIntent | undefined;
+      const mine = req.query.mine === 'true' || (req.query.mine as unknown) === true;
       // validate() ya convirtió limit y offset a número (o los dejó sin definir).
       const limit = req.query.limit as number | undefined;
       const offset = req.query.offset as number | undefined;
 
-      if (!zoneId) {
-        throw new AppError('El parámetro zone_id es requerido', 400);
-      }
-
       const supabase = getSupabaseClient(req);
       const favors = await favorService.listActiveFavors(supabase, req.user.id, {
-        zoneId,
         type,
+        intent,
+        mine,
         limit,
         offset,
       });

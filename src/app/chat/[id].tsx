@@ -268,8 +268,9 @@ export default function Chat() {
       </View>
 
       <Modal visible={panel !== null} transparent animationType="fade" onRequestClose={closePanel}>
-        <Pressable style={styles.overlay} onPress={closePanel}>
-          <Pressable onPress={() => {}} style={styles.card}>
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={closePanel} />
+          <View style={styles.card}>
             {panel === 'menu' ? (
               <>
                 <Text style={[styles.cardTitle, { color: p.text }]}>Opciones</Text>
@@ -423,8 +424,8 @@ export default function Chat() {
                 <AppButton label="Cancelar" variant="secondary" onPress={closePanel} />
               </>
             ) : null}
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </KeyboardAvoidingView>
   );

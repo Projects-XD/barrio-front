@@ -217,8 +217,9 @@ export default function Ubicacion() {
       <AppButton label="Cancelar y volver" variant="secondary" onPress={irAlPerfil} />
 
       <Modal visible={modalExito} transparent animationType="fade" onRequestClose={irAlPerfil}>
-        <Pressable style={styles.overlay} onPress={irAlPerfil}>
-          <Pressable onPress={() => {}} style={styles.tarjeta}>
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={irAlPerfil} />
+          <View style={styles.tarjeta}>
             <View style={[styles.modalIcono, { backgroundColor: p.highlight }]}>
               <Ionicons name="checkmark-circle" size={34} color={colors.verdeExito} />
             </View>
@@ -230,8 +231,8 @@ export default function Ubicacion() {
               Posición aproximada para el barrio: {approx.lat}, {approx.lng}
             </Text>
             <AppButton label="Volver a mi perfil" icon="person-outline" onPress={irAlPerfil} />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </Screen>
   );

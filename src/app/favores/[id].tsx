@@ -193,7 +193,7 @@ export default function FavorDetalle() {
     <Screen>
       <Stack.Screen
         options={{
-          title: 'Detalle del favor',
+          title: favor.intent === 'ofrecer' ? 'Detalle del ofrecimiento' : 'Detalle de la ayuda',
           headerBackTitle: 'Volver',
         }}
       />
@@ -225,8 +225,27 @@ export default function FavorDetalle() {
         <Card backgroundColor={favorTypeBackground[favor.type]}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.cardHeaderInfo}>
-              {favor.moderationStatus === 'aprobado' ? <UrgencyBadge urgency={favor.urgency} /> : null}
-              <Text style={[styles.tipo, { color: p.muted }]}>{favorTypeLabel[favor.type]}</Text>
+              <View style={styles.badgeRow}>
+                <Text
+                  style={[
+                    styles.tagText,
+                    {
+                      color: favor.intent === 'ofrecer' ? colors.verdeExito : colors.naranja,
+                      fontFamily: fonts.semiBold,
+                    },
+                  ]}
+                >
+                  {favor.intent === 'ofrecer' ? 'OFRECIMIENTO' : 'PEDIDO'} · {favorTypeLabel[favor.type].toUpperCase()}
+                </Text>
+
+                {esMio ? (
+                  <View style={styles.mineTag}>
+                    <Text style={styles.mineText}>Tuya</Text>
+                  </View>
+                ) : null}
+
+                {favor.moderationStatus === 'aprobado' ? <UrgencyBadge urgency={favor.urgency} /> : null}
+              </View>
             </View>
             {!favor.isDeactivated ? (
               <Pressable
@@ -360,8 +379,9 @@ export default function FavorDetalle() {
 
       {/* Menú contextual (⋮): todas las acciones secundarias del favor */}
       <Modal visible={menuAbierto} transparent animationType="fade" onRequestClose={() => setMenuAbierto(false)}>
-        <Pressable style={styles.overlay} onPress={() => setMenuAbierto(false)}>
-          <Pressable onPress={() => {}} style={styles.menuCard}>
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuAbierto(false)} />
+          <View style={styles.menuCard}>
             <Text style={[styles.menuTitulo, { color: p.text }]}>Opciones del favor</Text>
 
             {esMio && abierto ? (
@@ -421,8 +441,8 @@ export default function FavorDetalle() {
             <View style={{ marginTop: spacing.xs }}>
               <AppButton label="Cancelar" variant="secondary" onPress={() => setMenuAbierto(false)} />
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal para confirmar Cierre de Favor con Reconocimiento Vecinal */}
@@ -432,8 +452,9 @@ export default function FavorDetalle() {
         animationType="fade"
         onRequestClose={() => setModalResolver(null)}
       >
-        <Pressable style={styles.overlay} onPress={() => setModalResolver(null)}>
-          <Pressable onPress={() => {}} style={styles.tarjeta}>
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalResolver(null)} />
+          <View style={styles.tarjeta}>
             <Text style={[styles.modalTitulo, { color: p.text }]}>¿Se resolvió tu favor?</Text>
             <Text style={[styles.modalTexto, { color: p.body }]}>
               {modalResolver?.responderId
@@ -481,13 +502,14 @@ export default function FavorDetalle() {
               disabled={actualizar.isPending}
               onPress={() => setModalResolver(null)}
             />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       <Modal visible={editando} transparent animationType="slide" onRequestClose={() => setEditando(false)}>
-        <Pressable style={styles.hoja} onPress={() => setEditando(false)}>
-          <Pressable onPress={() => {}} style={styles.hojaTarjeta}>
+        <View style={styles.hoja}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setEditando(false)} />
+          <View style={styles.hojaTarjeta}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={[styles.modalTitulo, { color: p.text }]}>Editar favor</Text>
 
@@ -536,13 +558,14 @@ export default function FavorDetalle() {
                 <AppButton label="Cancelar" variant="secondary" onPress={() => setEditando(false)} />
               </View>
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       <Modal visible={confirmandoBaja} transparent animationType="fade" onRequestClose={() => setConfirmandoBaja(false)}>
-        <Pressable style={styles.overlay} onPress={() => setConfirmandoBaja(false)}>
-          <Pressable onPress={() => {}} style={styles.tarjeta}>
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setConfirmandoBaja(false)} />
+          <View style={styles.tarjeta}>
             <Text style={[styles.modalTitulo, { color: p.text }]}>¿Eliminar este favor?</Text>
             <Text style={[styles.modalTexto, { color: p.body }]}>
               Dejará de verse en el barrio y ya no podrás reactivarlo.
@@ -559,14 +582,15 @@ export default function FavorDetalle() {
               disabled={eliminar.isPending}
             />
             <AppButton label="Cancelar" variant="secondary" onPress={() => setConfirmandoBaja(false)} />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Modal de reporte compatible con Web y Móvil */}
       <Modal visible={reportando} transparent animationType="fade" onRequestClose={() => setReportando(false)}>
-        <Pressable style={styles.overlay} onPress={() => setReportando(false)}>
-          <Pressable onPress={() => {}} style={styles.tarjeta}>
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setReportando(false)} />
+          <View style={styles.tarjeta}>
             {reporteEnviado ? (
               <>
                 <Text style={[styles.modalTitulo, { color: p.text }]}>Gracias por avisar</Text>
@@ -614,14 +638,46 @@ export default function FavorDetalle() {
                 />
               </>
             )}
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 6,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  mineTag: {
+    backgroundColor: colors.azulSuave,
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
+    borderRadius: radius.pill,
+  },
+  mineText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 10,
+    color: colors.azul,
+  },
+  tagText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    letterSpacing: 0.4,
+  },
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -143,6 +143,14 @@ export const createProfessionalProfileSchema = z.object({
 });
 export type CreateProfessionalProfileDTO = z.infer<typeof createProfessionalProfileSchema>;
 
+export const suggestDescriptionSchema = z.object({
+  category: oficioCategorySchema,
+  oficio_name: z.string().trim().min(1).max(60).optional(),
+  years_experience: z.number().int().min(0).max(80).optional(),
+  notes: z.string().trim().max(300).optional(),
+});
+export type SuggestDescriptionDTO = z.infer<typeof suggestDescriptionSchema>;
+
 export const upsertProfessionalProfileSchema = z.object({
   id: z.string().uuid('id debe ser un UUID válido').optional(),
   oficio_id: z.string().uuid('oficio_id debe ser un UUID válido'),
@@ -216,6 +224,8 @@ export const listFavorsQuerySchema = z.object({
   zone_id: z.string().uuid('zone_id debe ser un UUID válido').optional(),
   zoneId: z.string().uuid('zoneId debe ser un UUID válido').optional(),
   type: favorTypeSchema.optional(),
+  intent: favorIntentSchema.optional(),
+  mine: z.preprocess((val) => val === 'true' || val === true, z.boolean()).optional(),
   status: favorStatusSchema.optional(),
   // Paginación opcional: sin limit se devuelve la lista completa (compatibilidad con clientes previos).
   limit: z.coerce.number().int().min(1).max(100).optional(),

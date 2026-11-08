@@ -73,7 +73,7 @@ export default function Inicio() {
       ]
     : [
         { title: 'Buscar un oficio', desc: 'Gasfiteros, electricistas y más', icon: 'search-outline', onPress: () => router.push('/(tabs)/oficios') },
-        { title: 'Pedir un favor', desc: 'Herramientas, ayuda o traslado', icon: 'hand-left-outline', onPress: () => router.push('/favores/nuevo?modo=pedir') },
+        { title: 'Pedir ayuda', desc: 'Herramientas, tiempo o traslado', icon: 'hand-left-outline', onPress: () => router.push('/favores/nuevo?modo=pedir') },
         { title: 'Ofrecer ayuda', desc: 'Comparte lo que sabes o tienes', icon: 'heart-outline', onPress: () => router.push('/favores/nuevo?modo=ofrecer') },
         { title: 'Emergencia', desc: 'Servicios y reportes', icon: 'alert-circle-outline', onPress: () => router.push('/emergencia'), tone: 'alerta' },
       ];
@@ -185,8 +185,8 @@ export default function Inicio() {
       </View>
 
       <SectionHeader
-        title="Favores recientes"
-        actionLabel={favors.length ? 'Ver todos' : undefined}
+        title="Ayudas recientes"
+        actionLabel={favors.length ? 'Ver todas' : undefined}
         onAction={() => router.push('/(tabs)/favores')}
       />
       {favors.length ? (

@@ -10,11 +10,10 @@ export class ResourceController {
         throw new AppError('Usuario no autenticado', 401);
       }
 
-      const zoneId = (req.query.zoneId || req.query.zone_id) as string | undefined;
       const kind = req.query.kind as string | undefined;
 
       const supabase = getSupabaseClient(req);
-      const resources = await resourceService.listResources(supabase, req.user.id, { zoneId, kind });
+      const resources = await resourceService.listResources(supabase, req.user.id, { kind });
 
       res.json({
         success: true,

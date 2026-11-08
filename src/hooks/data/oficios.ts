@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { deleteProfile, getProfileById, getVouchStatus, listOficios, listProfiles, listZones, upsertProfile, vouchProfile } from '@/api/endpoints';
+import { deleteProfile, getProfileById, getVouchStatus, listOficios, listProfiles, listZones, suggestProfileDescription, upsertProfile, vouchProfile } from '@/api/endpoints';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
 import type { OficioCategory, ProfessionalProfile } from '@/types';
@@ -136,6 +136,10 @@ export function useMyProfiles() {
     enabled: Boolean(zoneId && userId),
     select: (profiles) => profiles.filter((p) => p.userId === userId),
   });
+}
+
+export function useSuggestDescription() {
+  return useMutation({ mutationFn: suggestProfileDescription });
 }
 
 export function useUpsertMyProfile() {

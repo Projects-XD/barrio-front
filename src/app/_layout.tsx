@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { ActivityIndicator, LogBox, View } from 'react-native';
+import { Image, LogBox, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -23,14 +23,41 @@ import { colors, fonts } from '@/theme';
 // Los errores de API ya se muestran en pantalla; en desarrollo no deben tapar la demo con avisos rojos.
 LogBox.ignoreLogs(['[API_CLIENT]']);
 
-function sessionToStore(session: Session) {
+// La metadata de Auth (session.user.user_metadata.zone_id) es solo la zona que el vecino eligió
+// al registrarse y nunca se actualiza después (ej. tras la migración 0024 que unificó todo bajo
+// Castilla). public.users.zone_id es la fuente real: la misma que usa el backend para autorizar
+// cada petición, así que siempre se relee desde ahí al iniciar o restaurar sesión.
+async function sessionToStore(session: Session) {
+  const prevZoneId = useAppStore.getState().zoneId;
+  let zoneId = session.user.user_metadata?.zone_id || prevZoneId || '';
+  let userFullName = session.user.user_metadata?.full_name as string | undefined;
+
+  try {
+    const { data: dbUser } = await supabase
+      .from('users')
+      .select('zone_id, full_name')
+      .eq('id', session.user.id)
+      .maybeSingle();
+    if (dbUser?.zone_id) zoneId = dbUser.zone_id;
+    if (dbUser?.full_name) userFullName = dbUser.full_name;
+  } catch {
+    // Sin red: se mantiene la última zona conocida (metadata o store previo) en vez de bloquear la sesión.
+  }
+
   useAppStore.getState().setSession({
     token: session.access_token,
     userId: session.user.id,
-    zoneId: session.user.user_metadata?.zone_id || useAppStore.getState().zoneId || '',
-    userFullName: session.user.user_metadata?.full_name,
+    zoneId,
+    userFullName,
     userEmail: session.user.email,
   });
+
+  // Si la zona cambió respecto a lo que ya había en el store (ej. el interceptor de api/client.ts
+  // u otra petición concurrente alcanzó a guardar la zona vieja antes de que termináramos de leer
+  // la real), se descarta toda la caché para que nadie quede viendo datos de la zona equivocada.
+  if (zoneId !== prevZoneId) {
+    queryClient.clear();
+  }
 }
 
 export default function RootLayout() {
@@ -51,7 +78,7 @@ export default function RootLayout() {
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
-        if (session?.user && session.access_token) sessionToStore(session);
+        if (session?.user && session.access_token) return sessionToStore(session);
       })
       .finally(setHydrated);
 
@@ -59,7 +86,7 @@ export default function RootLayout() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user && session.access_token) {
-        sessionToStore(session);
+        void sessionToStore(session);
       } else if (!session) {
         clearSession();
         queryClient.clear();
@@ -72,7 +99,12 @@ export default function RootLayout() {
   if (!fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.fondo }}>
-        <ActivityIndicator size="large" color={colors.azul} />
+        <Image
+          source={require('../../assets/brand/logo-barrio.png')}
+          style={{ width: 200, height: 70 }}
+          resizeMode="contain"
+          accessibilityLabel="Barrio"
+        />
       </View>
     );
   }
@@ -99,8 +131,9 @@ export default function RootLayout() {
           <Stack.Screen name="welcome" options={{ headerShown: false }} />
           <Stack.Screen name="register" options={{ headerShown: true, title: 'Mi cuenta', headerBackTitle: 'Atrás' }} />
           <Stack.Screen name="oficio/[id]" options={{ headerShown: true, title: 'Perfil profesional' }} />
-          <Stack.Screen name="favores/nuevo" options={{ presentation: 'card', headerShown: true, title: 'Publicar favor', headerBackTitle: 'Atrás' }} />
-          <Stack.Screen name="favores/[id]" options={{ headerShown: true, title: 'Detalle del favor' }} />
+          <Stack.Screen name="favores/nuevo" options={{ presentation: 'card', headerShown: true, title: 'Publicar ayuda', headerBackTitle: 'Atrás' }} />
+          <Stack.Screen name="favores/[id]" options={{ headerShown: true, title: 'Detalle de la ayuda', headerBackTitle: 'Atrás' }} />
+          <Stack.Screen name="favores/mis-publicaciones" options={{ headerShown: true, title: 'Mis publicaciones', headerBackTitle: 'Atrás' }} />
           <Stack.Screen name="chat/[id]" options={{ headerShown: true, title: 'Chat' }} />
           <Stack.Screen name="emergencia" options={{ headerShown: true, title: 'Apoyo en emergencia' }} />
           <Stack.Screen name="reportar" options={{ headerShown: true, title: 'Reportar vecino en riesgo' }} />

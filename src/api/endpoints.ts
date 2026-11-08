@@ -168,6 +168,17 @@ export interface UpsertProfilePayload {
 export const upsertProfile = (payload: UpsertProfilePayload) =>
   api.post<BackendProfile>('/profiles', payload);
 
+export interface SuggestDescriptionPayload {
+  category: OficioCategory;
+  oficio_name?: string;
+  years_experience?: number;
+  notes?: string;
+}
+
+// Borrador de descripción generado con IA en el backend; el vecino lo edita antes de guardar.
+export const suggestProfileDescription = (payload: SuggestDescriptionPayload) =>
+  api.post<{ description: string }>('/profiles/suggest-description', payload);
+
 export const deleteProfile = (id: string) =>
   api.delete<{ id: string }>(`/profiles/${id}`);
 
@@ -177,15 +188,21 @@ export const deleteProfile = (id: string) =>
 // =====================================================================
 // ============================================================================
 
-export const listFavors = (params: {
+export interface ListFavorsParams {
   zoneId: string;
   type?: FavorType;
+  intent?: FavorIntent;
+  mine?: boolean;
   limit?: number;
   offset?: number;
-}) => {
+}
+
+export const listFavors = (params: ListFavorsParams) => {
   const query = new URLSearchParams();
   query.set('zone_id', params.zoneId);
   if (params.type) query.set('type', params.type);
+  if (params.intent) query.set('intent', params.intent);
+  if (params.mine) query.set('mine', 'true');
   if (params.limit !== undefined) query.set('limit', String(params.limit));
   if (params.offset !== undefined) query.set('offset', String(params.offset));
   return api.get<BackendFavor[]>(`/favors?${query.toString()}`);

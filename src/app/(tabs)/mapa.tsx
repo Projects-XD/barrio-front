@@ -6,6 +6,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
@@ -32,12 +33,15 @@ import type {
   ProfessionalProfile,
   VulnerabilityReport,
 } from '@/types';
-import { CASTILLA_CENTER, formatDistanceAndWalk, roundForReport, type Coords } from '@/utils/geo';
+import { CASTILLA_CENTER, formatDistanceAndWalk, isWithinCastilla, roundForReport, type Coords } from '@/utils/geo';
 import { distanceKm, getRealPosition } from '@/utils/location';
 import { timeAgo } from '@/utils/time';
 import { styles } from '@/features/mapa/styles';
 
 type KindFilter = 'todos' | 'pedir' | 'ofrecer' | 'oficio' | 'emergencia';
+
+// Mismo radio que usa normalizeCoord para decidir si un punto "pertenece" a la zona.
+const ZONE_MATCH_RADIUS_KM = 8;
 
 type MapEntry = {
   id: string;
@@ -132,46 +136,63 @@ export default function MapaBarrio() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fitTrigger, setFitTrigger] = useState(0);
 
-  const [userLocation, setUserLocation] = useState<Coords | null>(null);
+  const [overrideLocation, setOverrideLocation] = useState<Coords | null>(null);
   const [userFocusTrigger, setUserFocusTrigger] = useState(0);
   const [locating, setLocating] = useState(false);
 
+  // La ubicación guardada en el perfil (BD/TanStack cache) manda siempre sobre la última lectura GPS:
+  // así, si el vecino cambia su ubicación en el Perfil, el marcador se actualiza solo (sin presionar nada)
+  // y el botón de precisión nunca "pisa" ese cambio con una posición vieja o simulada del emulador.
   const activeUserLocation: Coords | null = useMemo(
-    // La ubicación del perfil manda: es la que el vecino eligió. El GPS solo cubre a quien no guardó ninguna.
-    () => (savedLocation ? { lat: savedLocation.lat, lng: savedLocation.lng } : userLocation),
-    [userLocation, savedLocation],
+    () => (savedLocation ? { lat: savedLocation.lat, lng: savedLocation.lng } : overrideLocation),
+    [savedLocation, overrideLocation],
   );
 
   const zona = zonas.find((z) => z.id === zoneId);
-  const center: Coords =
-    zona && zona.center_lat != null && zona.center_lng != null
-      ? { lat: zona.center_lat, lng: zona.center_lng }
-      : CASTILLA_CENTER;
+  // Los sectores (Miraflores, Chapayra, etc.) son solo centros poblados DENTRO del distrito de
+  // Castilla, no zonas operativas propias: todo el contenido del barrio vive bajo Castilla, así
+  // que el mapa siempre se centra ahí, sin importar qué sector haya elegido el vecino al registrarse
+  // o dónde haya marcado su ubicación guardada (que puede estar fuera de Castilla).
+  const center: Coords = CASTILLA_CENTER;
+  const nombreCastilla = zonas.find((z) => z.name === 'Castilla')?.name ?? 'Castilla';
+
+  // Los favores siempre se filtran por la zona asignada en la BD (seguridad de zonas), aunque la
+  // ubicación marcada en el mapa esté lejos de Castilla. Avisamos al vecino en ese caso para que
+  // no piense que el mapa está mostrando el lugar equivocado.
+  const fueraDeZonaAsignada = Boolean(
+    activeUserLocation &&
+      distanceKm(activeUserLocation.lat, activeUserLocation.lng, center.lat, center.lng) >
+        ZONE_MATCH_RADIUS_KM,
+  );
 
   const ubicarmeEnMapa = async () => {
     if (locating) return;
-    // Con ubicación guardada en el perfil, el botón centra ahí y no consulta el GPS del dispositivo.
+    // Si ya hay una ubicación guardada en el perfil, es la fuente de verdad: solo centramos
+    // el mapa en ella. No pedimos una lectura GPS en vivo que podría no coincidir (dispositivo
+    // simulado, GPS desactualizado) con lo que el vecino acaba de guardar.
     if (savedLocation) {
       setUserFocusTrigger((n) => n + 1);
       return;
     }
     setLocating(true);
     try {
+      // Sin ubicación guardada (early return arriba la cubre si existe): si el GPS cae fuera de
+      // Castilla (emulador, IP de otra ciudad), no lo usamos para no desubicar al vecino.
       const pos = await getRealPosition();
       if (pos.status === 'granted') {
         const approx = roundForReport({ lat: pos.lat, lng: pos.lng });
-        // Si el GPS del emulador devuelve una coordenada fuera del barrio (> 10 km),
-        // usamos el centro de la zona para mantener la experiencia coherente.
-        const coords =
-          distanceKm(approx.lat, approx.lng, center.lat, center.lng) <= 10 ? approx : center;
-        setUserLocation(coords);
+        if (isWithinCastilla(approx) || distanceKm(approx.lat, approx.lng, center.lat, center.lng) <= 5) {
+          setOverrideLocation(approx);
+        } else {
+          setOverrideLocation(null);
+        }
         setUserFocusTrigger((n) => n + 1);
       } else {
-        setUserLocation(center);
+        setOverrideLocation(null);
         setUserFocusTrigger((n) => n + 1);
       }
     } catch {
-      setUserLocation(center);
+      setOverrideLocation(null);
       setUserFocusTrigger((n) => n + 1);
     } finally {
       setLocating(false);
@@ -181,25 +202,48 @@ export default function MapaBarrio() {
   // Mapeo unificado de Favores (pedir/ofrecer) + Oficios + Reportes de vulnerabilidad
   const allMapped = useMemo(() => {
     const seenCoords = new Map<string, number>();
-    const normalizeCoord = (id: string, rawLat: number | null | undefined, rawLng: number | null | undefined, idx: number) => {
-      let baseLat = rawLat ?? center.lat;
-      let baseLng = rawLng ?? center.lng;
-      const outOfZone =
-        rawLat == null || rawLng == null || distanceKm(baseLat, baseLng, center.lat, center.lng) > 8;
-      if (outOfZone) {
-        const off = deterministicOffset(id, idx);
-        baseLat = Number((center.lat + off.dLat * 2.4).toFixed(5));
-        baseLng = Number((center.lng + off.dLng * 2.4).toFixed(5));
-      } else {
+    const normalizeCoord = (
+      id: string,
+      rawLat: number | null | undefined,
+      rawLng: number | null | undefined,
+      itemZoneId: string | null | undefined,
+      idx: number,
+    ) => {
+      // 1. Si el ítem ya tiene coordenadas geográficas registradas válidas (dentro de Castilla o en rango Piura),
+      // se respetan y quedan FIJAS en el mapa. Nunca deben teletransportarse siguiendo la ubicación del usuario que mira la pantalla.
+      if (
+        typeof rawLat === 'number' &&
+        typeof rawLng === 'number' &&
+        !Number.isNaN(rawLat) &&
+        !Number.isNaN(rawLng) &&
+        (isWithinCastilla({ lat: rawLat, lng: rawLng }) || distanceKm(rawLat, rawLng, CASTILLA_CENTER.lat, CASTILLA_CENTER.lng) <= 25)
+      ) {
+        let baseLat = rawLat;
+        let baseLng = rawLng;
+        // Si varios ítems coinciden exactamente en la misma coordenada, aplicar un micro-desplazamiento de separación
         const key = `${baseLat.toFixed(4)},${baseLng.toFixed(4)}`;
         const count = seenCoords.get(key) ?? 0;
         seenCoords.set(key, count + 1);
         if (count > 0) {
           const off = deterministicOffset(id, count);
-          baseLat = Number((baseLat + off.dLat).toFixed(5));
-          baseLng = Number((baseLng + off.dLng).toFixed(5));
+          baseLat = Number((baseLat + off.dLat * 0.35).toFixed(5));
+          baseLng = Number((baseLng + off.dLng * 0.35).toFixed(5));
         }
+        return { lat: baseLat, lng: baseLng };
       }
+
+      // 2. Si no tiene coordenadas explícitas, se ubica de forma fija en el centro de SU PROPIA ZONA (itemZoneId),
+      // NUNCA sobre la ubicación actual del usuario que está navegando el mapa.
+      const itemZone = itemZoneId ? zonas.find((z) => z.id === itemZoneId) : null;
+      const zoneCenter =
+        itemZone && typeof itemZone.center_lat === 'number' && typeof itemZone.center_lng === 'number'
+          ? { lat: itemZone.center_lat, lng: itemZone.center_lng }
+          : CASTILLA_CENTER;
+
+      const off = deterministicOffset(id, idx);
+      const baseLat = Number((zoneCenter.lat + off.dLat * 1.5).toFixed(5));
+      const baseLng = Number((zoneCenter.lng + off.dLng * 1.5).toFixed(5));
+
       return { lat: baseLat, lng: baseLng };
     };
 
@@ -214,7 +258,7 @@ export default function MapaBarrio() {
     const activeFavors = favores.filter((f) => f.status === 'abierta' || f.status === 'en_curso');
     activeFavors.forEach((f, idx) => {
       const kind = f.intent;
-      const { lat, lng } = normalizeCoord(f.id, f.location?.lat, f.location?.lng, idx);
+      const { lat, lng } = normalizeCoord(f.id, f.location?.lat, f.location?.lng, f.zoneId, idx);
       entries.push({
         id: f.id,
         kind,
@@ -249,6 +293,7 @@ export default function MapaBarrio() {
           entryId,
           prof.location?.lat,
           prof.location?.lng,
+          prof.zoneId,
           idx + 30,
         );
         const label = `${prof.oficio.name}: ${prof.user.fullName}`;
@@ -280,7 +325,7 @@ export default function MapaBarrio() {
       const activeReports = reportes.filter((r) => r.status === 'activo');
       activeReports.forEach((rep, idx) => {
         const entryId = `reporte:${rep.id}`;
-        const { lat, lng } = normalizeCoord(entryId, rep.approxLat, rep.approxLng, idx + 60);
+        const { lat, lng } = normalizeCoord(entryId, rep.approxLat, rep.approxLng, rep.zoneId, idx + 60);
         const needsTxt =
           rep.needs.length > 0
             ? `Necesita: ${rep.needs.map((n) => resourceLabel[n]).join(', ')}`
@@ -314,11 +359,10 @@ export default function MapaBarrio() {
     favores,
     oficios,
     reportes,
+    zonas,
     mostrarCapaOficios,
     mostrarCapaAlertas,
     filtroIntencion,
-    center.lat,
-    center.lng,
     activeUserLocation,
   ]);
 
@@ -461,6 +505,15 @@ export default function MapaBarrio() {
           </Pressable>
         </View>
       </View>
+
+      {fueraDeZonaAsignada ? (
+        <View style={styles.zoneNotice}>
+          <Ionicons name="information-circle-outline" size={16} color={colors.azul} />
+          <Text style={[styles.zoneNoticeText, { color: colors.azul }]}>
+            Tu ubicación marcada está fuera de {nombreCastilla}. Estás viendo los favores de tu zona asignada.
+          </Text>
+        </View>
+      ) : null}
 
       {isLoading ? (
         <View style={styles.loaderWrap}>
@@ -1019,8 +1072,9 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalFiltros(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalFiltros(false)}>
-          <Pressable onPress={() => {}} style={styles.floatingSheet}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalFiltros(false)} />
+          <View style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>Filtros y capas del mapa</Text>
               <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalFiltros(false)} hitSlop={8}>
@@ -1130,8 +1184,8 @@ export default function MapaBarrio() {
                 />
               ) : null}
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* VENTANA FLOTANTE DE RESULTADOS EN LISTA RÁPIDA (Móvil) */}
@@ -1141,8 +1195,9 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalLista(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalLista(false)}>
-          <Pressable onPress={() => {}} style={styles.floatingSheet}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalLista(false)} />
+          <View style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>
                 Puntos en el mapa ({filteredItems.length})
@@ -1191,8 +1246,8 @@ export default function MapaBarrio() {
                 })
               )}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* VENTANA FLOTANTE PARA PUBLICAR DIRECTAMENTE DESDE EL MAPA */}
@@ -1202,8 +1257,9 @@ export default function MapaBarrio() {
         animationType="fade"
         onRequestClose={() => setModalPublicar(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalPublicar(false)}>
-          <Pressable onPress={() => {}} style={styles.floatingSheet}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setModalPublicar(false)} />
+          <View style={styles.floatingSheet}>
             <View style={styles.sheetHeader}>
               <Text style={[styles.sheetTitle, { color: p.text }]}>¿Qué deseas publicar en el mapa?</Text>
               <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalPublicar(false)} hitSlop={8}>
@@ -1253,8 +1309,8 @@ export default function MapaBarrio() {
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.azul} />
             </Pressable>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </Screen>
   );

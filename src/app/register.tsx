@@ -1,10 +1,11 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type ComponentRef } from 'react';
 import {
   ActivityIndicator,
   Animated,
   Image,
   Alert,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -19,6 +20,7 @@ import { MapPicker, type MapPickerHandle } from '@/components/MapPicker';
 import { Screen } from '@/components/Screen';
 import { useZones } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
+import { queryClient } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -32,12 +34,66 @@ interface ZoneOption {
   center_lng?: number | null;
 }
 
+function formatAuthError(err: unknown): { userMessage: string; isExpected: boolean } {
+  const raw = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
+  const code =
+    err && typeof err === 'object' && 'code' in err ? String((err as { code?: unknown }).code).toLowerCase() : '';
+  const lower = raw.toLowerCase();
+
+  if (
+    code === 'invalid_credentials' ||
+    lower.includes('invalid login credentials') ||
+    lower.includes('invalid grant') ||
+    lower.includes('invalid password') ||
+    lower.includes('invalid credentials')
+  ) {
+    return {
+      userMessage: 'Correo o contraseña incorrectos. Por favor, verifica tus datos e inténtalo de nuevo.',
+      isExpected: true,
+    };
+  }
+
+  if (lower.includes('email not confirmed')) {
+    return {
+      userMessage: 'Tu correo aún no ha sido confirmado. Revisa tu bandeja de entrada para verificarlo.',
+      isExpected: true,
+    };
+  }
+
+  if (lower.includes('user already registered') || lower.includes('already exists')) {
+    return {
+      userMessage: 'Ya existe una cuenta con este correo. Puedes ingresar en "Iniciar sesión".',
+      isExpected: true,
+    };
+  }
+
+  if (lower.includes('password should be at least')) {
+    return {
+      userMessage: 'La contraseña debe tener al menos 6 caracteres.',
+      isExpected: true,
+    };
+  }
+
+  if (lower.includes('rate limit') || lower.includes('too many requests')) {
+    return {
+      userMessage: 'Demasiados intentos seguidos. Por favor, espera unos momentos antes de volver a intentar.',
+      isExpected: true,
+    };
+  }
+
+  return {
+    userMessage: raw || 'Ocurrió un error al autenticar. Por favor, intenta de nuevo.',
+    isExpected: false,
+  };
+}
+
 export default function Register() {
   const p = usePalette();
   const setSession = useAppStore((s) => s.setSession);
   const mapRef = useRef<MapPickerHandle>(null);
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const scrollViewRef = useRef<ComponentRef<typeof ScrollView>>(null);
   // Desliza el formulario desde la derecha al ir a registro, y desde la izquierda al ir a login.
   const [slide] = useState(() => new Animated.Value(0));
   const switchMode = (next: 'login' | 'register') => {
@@ -45,10 +101,12 @@ export default function Register() {
     slide.setValue(next === 'register' ? 48 : -48);
     Animated.spring(slide, { toValue: 0, useNativeDriver: true, friction: 9, tension: 70 }).start();
     setMode(next);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
   };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const passwordInputRef = useRef<ComponentRef<typeof TextInput>>(null);
   const [nombre, setNombre] = useState('');
   // Las zonas vienen del backend (/zones): con RLS activo, la clave anon no puede leer la tabla.
   const zonesQuery = useZones();
@@ -162,8 +220,15 @@ export default function Register() {
         });
 
         if (error) {
-          logger.error('AUTH_LOGIN', `Error retornado por supabase.auth.signInWithPassword para ${cleanEmail}`, error);
-          throw error;
+          const { userMessage, isExpected } = formatAuthError(error);
+          if (isExpected) {
+            logger.warn('AUTH_LOGIN', `Intento de acceso no exitoso para ${cleanEmail}: ${error.message}`);
+          } else {
+            logger.error('AUTH_LOGIN', `Error retornado por supabase.auth.signInWithPassword para ${cleanEmail}`, error);
+          }
+          setErrorMsg(userMessage);
+          scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+          return;
         }
 
         if (!data.session || !data.user) {
@@ -206,9 +271,15 @@ export default function Register() {
         router.replace('/(tabs)/inicio');
       } else {
         // 2. Registro de nuevo usuario contra Supabase Auth
+        const regLat = ubicacionRegistro?.lat ?? zonaSeleccionada?.center_lat ?? CASTILLA_CENTER.lat;
+        const regLng = ubicacionRegistro?.lng ?? zonaSeleccionada?.center_lng ?? CASTILLA_CENTER.lng;
+        const regAddress =
+          zonaSeleccionada?.name ? `${zonaSeleccionada.name}, Castilla` : 'Castilla, Piura';
+
         logger.info('AUTH_REGISTER', `Iniciando registro para: ${cleanEmail}`, {
           nombre: nombre.trim(),
           zone_id: zonaSeleccionada?.id,
+          location: { lat: regLat, lng: regLng, address: regAddress },
         });
 
         const { data, error } = await supabase.auth.signUp({
@@ -217,16 +288,24 @@ export default function Register() {
           options: {
             data: {
               full_name: nombre.trim(),
-              ...(ubicacionRegistro ? { location_lat: ubicacionRegistro.lat, location_lng: ubicacionRegistro.lng } : {}),
+              location_lat: regLat,
+              location_lng: regLng,
+              location_address: regAddress,
               zone_id: zonaSeleccionada?.id,
             },
           },
         });
 
-        // REQUISITO CRÍTICO: Si Supabase devuelve error, arrojarlo explícitamente para detener el flujo
+        // REQUISITO CRÍTICO: Si Supabase devuelve error, procesarlo limpiamente
         if (error) {
-          logger.error('AUTH_REGISTER', `Error devuelto por supabase.auth.signUp para ${cleanEmail}`, error);
-          throw error;
+          const { userMessage, isExpected } = formatAuthError(error);
+          if (isExpected) {
+            logger.warn('AUTH_REGISTER', `Aviso en registro para ${cleanEmail}: ${error.message}`);
+          } else {
+            logger.error('AUTH_REGISTER', `Error devuelto por supabase.auth.signUp para ${cleanEmail}`, error);
+          }
+          setErrorMsg(userMessage);
+          return;
         }
 
         // Caso borde de Supabase: Si el usuario ya existe en Supabase y confirmación está activa,
@@ -249,14 +328,37 @@ export default function Register() {
 
         // Si Supabase devuelve sesión inmediata (auto-confirm activo)
         if (data.session) {
-          // public.users lo crea el trigger SQL handle_new_user (0002); con RLS el cliente no puede escribirlo.
+          // public.users lo crea el trigger SQL handle_new_user (0002/0025); con RLS el cliente no
+          // puede escribirlo. El trigger ignora el sector elegido aquí y asigna siempre la zona
+          // Castilla: se relee la fila real en vez de reusar `zonaSeleccionada`, para no mandar al
+          // backend un zone_id de sector que ya no coincide con el guardado y dispare un 403.
+          let zoneId = zonaSeleccionada?.id ?? '';
+          try {
+            const { data: dbUser } = await supabase
+              .from('users')
+              .select('zone_id')
+              .eq('id', data.user.id)
+              .maybeSingle();
+            if (dbUser?.zone_id) zoneId = dbUser.zone_id;
+          } catch (dbErr: unknown) {
+            logger.warn('AUTH_REGISTER', 'No se pudo leer la zona asignada desde public.users, usando el sector elegido', dbErr);
+          }
+
           setSession({
             token: data.session.access_token,
             userId: data.user.id,
-            zoneId: zonaSeleccionada?.id ?? '',
+            zoneId,
             userFullName: nombre.trim(),
             userEmail: cleanEmail,
           });
+
+          // Por si algo (ej. el interceptor de api/client.ts) ya disparó una petición con la
+          // zona vieja mientras se resolvía la real: se descarta todo lo cacheado y se obliga a
+          // reconsultar con la zona ya correcta antes de navegar al inicio. No se pre-calienta
+          // mySavedLocation con zonaSeleccionada?.id: ese sector ya no es el zoneId real (todos
+          // los vecinos quedan en Castilla), así que esa clave de caché sería incorrecta.
+          queryClient.clear();
+          await queryClient.invalidateQueries();
 
           logger.info('AUTH_REGISTER', `Registro completado y sesión establecida para ${cleanEmail}`);
           router.replace('/(tabs)/inicio');
@@ -271,32 +373,41 @@ export default function Register() {
         }
       }
     } catch (err: unknown) {
-      const msg = (err instanceof Error && err.message) || 'Ocurrió un error inesperado al autenticar.';
-      logger.error('AUTH_ERROR', `Fallo capturado en autenticación (${mode}) para ${cleanEmail}`, {
-        error: err,
-        message: msg,
-      });
-      setErrorMsg(msg);
-      Alert.alert('Error de Autenticación', msg);
+      const { userMessage, isExpected } = formatAuthError(err);
+      if (isExpected) {
+        logger.warn('AUTH_ERROR', `Aviso en autenticación (${mode}) para ${cleanEmail}: ${userMessage}`);
+      } else {
+        logger.error('AUTH_ERROR', `Fallo inesperado en autenticación (${mode}) para ${cleanEmail}`, {
+          error: err,
+          message: userMessage,
+        });
+      }
+      setErrorMsg(userMessage);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Screen scroll={true}>
+    <Screen
+      scroll={true}
+      topInset={false}
+      scrollViewRef={scrollViewRef}
+      contentStyle={mode === 'login' ? styles.loginScreenContent : undefined}
+    >
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Image source={iconApp} style={styles.marca} accessibilityLabel="Barrio" />
+        <View style={styles.headerRow}>
+          <Image source={iconApp} style={styles.marcaMini} accessibilityLabel="Barrio" />
           <Text style={[styles.titulo, { color: p.text }]}>
             {mode === 'login' ? 'Bienvenido a Barrio' : 'Únete a tu Barrio'}
           </Text>
-          <Text style={[styles.sub, { color: p.muted }]}>
-            {mode === 'login'
-              ? 'Ingresa tus credenciales para conectar con tu comunidad.'
-              : 'Conéctate con tus vecinos de forma cercana, transparente y segura.'}
-          </Text>
         </View>
+        {mode === 'register' ? (
+          <Text style={[styles.sub, { color: p.muted }]}>
+            Conéctate con tus vecinos de forma cercana, transparente y segura.
+          </Text>
+        ) : null}
 
         {/* Selector de modo Login / Registro */}
         <View style={[styles.tabContainer, { backgroundColor: colors.fondo, borderColor: colors.grisBorde, borderWidth: 1 }]}>
@@ -347,6 +458,7 @@ export default function Register() {
 
         {errorMsg ? (
           <View style={styles.errorBox}>
+            <Ionicons name="alert-circle" size={16} color="#DC2626" style={styles.errorIcon} />
             <Text style={styles.errorText}>{errorMsg}</Text>
           </View>
         ) : null}
@@ -378,6 +490,9 @@ export default function Register() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordInputRef.current?.focus()}
+            blurOnSubmit={false}
             style={[
               styles.input,
               { borderColor: p.border, color: p.text, backgroundColor: colors.blanco },
@@ -387,6 +502,7 @@ export default function Register() {
           <Text style={[styles.label, { color: p.text }]}>Contraseña</Text>
           <View style={styles.passwordRow}>
             <TextInput
+              ref={passwordInputRef}
               value={password}
               onChangeText={setPassword}
               placeholder="Mínimo 6 caracteres"
@@ -394,6 +510,8 @@ export default function Register() {
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={canSubmit ? handleSubmit : undefined}
               style={[
                 styles.input,
                 styles.passwordInput,
@@ -505,10 +623,6 @@ export default function Register() {
         </Animated.View>
 
         <View style={styles.footer}>
-          <Text style={[styles.privacyNote, { color: p.muted }]}>
-            Tus datos vecinales están protegidos mediante autenticación segura Supabase.
-          </Text>
-
           {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={p.primary} />
@@ -521,6 +635,12 @@ export default function Register() {
               disabled={!canSubmit}
             />
           )}
+
+          {mode === 'register' ? (
+            <Text style={[styles.privacyNote, { color: p.muted }]}>
+              Tus datos vecinales están protegidos mediante autenticación segura Supabase.
+            </Text>
+          ) : null}
         </View>
       </View>
     </Screen>
@@ -530,37 +650,47 @@ export default function Register() {
 const iconApp = require('../../assets/brand/icon-app.png');
 
 const styles = StyleSheet.create({
-  passwordRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  passwordRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   passwordInput: { flex: 1 },
-  eyeButton: { width: 52, height: 52, borderRadius: radius.md, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  marca: { width: 64, height: 64, borderRadius: 18, marginBottom: spacing.md },
-  container: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-  },
-  header: {
-    marginBottom: spacing.md,
-    marginTop: spacing.xs,
-  },
-  titulo: {
-    fontSize: 28,
-    fontFamily: fonts.bold,
+  eyeButton: { width: 44, height: 44, borderRadius: radius.md, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
     marginBottom: 6,
   },
+  marcaMini: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  container: {
+    flex: 1,
+    paddingVertical: 2,
+  },
+  loginScreenContent: {
+    paddingBottom: 24,
+  },
+  titulo: {
+    fontSize: 21,
+    fontFamily: fonts.bold,
+  },
   sub: {
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: fonts.regular,
-    lineHeight: 22,
+    lineHeight: 18,
+    marginBottom: 8,
   },
   tabContainer: {
     flexDirection: 'row',
     borderRadius: radius.md,
-    padding: 4,
-    marginBottom: spacing.md,
+    padding: 2,
+    marginBottom: 6,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 7,
     alignItems: 'center',
     borderRadius: radius.sm,
   },
@@ -572,42 +702,51 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.medium,
   },
   tabTextActive: {
     fontFamily: fonts.bold,
   },
   errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FEE2E2',
     borderWidth: 1,
     borderColor: '#F87171',
-    borderRadius: radius.md,
-    padding: 12,
-    marginBottom: spacing.sm,
+    borderRadius: radius.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 6,
+  },
+  errorIcon: {
+    marginRight: 6,
   },
   errorText: {
+    flex: 1,
     color: '#991B1B',
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fonts.medium,
+    lineHeight: 16,
   },
   form: {
-    marginBottom: spacing.md,
+    marginBottom: 4,
   },
   label: {
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: fonts.semiBold,
-    marginBottom: 8,
-    marginTop: spacing.xs,
+    marginBottom: 3,
+    marginTop: 3,
   },
   input: {
-    minHeight: 50,
+    minHeight: 44,
+    height: 44,
     borderWidth: 1.5,
     borderRadius: radius.md,
-    paddingHorizontal: 16,
-    fontSize: 16,
+    paddingHorizontal: 12,
+    fontSize: 15,
     fontFamily: fonts.regular,
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
   chips: {
     flexDirection: 'row',
@@ -616,14 +755,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   footer: {
-    marginTop: spacing.sm,
-    paddingBottom: spacing.lg,
+    marginTop: 6,
+    paddingBottom: 16,
   },
   privacyNote: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fonts.regular,
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginTop: 8,
+    marginBottom: 4,
   },
   helpText: {
     fontSize: 13,
