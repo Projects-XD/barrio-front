@@ -399,6 +399,10 @@ export class ConversationService {
       .select('*')
       .single();
 
+    // 23505 = unique_violation (índice uq_user_reports_usuario_una_vez, migración 0030)
+    if (error?.code === '23505') {
+      throw new AppError('Ya reportaste a este vecino', 409);
+    }
     if (error || !data) {
       throw new AppError(`Error al enviar el reporte: ${error?.message ?? 'sin datos'}`, 400);
     }

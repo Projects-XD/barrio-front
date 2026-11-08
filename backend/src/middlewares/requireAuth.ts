@@ -54,6 +54,43 @@ export async function requireAuth(
       return;
     }
 
+    // Ban progresivo (migración 0030): sin caché para que la sanción aplique en la siguiente petición.
+    const { data: perfil, error: perfilError } = await supabaseAdmin
+      .from('users')
+      .select('status, suspended_until')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (perfilError) throw perfilError;
+
+    if (perfil?.status === 'banned') {
+      res.status(403).json({
+        success: false,
+        error: 'Tu cuenta ha sido suspendida de forma permanente por reportes de otros vecinos',
+        code: 403,
+      });
+      return;
+    }
+
+    if (
+      perfil?.status === 'suspended' &&
+      perfil.suspended_until &&
+      new Date(perfil.suspended_until) > new Date()
+    ) {
+      const hasta = new Date(perfil.suspended_until).toLocaleString('es-PE', {
+        timeZone: 'America/Lima',
+        dateStyle: 'long',
+        timeStyle: 'short',
+      });
+      res.status(403).json({
+        success: false,
+        error: `Tu cuenta está suspendida hasta ${hasta}`,
+        code: 403,
+        suspended_until: perfil.suspended_until,
+      });
+      return;
+    }
+
     // Inyectar datos del usuario autenticado en la solicitud Express
     req.user = user;
     req.token = token;
