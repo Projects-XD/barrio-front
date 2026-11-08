@@ -321,6 +321,7 @@ export interface BackendMessage {
   conversation_id: string;
   sender_id: string;
   body: string;
+  images: string[];
   read_at: string | null;
   created_at: string;
 }
@@ -338,8 +339,8 @@ export const updateConversation = (id: string, changes: { muted?: boolean; close
 export const listMessages = (conversationId: string) =>
   api.get<BackendMessage[]>(`/conversations/${conversationId}/messages`);
 
-export const sendMessage = (conversationId: string, body: string) =>
-  api.post<BackendMessage>(`/conversations/${conversationId}/messages`, { body });
+export const sendMessage = (conversationId: string, body: string, images: string[] = []) =>
+  api.post<BackendMessage>(`/conversations/${conversationId}/messages`, { body, images });
 
 export const blockConversationUser = (conversationId: string) =>
   api.post<{ blocked_user_id: string }>(`/conversations/${conversationId}/block`);

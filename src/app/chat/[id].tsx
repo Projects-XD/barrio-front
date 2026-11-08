@@ -2,8 +2,11 @@ import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
+  Alert,
+  Image,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -11,6 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '@/components/AppButton';
@@ -18,6 +22,7 @@ import { Chip } from '@/components/Chip';
 import { EmptyState } from '@/components/EmptyState';
 import { usePalette } from '@/hooks/usePalette';
 import {
+  MAX_CHAT_IMAGES,
   useBlockConversationUser,
   useConversation,
   useMessages,
@@ -48,12 +53,33 @@ type Panel = null | 'menu' | 'cerrar' | 'bloquear' | 'reportar' | 'resolver';
 const hora = (iso: string) =>
   new Date(iso).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
 
-function Bubble({ message, mine, seen }: { message: BackendMessage; mine: boolean; seen: boolean }) {
+function Bubble({
+  message,
+  mine,
+  seen,
+  onOpenImage,
+}: {
+  message: BackendMessage;
+  mine: boolean;
+  seen: boolean;
+  onOpenImage: (uri: string) => void;
+}) {
   const p = usePalette();
   return (
     <View style={[styles.bubbleRow, mine ? styles.rowMine : styles.rowTheirs]}>
       <View style={[styles.bubble, mine ? { backgroundColor: colors.azul } : { backgroundColor: colors.blanco }]}>
-        <Text style={[styles.bubbleText, { color: mine ? colors.blanco : colors.texto }]}>{message.body}</Text>
+        {message.images?.length ? (
+          <View style={styles.bubbleImages}>
+            {message.images.map((uri) => (
+              <Pressable key={uri} accessibilityRole="imagebutton" accessibilityLabel="Ver imagen" onPress={() => onOpenImage(uri)}>
+                <Image source={{ uri }} style={styles.bubbleImage} resizeMode="cover" />
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+        {message.body ? (
+          <Text style={[styles.bubbleText, { color: mine ? colors.blanco : colors.texto }]}>{message.body}</Text>
+        ) : null}
         <Text style={[styles.bubbleTime, { color: mine ? colors.azulSuave : p.muted }]}>
           {hora(message.created_at)}
           {mine && seen ? '  ·  Leído' : ''}
@@ -79,6 +105,8 @@ export default function Chat() {
   const report = useReportConversationUser(id);
 
   const [text, setText] = useState('');
+  const [images, setImages] = useState<string[]>([]);
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [reason, setReason] = useState<ReportReason>('acoso');
   const [details, setDetails] = useState('');
@@ -105,10 +133,38 @@ export default function Chat() {
     setActionError(null);
   };
 
+  const hayContenido = Boolean(text.trim()) || images.length > 0;
+
   const enviar = () => {
     const body = text.trim();
-    if (!body || send.isPending || !canWrite) return;
-    send.mutate(body, { onSuccess: () => setText('') });
+    if (!hayContenido || send.isPending || !canWrite) return;
+    send.mutate(
+      { body, localImages: images },
+      {
+        onSuccess: () => {
+          setText('');
+          setImages([]);
+        },
+      },
+    );
+  };
+
+  const elegirImagenes = async () => {
+    const cupo = MAX_CHAT_IMAGES - images.length;
+    if (cupo <= 0) return;
+    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permiso.granted) {
+      Alert.alert('Sin permiso', 'Activa el acceso a tus fotos para enviar imágenes.');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: cupo,
+      quality: 0.8,
+    });
+    if (res.canceled) return;
+    setImages((prev) => [...prev, ...res.assets.map((a) => a.uri)].slice(0, MAX_CHAT_IMAGES));
   };
 
   const run = async (action: () => Promise<unknown>) => {
@@ -219,7 +275,9 @@ export default function Chat() {
           keyExtractor={(m) => m.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <Bubble message={item} mine={item.sender_id === userId} seen={item.id === lastMineId && Boolean(item.read_at)} />
+            <Bubble message={item} mine={item.sender_id === userId} seen={item.id === lastMineId && Boolean(item.read_at)}
+              onOpenImage={setViewerUri}
+            />
           )}
           ListEmptyComponent={
             <View style={{ transform: [{ scaleY: -1 }] }}>
@@ -239,7 +297,36 @@ export default function Chat() {
         </Text>
       ) : null}
 
+      {images.length > 0 ? (
+        <View style={[styles.previewRow, { borderTopColor: p.border }]}>
+          {images.map((uri) => (
+            <View key={uri}>
+              <Image source={{ uri }} style={styles.previewImage} />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Quitar imagen"
+                hitSlop={8}
+                onPress={() => setImages((prev) => prev.filter((u) => u !== uri))}
+                style={styles.previewRemove}
+              >
+                <Ionicons name="close" size={14} color={colors.blanco} />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 10), borderTopColor: p.border }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Adjuntar imagen"
+          accessibilityState={{ disabled: !canWrite || images.length >= MAX_CHAT_IMAGES }}
+          disabled={!canWrite || images.length >= MAX_CHAT_IMAGES || send.isPending}
+          onPress={elegirImagenes}
+          style={[styles.attachButton, (!canWrite || images.length >= MAX_CHAT_IMAGES) && { opacity: 0.45 }]}
+        >
+          <Ionicons name="image-outline" size={24} color={colors.azul} />
+        </Pressable>
         <TextInput
           value={text}
           onChangeText={setText}
@@ -254,18 +341,24 @@ export default function Chat() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Enviar mensaje"
-          accessibilityState={{ disabled: !canWrite || !text.trim() || send.isPending }}
-          disabled={!canWrite || !text.trim() || send.isPending}
+          accessibilityState={{ disabled: !canWrite || !hayContenido || send.isPending }}
+          disabled={!canWrite || !hayContenido || send.isPending}
           onPress={enviar}
           style={[
             styles.sendButton,
             { backgroundColor: p.cta },
-            (!canWrite || !text.trim() || send.isPending) && { opacity: 0.45 },
+            (!canWrite || !hayContenido || send.isPending) && { opacity: 0.45 },
           ]}
         >
           <Ionicons name="send" size={20} color={p.ctaText} />
         </Pressable>
       </View>
+
+      <Modal visible={viewerUri !== null} transparent animationType="fade" onRequestClose={() => setViewerUri(null)}>
+        <Pressable style={styles.viewer} onPress={() => setViewerUri(null)} accessibilityRole="button" accessibilityLabel="Cerrar imagen">
+          {viewerUri ? <Image source={{ uri: viewerUri }} style={styles.viewerImage} resizeMode="contain" /> : null}
+        </Pressable>
+      </Modal>
 
       <AppModal visible={panel !== null} onClose={closePanel} animationType="fade" overlayStyle={styles.overlay} cardStyle={styles.card}>
                     {panel === 'menu' ? (
@@ -460,6 +553,14 @@ const styles = StyleSheet.create({
   rowMine: { justifyContent: 'flex-end' },
   rowTheirs: { justifyContent: 'flex-start' },
   bubble: { maxWidth: '80%', borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 10 },
+  bubbleImages: { gap: 6, marginBottom: 6 },
+  bubbleImage: { width: 200, height: 200, borderRadius: radius.sm },
+  previewRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 12, paddingTop: 10, backgroundColor: colors.blanco, borderTopWidth: 1 },
+  previewImage: { width: 64, height: 64, borderRadius: radius.sm },
+  previewRemove: { position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: colors.rojo, alignItems: 'center', justifyContent: 'center' },
+  attachButton: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
+  viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' },
+  viewerImage: { width: '100%', height: '85%' },
   bubbleText: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 22 },
   bubbleTime: { fontFamily: fonts.regular, fontSize: 12, marginTop: 4, alignSelf: 'flex-end' },
   error: { color: colors.rojo, fontSize: 14, fontFamily: fonts.medium, lineHeight: 20, paddingHorizontal: 16, marginBottom: 6 },
