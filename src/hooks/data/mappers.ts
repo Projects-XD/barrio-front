@@ -113,6 +113,7 @@ export function mapReport(r: BackendReport): VulnerabilityReport {
     reporterName: r.is_anonymous ? null : (r.reporter?.full_name ?? null),
     createdAt: r.created_at,
     resolvedAt: r.resolved_at,
+    expiresAt: r.expires_at ?? null,
   };
 }
 

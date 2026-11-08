@@ -180,15 +180,49 @@ router.post(
  *       - Módulo de Emergencia
  *     parameters:
  *       - in: query
- *         name: zone_id
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 100
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *     responses:
+ *       200:
+ *         description: "{ items, total, can_resolve } — solo reportes activos y no vencidos (TTL 6 h)"
+ */
+router.get('/reports', requireAuth, (req, res, next) => emergencyController.listReports(req, res, next));
+
+/**
+ * @openapi
+ * /emergency/reports/{id}/resolve:
+ *   patch:
+ *     summary: Marcar un reporte como resuelto (admin o emergency_role)
+ *     tags:
+ *       - Módulo de Emergencia
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
  *         schema:
  *           type: string
  *           format: uuid
  *     responses:
  *       200:
- *         description: Lista de reportes de vulnerabilidad anonimizados según corresponda
+ *         description: Reporte resuelto
+ *       403:
+ *         description: Sin permisos
+ *       404:
+ *         description: No existe en tu zona o ya estaba resuelto
  */
-router.get('/reports', requireAuth, (req, res, next) => emergencyController.listReports(req, res, next));
+router.patch('/reports/:id/resolve', requireAuth, (req, res, next) =>
+  emergencyController.resolveReport(req, res, next)
+);
 
 // Ruta legacy para toggle general
 router.post(

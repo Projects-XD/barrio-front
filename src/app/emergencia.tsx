@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
@@ -7,7 +7,7 @@ import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { usePalette } from '@/hooks/usePalette';
-import { useReports, useResources, useServices } from '@/hooks/useData';
+import { useInfiniteReports, useResolveReport, useResources, useServices } from '@/hooks/useData';
 import type { IconName } from '@/i18n/icons';
 import { resourceLabel, serviceLabel } from '@/i18n/labels';
 import { selectEmergencyActive, useAppStore } from '@/store/app-store';
@@ -40,12 +40,16 @@ export default function Emergencia() {
   const emergencyActive = useAppStore(selectEmergencyActive);
   const emergencyReason = useAppStore((s) => s.emergencyReason);
   const servicios = useServices();
-  const reportes = useReports();
+  const reportes = useInfiniteReports();
+  const resolver = useResolveReport();
   const recursos = useResources();
   const [menuReporte, setMenuReporte] = useState<VulnerabilityReport | null>(null);
+  const items = reportes.data?.items ?? [];
+  const total = reportes.data?.total ?? 0;
+  const canResolve = reportes.data?.canResolve ?? false;
 
-  return (
-    <Screen>
+  const cabecera = (
+    <>
       <View style={styles.cabecera}>
         <Image source={iconEmergencia} style={styles.iconoEmergencia} accessibilityLabel="Modo emergencia de Barrio" />
         <View style={{ flex: 1 }}>
@@ -88,38 +92,21 @@ export default function Emergencia() {
 
       <Text style={[styles.seccion, { color: p.text }]}>Reportes de vecinos</Text>
       <Text style={[styles.detalle, { color: p.muted, marginBottom: spacing.sm }]}>
-        Zonas aproximadas, sin direcciones exactas (~110 m de privacidad).
+        Zonas aproximadas, sin direcciones exactas (~110 m de privacidad). Se archivan solos a las 6 horas.
       </Text>
-      {reportes.data?.length ? (
-        reportes.data.map((r) => (
-          <Card key={r.id}>
-            <View style={styles.reporteHeader}>
-              <Text style={[styles.nombre, { color: p.text, flex: 1 }]}>{r.reporterName ?? 'Vecino anónimo'}</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Opciones del reporte"
-                hitSlop={10}
-                onPress={() => setMenuReporte(r)}
-                style={styles.menuBtn}
-              >
-                <Ionicons name="ellipsis-vertical" size={18} color={colors.azul} />
-              </Pressable>
-            </View>
-            <Text style={[styles.cuerpo, { color: p.body }]}>{r.description}</Text>
-            {r.needs.length ? (
-              <Text style={[styles.detalle, { color: p.muted, marginTop: 4 }]}>
-                Necesita: {r.needs.map((n) => resourceLabel[n]).join(', ')}
-              </Text>
-            ) : null}
-          </Card>
-        ))
-      ) : (
-        <Estado
-          loading={reportes.isLoading}
-          error={reportes.error}
-          vacio={{ icon: 'people-outline', title: 'Sin reportes', message: 'Nadie ha reportado vecinos en riesgo en tu zona.' }}
-        />
-      )}
+      {total > 0 ? (
+        <Text style={[styles.contador, { color: p.text }]}>
+          Mostrando {items.length} de {total} reportes activos
+        </Text>
+      ) : null}
+    </>
+  );
+
+  const pie = (
+    <>
+      {reportes.isFetchingNextPage ? (
+        <ActivityIndicator color={p.primary} style={{ marginVertical: spacing.md }} />
+      ) : null}
 
       <Text style={[styles.seccion, { color: p.text }]}>Recursos críticos</Text>
       {recursos.data?.length ? (
@@ -141,6 +128,65 @@ export default function Emergencia() {
           vacio={{ icon: 'water-outline', title: 'Sin recursos', message: 'Todavía no hay pedidos ni ofertas de recursos.' }}
         />
       )}
+    </>
+  );
+
+  return (
+    <Screen scroll={false}>
+      <FlatList
+        data={items}
+        keyExtractor={(r) => r.id}
+        ListHeaderComponent={cabecera}
+        ListFooterComponent={pie}
+        ListEmptyComponent={
+          <Estado
+            loading={reportes.isLoading}
+            error={reportes.error}
+            vacio={{ icon: 'people-outline', title: 'Sin reportes', message: 'Nadie ha reportado vecinos en riesgo en tu zona.' }}
+          />
+        }
+        onEndReached={() => {
+          if (reportes.hasNextPage && !reportes.isFetchingNextPage) void reportes.fetchNextPage();
+        }}
+        onEndReachedThreshold={0.5}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 80 }}
+        renderItem={({ item: r }) => (
+          <Card>
+            <View style={styles.reporteHeader}>
+              <Text style={[styles.nombre, { color: p.text, flex: 1 }]}>{r.reporterName ?? 'Vecino anónimo'}</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Opciones del reporte"
+                hitSlop={10}
+                onPress={() => setMenuReporte(r)}
+                style={styles.menuBtn}
+              >
+                <Ionicons name="ellipsis-vertical" size={18} color={colors.azul} />
+              </Pressable>
+            </View>
+            <Text style={[styles.cuerpo, { color: p.body }]}>{r.description}</Text>
+            {r.needs.length ? (
+              <Text style={[styles.detalle, { color: p.muted, marginTop: 4 }]}>
+                Necesita: {r.needs.map((n) => resourceLabel[n]).join(', ')}
+              </Text>
+            ) : null}
+            {canResolve ? (
+              <AppButton
+                label={resolver.isPending && resolver.variables === r.id ? 'Resolviendo…' : 'Marcar como resuelto'}
+                variant="success"
+                icon="checkmark-circle-outline"
+                disabled={resolver.isPending}
+                onPress={() =>
+                  resolver.mutate(r.id, {
+                    onError: (e) => Alert.alert('No se pudo resolver', (e as Error).message),
+                  })
+                }
+              />
+            ) : null}
+          </Card>
+        )}
+      />
 
       <AppModal visible={menuReporte !== null} onClose={() => setMenuReporte(null)} animationType="fade" overlayStyle={styles.overlay} cardStyle={styles.menuCard}>
                     <Text style={[styles.nombre, { color: p.text, marginBottom: spacing.xs }]}>Opciones del reporte</Text>
@@ -171,6 +217,7 @@ const styles = StyleSheet.create({
   nombre: { fontSize: 18, fontFamily: fonts.bold, marginBottom: 2 },
   cuerpo: { fontSize: 16, fontFamily: fonts.regular, lineHeight: 22 },
   detalle: { fontSize: 15, fontFamily: fonts.regular },
+  contador: { fontSize: 14, fontFamily: fonts.semiBold, marginBottom: spacing.sm },
   fila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   reporteHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   menuBtn: {

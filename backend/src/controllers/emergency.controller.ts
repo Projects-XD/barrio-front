@@ -111,13 +111,39 @@ export class EmergencyController {
       }
 
       const supabase = getSupabaseClient(req);
-      const reports = await emergencyService.listReports(supabase, req.user.id);
+      const reports = await emergencyService.listReports(supabase, req.user.id, {
+        limit: Number(req.query.limit) || undefined,
+        offset: Number(req.query.offset) || undefined,
+      });
 
       res.json({
         success: true,
         data: reports,
         code: 200,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * PATCH /api/emergency/reports/:id/resolve
+   * Solo admin o emergency_role.
+   */
+  public async resolveReport(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+      const id = String(req.params.id);
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        throw new AppError('id debe ser un UUID válido', 400);
+      }
+
+      const supabase = getSupabaseClient(req);
+      const report = await emergencyService.resolveReport(supabase, req.user.id, id);
+
+      res.json({ success: true, data: report, code: 200 });
     } catch (error) {
       next(error);
     }

@@ -189,16 +189,27 @@ export class EmergencyService {
    */
   public async listReports(
     supabase: SupabaseClient<Database>,
-    userId: string
-  ): Promise<Record<string, unknown>[]> {
+    userId: string,
+    page: { limit?: number; offset?: number } = {}
+  ): Promise<{ items: Record<string, unknown>[]; total: number; can_resolve: boolean }> {
     const zoneId = await resolveUserZone(supabase, userId);
+    const limit = Math.min(Math.max(Math.trunc(page.limit || 10), 1), 100);
+    const offset = Math.max(Math.trunc(page.offset || 0), 0);
 
-    const { data, error } = await supabase
-      .from('vulnerability_reports')
-      .select('*, reporter:users!vulnerability_reports_reporter_user_id_fkey(id, full_name, avatar_url)')
-      .eq('zone_id', zoneId)
-      .eq('status', 'activo')
-      .order('created_at', { ascending: false });
+    const [{ data, error, count }, canResolve] = await Promise.all([
+      supabase
+        .from('vulnerability_reports')
+        .select('*, reporter:users!vulnerability_reports_reporter_user_id_fkey(id, full_name, avatar_url)', {
+          count: 'exact',
+        })
+        .eq('zone_id', zoneId)
+        .eq('status', 'activo')
+        // TTL: los vencidos no se listan aunque el job de pg_cron aún no los haya archivado.
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1),
+      this.canResolveReports(supabase, userId),
+    ]);
 
     if (error) {
       throw dbError('Error al consultar reportes de emergencia', error);
@@ -215,7 +226,49 @@ export class EmergencyService {
       return report;
     });
 
-    return sanitizedReports;
+    return { items: sanitizedReports, total: count ?? sanitizedReports.length, can_resolve: canResolve };
+  }
+
+  /** Admin o comité de emergencia (emergency_role) pueden resolver reportes. */
+  private async canResolveReports(supabase: SupabaseClient<Database>, userId: string): Promise<boolean> {
+    const { data } = await supabase
+      .from('users')
+      .select('is_admin, emergency_role')
+      .eq('id', userId)
+      .maybeSingle();
+    return Boolean(data?.is_admin || data?.emergency_role);
+  }
+
+  /**
+   * Endpoint PATCH /api/emergency/reports/:id/resolve
+   * REGLA DE SEGURIDAD: solo admin o emergency_role, y solo reportes de su propia zona.
+   */
+  public async resolveReport(
+    supabase: SupabaseClient<Database>,
+    userId: string,
+    reportId: string
+  ): Promise<{ id: string; status: string }> {
+    if (!(await this.canResolveReports(supabase, userId))) {
+      throw new AppError('Solo el administrador o el comité de emergencia pueden resolver reportes', 403);
+    }
+    const zoneId = await resolveUserZone(supabase, userId);
+
+    const { data, error } = await supabase
+      .from('vulnerability_reports')
+      .update({ status: 'resuelto', resolved_by_user_id: userId, resolved_at: new Date().toISOString() })
+      .eq('id', reportId)
+      .eq('zone_id', zoneId)
+      .eq('status', 'activo')
+      .select('id, status')
+      .maybeSingle();
+
+    if (error) {
+      throw dbError('Error al resolver el reporte', error);
+    }
+    if (!data) {
+      throw new AppError('Reporte no encontrado o ya resuelto', 404);
+    }
+    return data;
   }
 
   /**

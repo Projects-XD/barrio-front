@@ -110,6 +110,7 @@ export interface BackendReport {
   is_anonymous: boolean;
   created_at: string;
   resolved_at: string | null;
+  expires_at?: string | null;
   reporter?: { id: string; full_name: string } | null;
 }
 
@@ -366,8 +367,17 @@ export const getEmergencyState = (zoneId: string) =>
 export const listServices = (zoneId: string) =>
   api.get<BackendService[]>(`/emergency/services?zone_id=${zoneId}`);
 
-export const listReports = (zoneId: string) =>
-  api.get<BackendReport[]>(`/emergency/reports?zone_id=${zoneId}`);
+export interface ReportsPage {
+  items: BackendReport[];
+  total: number;
+  can_resolve: boolean;
+}
+
+export const listReports = (zoneId: string, limit = 10, offset = 0) =>
+  api.get<ReportsPage>(`/emergency/reports?zone_id=${zoneId}&limit=${limit}&offset=${offset}`);
+
+export const resolveReport = (id: string) =>
+  api.patch<{ id: string; status: string }>(`/emergency/reports/${id}/resolve`);
 
 export interface CreateReportPayload {
   zone_id: string;

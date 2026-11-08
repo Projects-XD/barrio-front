@@ -87,6 +87,7 @@ export interface VulnerabilityReport {
   reporterName: string | null;
   createdAt: string;
   resolvedAt: string | null;
+  expiresAt: string | null;
 }
 
 export interface CriticalResource {
