@@ -204,8 +204,8 @@ export const styles = StyleSheet.create({
     borderColor: colors.azul,
   },
   pillBtnActiveOfrecer: {
-    backgroundColor: '#2F6FDE',
-    borderColor: '#2F6FDE',
+    backgroundColor: colors.naranja,
+    borderColor: colors.naranja,
   },
   pillBtnActiveOficio: {
     backgroundColor: colors.verdeExito,

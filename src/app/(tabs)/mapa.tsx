@@ -798,11 +798,11 @@ export default function MapaBarrio() {
                       styles.dot,
                       {
                         backgroundColor:
-                          filtroIntencion === 'ofrecer' ? colors.blanco : '#2F6FDE',
+                          filtroIntencion === 'ofrecer' ? colors.azul : colors.naranja,
                       },
                     ]}
                   />
-                  <Text style={[styles.pillText, { color: filtroIntencion === 'ofrecer' ? colors.blanco : colors.azul }]}>
+                  <Text style={[styles.pillText, { color: colors.azul }]}>
                     {totalOfrecidos} ofrecen
                   </Text>
                 </Pressable>
