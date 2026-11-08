@@ -27,7 +27,7 @@ export default function Avisos() {
   const abrir = (n: BackendNotification) => {
     if (!n.read_at) markRead.mutate(n.id);
     const ruta = notificationRoute(n);
-    if (ruta) router.push(ruta as never);
+    if (ruta && ruta !== '/avisos') router.navigate(ruta as never);
   };
 
   return (

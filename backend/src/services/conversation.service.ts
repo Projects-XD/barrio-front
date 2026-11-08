@@ -185,6 +185,18 @@ export class ConversationService {
       }
     }
 
+    // El aviso de mensajes de esta conversación deja de contar: el próximo mensaje crea uno nuevo con count 1.
+    const { error: avisoError } = await supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('type', 'nuevo_mensaje')
+      .is('read_at', null)
+      .eq('payload->>conversation_id', conversationId);
+    if (avisoError) {
+      logger.error('No se pudo marcar como leído el aviso de mensajes', { conversationId, error: avisoError.message });
+    }
+
     return messages;
   }
 

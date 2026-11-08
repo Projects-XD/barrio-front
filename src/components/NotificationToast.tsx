@@ -3,6 +3,7 @@ import { AccessibilityInfo, Animated, Easing, Platform, Pressable, StyleSheet, T
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { BackendNotification } from '@/api/endpoints';
+import { useMarkNotificationRead } from '@/hooks/data/avisos';
 import { colors, fonts, radius, shadow } from '@/theme';
 import { describeNotification, iconForNotification, notificationRoute } from '@/utils/notificaciones';
 
@@ -48,6 +49,8 @@ export function NotificationToast({ notification, onClose, top, rightInset = 80 
     };
   }, [notification, onClose, progress]);
 
+  const markRead = useMarkNotificationRead();
+
   if (!notification) return null;
 
   const { title, detail } = describeNotification(notification);
@@ -55,7 +58,9 @@ export function NotificationToast({ notification, onClose, top, rightInset = 80 
 
   const abrir = () => {
     onClose();
-    if (ruta) router.push(ruta as never);
+    if (!notification.read_at) markRead.mutate(notification.id);
+    // navigate reutiliza la pantalla si ya está abierta, en vez de apilar otra.
+    if (ruta) router.navigate(ruta as never);
   };
 
   return (
