@@ -35,11 +35,19 @@ export function useNotificationsRealtime(onNueva?: (n: BackendNotification) => v
     sembrado.current = false;
   }, [userId]);
 
-  const anunciar = useCallback((n: BackendNotification) => {
-    if (vistos.current.has(n.id)) return;
-    vistos.current.add(n.id);
-    callbackRef.current?.(n);
-  }, []);
+  const anunciar = useCallback(
+    (n: BackendNotification) => {
+      if (vistos.current.has(n.id)) return;
+      vistos.current.add(n.id);
+      // Una emergencia o alerta nueva (o su cierre) recarga el mapa y el estado de la zona al instante.
+      if (n.type === 'emergencia_activada' || n.payload?.kind === 'emergencia_finalizada') {
+        void qc.invalidateQueries({ queryKey: ['reports'] });
+        void qc.invalidateQueries({ queryKey: ['emergency'] });
+      }
+      callbackRef.current?.(n);
+    },
+    [qc]
+  );
 
   // Vía 1: Realtime.
   useEffect(() => {
