@@ -27,6 +27,7 @@ import {
   useUpdateConversation,
 } from '@/hooks/useData';
 import { updateFavor, type BackendMessage, type ReportReason } from '@/api/endpoints';
+import { ApiError } from '@/api/client';
 import { queryClient } from '@/lib/queryClient';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -43,7 +44,7 @@ const reasonLabel: Record<ReportReason, string> = {
 };
 const reasons = Object.keys(reasonLabel) as ReportReason[];
 
-type Panel = null | 'menu' | 'cerrar' | 'bloquear' | 'reportar' | 'resolver';
+type Panel = null | 'menu' | 'cerrar' | 'bloquear' | 'reportar' | 'yaReportado' | 'resolver';
 
 const hora = (iso: string) =>
   new Date(iso).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
@@ -372,15 +373,36 @@ export default function Chat() {
                 {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
                 <AppButton
                   label={report.isPending ? 'Enviando...' : 'Enviar reporte'}
-                  onPress={() =>
-                    run(async () => {
+                  onPress={async () => {
+                    setActionError(null);
+                    try {
                       await report.mutateAsync({ reason, details: details.trim() || undefined });
                       setDetails('');
-                    })
-                  }
+                      closePanel();
+                    } catch (err) {
+                      if (err instanceof ApiError && err.status === 409) {
+                        setDetails('');
+                        setPanel('yaReportado');
+                      } else {
+                        setActionError('No se pudo enviar el reporte. Inténtalo de nuevo');
+                      }
+                    }
+                  }}
                   disabled={report.isPending}
                 />
                 <AppButton label="Volver" variant="secondary" onPress={() => setPanel('menu')} />
+              </>
+            ) : null}
+
+            {panel === 'yaReportado' ? (
+              <>
+                <Text accessibilityRole="alert" style={[styles.cardTitle, { color: p.text }]}>
+                  Reporte ya enviado
+                </Text>
+                <Text style={[styles.cardText, { color: p.body }]}>
+                  Ya has reportado a este vecino anteriormente
+                </Text>
+                <AppButton label="Entendido" onPress={closePanel} />
               </>
             ) : null}
 

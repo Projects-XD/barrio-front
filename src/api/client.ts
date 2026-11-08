@@ -162,8 +162,9 @@ export async function request<T>(
       (typeof body === 'object' && body !== null && (body.code?.toString() || body.errorCode)) ||
       res.status.toString();
 
-    // Observabilidad: Registrar status HTTP, URL y payload de error devuelto por el backend
-    logger.error('API_CLIENT', `Error HTTP ${res.status} en ${method} ${url}`, {
+    // Observabilidad: Registrar status HTTP, URL y payload de error devuelto por el backend.
+    // Los 4xx son parte del flujo (reporte duplicado, cuenta suspendida): warn; los 5xx, error.
+    logger[res.status < 500 ? 'warn' : 'error']('API_CLIENT', `Error HTTP ${res.status} en ${method} ${url}`, {
       status: res.status,
       url,
       method,
