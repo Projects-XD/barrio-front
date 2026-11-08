@@ -146,7 +146,6 @@ export default function MapaBarrio() {
     [savedLocation, overrideLocation],
   );
 
-  const zona = zonas.find((z) => z.id === zoneId);
   // Los sectores (Miraflores, Chapayra, etc.) son solo centros poblados DENTRO del distrito de
   // Castilla, no zonas operativas propias: todo el contenido del barrio vive bajo Castilla, así
   // que el mapa siempre se centra ahí, sin importar qué sector haya elegido el vecino al registrarse
