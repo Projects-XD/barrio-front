@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppButton } from '@/components/AppButton';
 import { Card } from '@/components/Card';
@@ -130,6 +130,8 @@ export default function Perfil() {
   );
   const [otroOficio, setOtroOficio] = useState('');
 
+  const { agregarOficio } = useLocalSearchParams<{ agregarOficio?: string }>();
+
   const handleOpenModal = (oficio: ProfessionalProfile | null) => {
     upsertProfile.reset();
     setMenuOficio(null);
@@ -142,6 +144,20 @@ export default function Perfil() {
     suggestDescription.reset();
     setModalVisible(true);
   };
+
+  // La burbuja de chat navega aquí con ?agregarOficio=1 para abrir el formulario de nuevo oficio.
+  const abrirModalRef = useRef(handleOpenModal);
+  useEffect(() => {
+    abrirModalRef.current = handleOpenModal;
+  });
+  useEffect(() => {
+    if (agregarOficio !== '1') return;
+    const id = setTimeout(() => {
+      abrirModalRef.current(null);
+      router.setParams({ agregarOficio: undefined });
+    }, 0);
+    return () => clearTimeout(id);
+  }, [agregarOficio]);
 
   // Lo escrito en la descripción sirve de notas para la IA; el resultado reemplaza el texto y se puede editar.
   const handleSuggestDescription = () => {

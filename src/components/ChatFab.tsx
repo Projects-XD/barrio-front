@@ -16,6 +16,11 @@ export function ChatFab({ bottomOffset = 88 }: ChatFabProps) {
     router.navigate({ pathname: '/(tabs)/favores', params: { publicar: '1' } });
   };
 
+  const irAAgregarOficio = () => {
+    setAbierto(false);
+    router.navigate({ pathname: '/(tabs)/perfil', params: { agregarOficio: '1' } });
+  };
+
   const irAChats = () => {
     setAbierto(false);
     router.push('/chats');
@@ -69,6 +74,24 @@ export function ChatFab({ bottomOffset = 88 }: ChatFabProps) {
               </View>
               <View style={[styles.actionCircle, styles.actionCircleAyuda]}>
                 <Ionicons name="add" size={24} color={colors.blanco} />
+              </View>
+            </Pressable>
+
+            {/* Opción: Agregar oficio */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Agregar oficio"
+              onPress={irAAgregarOficio}
+              style={({ pressed }) => [
+                styles.actionItem,
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+            >
+              <View style={styles.labelPill}>
+                <Text style={styles.actionLabel}>Agregar oficio</Text>
+              </View>
+              <View style={[styles.actionCircle, styles.actionCircleOficio]}>
+                <Ionicons name="construct" size={22} color={colors.blanco} />
               </View>
             </Pressable>
 
@@ -165,6 +188,9 @@ const styles = StyleSheet.create({
   },
   actionCircleAyuda: {
     backgroundColor: colors.naranja,
+  },
+  actionCircleOficio: {
+    backgroundColor: colors.verdeExito,
   },
   actionCircleChat: {
     backgroundColor: colors.azulMedio,
