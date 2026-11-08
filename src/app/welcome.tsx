@@ -17,7 +17,7 @@ import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
 
 const logoBarrio = require('../../assets/brand/logo-barrio.png');
-const imgOficios = require('../../assets/Welcome/work_welcome_1.avif');
+const imgOficios = require('../../assets/Welcome/work_welcome_1.png');
 const imgFavores = require('../../assets/Welcome/work_welcome_2.png');
 const imgEmergencia = require('../../assets/Welcome/work_welcome_3.jpg');
 
