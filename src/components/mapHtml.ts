@@ -213,7 +213,7 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
   <div id="map"></div>
   <div class="leg">
     <span class="leg-item"><span class="dot" style="background:#132E66"></span>Piden</span>
-    <span class="leg-item"><span class="dot" style="background:#2F6FDE"></span>Ofrecen</span>
+    <span class="leg-item"><span class="dot" style="background:#EA982B"></span>Ofrecen</span>
     <span class="leg-item"><span class="dot" style="background:#2E7D5B"></span>Oficios</span>
     <span class="leg-item"><span class="dot" style="background:#D32F2F"></span>Alertas</span>
   </div>
@@ -285,8 +285,8 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
       var bg = '#132E66';
       var fg = '#ffffff';
       if (p.kind === 'ofrecer') {
-        bg = '#2F6FDE';
-        fg = '#ffffff';
+        bg = '#EA982B';
+        fg = '#132E66';
       } else if (p.kind === 'oficio') {
         bg = '#2E7D5B';
         fg = '#ffffff';

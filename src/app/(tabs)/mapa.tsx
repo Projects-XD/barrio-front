@@ -441,7 +441,7 @@ export default function MapaBarrio() {
 
   const badgeConfig = (kind: MapEntry['kind']) => {
     if (kind === 'ofrecer') {
-      return { bg: colors.azulSuave, dot: '#2F6FDE', fg: colors.azul, text: 'Ofrece ayuda' };
+      return { bg: colors.naranjaSuave, dot: colors.naranja, fg: colors.azul, text: 'Ofrece ayuda' };
     }
     if (kind === 'oficio') {
       return { bg: colors.verdeExitoSuave, dot: colors.verdeExito, fg: colors.verdeExito, text: 'Oficio vecinal' };
