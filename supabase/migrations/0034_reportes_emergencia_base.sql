@@ -42,7 +42,8 @@ CREATE TRIGGER trg_notificar_nuevo_reporte
   AFTER INSERT ON public.vulnerability_reports
   FOR EACH ROW EXECUTE FUNCTION public.fn_notificar_nuevo_reporte();
 
--- La 0033_notificar_todo avisa a la zona al crear/resolver un reporte con un trigger genérico.
--- Este flujo lo reemplaza (con urgencia por rol, voluntarios y aviso a quien acude): se quita
--- para que nadie reciba el mismo aviso dos veces. Si la 0033 aún no corrió, no pasa nada.
+-- Antes la 0033_notificar_todo avisaba a la zona con un trigger genérico (ya no lo define).
+-- Este flujo lo reemplaza: se quita en bases donde ya corrió, para no avisar dos veces.
+-- Si nunca existió, no pasa nada.
 DROP TRIGGER IF EXISTS trg_notif_alerta ON public.vulnerability_reports;
+DROP FUNCTION IF EXISTS public.fn_notif_alerta();

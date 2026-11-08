@@ -3,8 +3,7 @@
 -- cerrar un favor (backend) y publicaciones nuevas (0028).
 --
 --   Emergencias        activación y cierre en la zona          -> toda la zona
---   Alertas            reporte comunitario nuevo               -> toda la zona
---                      reporte resuelto por alguien            -> quien lo reportó
+--   Alertas            (los reportes los avisa la 0034, no esta migración)
 --   Favores            retirado por reportes                   -> su autor
 --                      cerrado o cancelado                     -> los interesados
 --                      asignado a un ayudante                  -> el ayudante
@@ -97,44 +96,8 @@ CREATE TRIGGER trg_notif_estado_emergencia
 -- ------------------------------------------------------------------------------
 -- 2. Alertas comunitarias (reportes de vulnerabilidad)
 -- ------------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.fn_notif_alerta()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp
-AS $$
-BEGIN
-  IF TG_OP = 'INSERT' THEN
-    IF NEW.zone_id IS NOT NULL AND NEW.status = 'activo' THEN
-      -- No incluye el nombre de quien reporta: los reportes pueden ser anónimos.
-      PERFORM public.fn_notificar_zona(
-        NEW.zone_id, NEW.reporter_user_id, 'emergencia_activada'::public.notification_type,
-        jsonb_build_object('kind', 'reporte', 'report_id', NEW.id, 'description', left(NEW.description, 140))
-      );
-    END IF;
-  ELSIF TG_OP = 'UPDATE' THEN
-    -- Solo si lo resolvió una persona (no el archivado automático por vencimiento).
-    IF NEW.status = 'resuelto' AND OLD.status IS DISTINCT FROM 'resuelto'
-       AND NEW.reporter_user_id IS NOT NULL
-       AND NEW.resolved_by_user_id IS NOT NULL
-       AND NEW.resolved_by_user_id <> NEW.reporter_user_id THEN
-      PERFORM public.fn_notificar_usuario(
-        NEW.reporter_user_id, 'reporte_actualizado'::public.notification_type,
-        jsonb_build_object('kind', 'reporte', 'report_id', NEW.id, 'estado', 'resuelto')
-      );
-    END IF;
-  END IF;
-  RETURN NEW;
-EXCEPTION WHEN OTHERS THEN
-  RAISE WARNING 'No se pudo notificar la alerta %: %', NEW.id, SQLERRM;
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_notif_alerta ON public.vulnerability_reports;
-CREATE TRIGGER trg_notif_alerta
-  AFTER INSERT OR UPDATE ON public.vulnerability_reports
-  FOR EACH ROW EXECUTE FUNCTION public.fn_notif_alerta();
+-- Los avisos de reportes (nuevo, voluntarios, refuerzo, escalado, resuelto) los maneja la 0034
+-- (reportes_emergencia_base y siguientes). No se define aquí para no avisar dos veces.
 
 -- ------------------------------------------------------------------------------
 -- 3. Favores: retirado, cerrado o cancelado, y asignado
