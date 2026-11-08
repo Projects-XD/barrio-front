@@ -98,27 +98,6 @@ export default function FavoresScreen() {
           <Text style={[styles.sub, { color: p.muted }]}>Colaboración solidaria entre vecinos</Text>
         </View>
 
-        <View style={styles.headerActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Ir a mis publicaciones"
-            onPress={() => router.push('/favores/mis-publicaciones')}
-            style={({ pressed }) => [styles.misPubsBtn, pressed && { opacity: 0.8 }]}
-          >
-            <Ionicons name="folder-outline" size={15} color={colors.azul} />
-            <Text style={styles.misPubsText}>Mis ayudas</Text>
-          </Pressable>
-
-          {/* Botón compacto solo con el icono + para publicar sin ocupar espacio */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Publicar nueva ayuda"
-            onPress={() => setModalPublicar(true)}
-            style={({ pressed }) => [styles.addFabBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.94 }] }]}
-          >
-            <Ionicons name="add" size={24} color={colors.blanco} />
-          </Pressable>
-        </View>
       </View>
 
       {/* Barra de control: Segmento (Todos | Piden | Ofrecen) + Botón modal de Filtro */}
@@ -415,34 +394,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.regular,
     marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  misPubsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.azulSuave,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-  },
-  misPubsText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-    color: colors.azul,
-  },
-  addFabBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.naranja,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow,
   },
 
   // Fila de controles: Segmented bar + Botón de filtro

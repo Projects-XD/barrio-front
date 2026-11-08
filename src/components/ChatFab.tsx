@@ -11,6 +11,11 @@ interface ChatFabProps {
 export function ChatFab({ bottomOffset = 88 }: ChatFabProps) {
   const [abierto, setAbierto] = useState(false);
 
+  const irAAgregarAyuda = () => {
+    setAbierto(false);
+    router.push('/favores/nuevo');
+  };
+
   const irAChats = () => {
     setAbierto(false);
     router.push('/chats');
@@ -21,7 +26,7 @@ export function ChatFab({ bottomOffset = 88 }: ChatFabProps) {
       {/* Botón flotante principal */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={abierto ? 'Cerrar chats' : 'Abrir mis chats'}
+        accessibilityLabel={abierto ? 'Cerrar acciones' : 'Abrir acciones de chat y ayudas'}
         onPress={() => setAbierto((v) => !v)}
         style={({ pressed }) => [
           styles.fab,
@@ -49,6 +54,24 @@ export function ChatFab({ bottomOffset = 88 }: ChatFabProps) {
 
           {/* Opciones emergentes ancladas sobre la posición del botón */}
           <View style={[styles.menuContainer, { bottom: bottomOffset + 68 }]}>
+            {/* Opción: Agregar ayuda */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Agregar ayuda"
+              onPress={irAAgregarAyuda}
+              style={({ pressed }) => [
+                styles.actionItem,
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+              ]}
+            >
+              <View style={styles.labelPill}>
+                <Text style={styles.actionLabel}>Agregar ayuda</Text>
+              </View>
+              <View style={[styles.actionCircle, styles.actionCircleAyuda]}>
+                <Ionicons name="add" size={24} color={colors.blanco} />
+              </View>
+            </Pressable>
+
             {/* Opción: Mis Chats */}
             <Pressable
               accessibilityRole="button"
@@ -139,6 +162,9 @@ const styles = StyleSheet.create({
   },
   actionCircleAlerta: {
     backgroundColor: colors.rojo,
+  },
+  actionCircleAyuda: {
+    backgroundColor: colors.naranja,
   },
   actionCircleChat: {
     backgroundColor: colors.azulMedio,
