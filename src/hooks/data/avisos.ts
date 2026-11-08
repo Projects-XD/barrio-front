@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useIsFocused } from 'expo-router';
-import { getUnreadNotificationCount, listNotifications, markNotificationRead, type BackendNotification } from '@/api/endpoints';
+import {
+  deleteNotification,
+  deleteReadNotifications,
+  getUnreadNotificationCount,
+  listNotifications,
+  markNotificationRead,
+  type BackendNotification,
+} from '@/api/endpoints';
 import { useAppStore } from '@/store/app-store';
 import { FRESH_LIVE_MS } from './shared';
 
@@ -39,3 +46,21 @@ export function useMarkNotificationRead() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
 }
+
+// Quita de la lista al instante; si el backend falla, se restaura con el refetch.
+function useRemoveNotifications<T>(fn: (arg: T) => Promise<unknown>, keep: (n: BackendNotification, arg: T) => boolean) {
+  const qc = useQueryClient();
+  const userId = useAppStore((s) => s.userId);
+  return useMutation({
+    mutationFn: fn,
+    onMutate: (arg: T) =>
+      qc.setQueryData<BackendNotification[]>(['notifications', userId, 'list'], (prev) => prev?.filter((n) => keep(n, arg))),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+}
+
+export const useDeleteNotification = () =>
+  useRemoveNotifications((id: string) => deleteNotification(id), (n, id) => n.id !== id);
+
+export const useDeleteReadNotifications = () =>
+  useRemoveNotifications(() => deleteReadNotifications(), (n) => !n.read_at);

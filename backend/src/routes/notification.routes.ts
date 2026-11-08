@@ -91,4 +91,49 @@ router.patch(
   (req, res, next) => notificationController.markAsRead(req, res, next)
 );
 
+/**
+ * @openapi
+ * /notifications/read:
+ *   delete:
+ *     summary: Eliminar todas las notificaciones ya leídas
+ *     tags:
+ *       - Notificaciones
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Objeto con el campo deleted (cantidad borrada)
+ */
+// Va antes de /:id para que "read" no se tome como id.
+router.delete('/read', requireAuth, (req, res, next) => notificationController.removeRead(req, res, next));
+
+/**
+ * @openapi
+ * /notifications/{id}:
+ *   delete:
+ *     summary: Eliminar una notificación propia
+ *     tags:
+ *       - Notificaciones
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Notificación eliminada
+ *       404:
+ *         description: No existe o no es del usuario
+ */
+router.delete(
+  '/:id',
+  requireAuth,
+  validate(notificationIdParamSchema, 'params'),
+  (req, res, next) => notificationController.remove(req, res, next)
+);
+
 export default router;

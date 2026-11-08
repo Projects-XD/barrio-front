@@ -61,6 +61,41 @@ export class NotificationController {
       next(error);
     }
   }
+
+  /**
+   * DELETE /api/notifications/:id
+   */
+  public async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+
+      const id = String(req.params.id ?? '');
+      await notificationService.deleteNotification(getSupabaseClient(req), req.user.id, id);
+
+      res.json({ success: true, data: { id }, code: 200 });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * DELETE /api/notifications/read
+   */
+  public async removeRead(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+
+      const deleted = await notificationService.deleteRead(getSupabaseClient(req), req.user.id);
+
+      res.json({ success: true, data: { deleted }, code: 200 });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const notificationController = new NotificationController();
