@@ -5,6 +5,7 @@ import {
   Alert,
   Image,
   FlatList,
+  Dimensions,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -98,31 +99,36 @@ export default function Chat() {
   const insets = useSafeAreaInsets();
 
   // Android: en pantalla completa el sistema no siempre achica la ventana al abrir el teclado y la barra
-  // de escribir quedaba tapada. Se mide cuánto cubre el teclado la parte de abajo y se empuja esa cantidad.
-  // Si Android sí achicó la ventana, la medida da 0 y no se suma nada.
+  // de escribir quedaba tapada. Se calcula cuánto cubre el teclado la parte de abajo y se empuja esa cantidad.
+  // Se usa la altura del teclado (React Native le resta la barra del sistema) y no `screenY`, que en este
+  // modo es el borde del área visible y no la parte de arriba del teclado.
+  // Si Android sí achicó la ventana, el resultado es 0 y no se suma nada.
   const contenedorRef = useRef<ComponentRef<typeof View>>(null);
-  const tecladoArriba = useRef<number | null>(null);
+  const tecladoAlto = useRef<number | null>(null);
   const [solape, setSolape] = useState(0);
 
+  const barraInferior = insets.bottom;
   const medirSolape = useCallback(() => {
-    const arriba = tecladoArriba.current;
-    if (arriba === null) {
+    const alto = tecladoAlto.current;
+    if (alto === null) {
       setSolape(0);
       return;
     }
-    contenedorRef.current?.measureInWindow((_x, y, _w, alto) => {
-      setSolape(Math.max(0, Math.round(y + alto - arriba)));
+    // Parte de arriba real del teclado: alto total de la pantalla menos el teclado y la barra del sistema.
+    const arriba = Dimensions.get('screen').height - alto - barraInferior;
+    contenedorRef.current?.measureInWindow((_x, y, _w, altoContenedor) => {
+      setSolape(Math.max(0, Math.round(y + altoContenedor - arriba)));
     });
-  }, []);
+  }, [barraInferior]);
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     const mostrar = Keyboard.addListener('keyboardDidShow', (e) => {
-      tecladoArriba.current = e.endCoordinates.screenY;
+      tecladoAlto.current = e.endCoordinates.height;
       medirSolape();
     });
     const ocultar = Keyboard.addListener('keyboardDidHide', () => {
-      tecladoArriba.current = null;
+      tecladoAlto.current = null;
       setSolape(0);
     });
     return () => {
