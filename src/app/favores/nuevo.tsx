@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { OtroInput } from '@/components/OtroInput';
@@ -61,6 +61,8 @@ export default function NuevoFavor() {
   const crear = useCreateFavor();
   const [publicando, setPublicando] = useState(false);
   const [enMapa, setEnMapa] = useState(true);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  const inputY = useRef(0);
   const zoneId = useAppStore((s) => s.zoneId);
   const userId = useAppStore((s) => s.userId);
   const { data: zonas = [] } = useZones();
@@ -131,7 +133,7 @@ export default function NuevoFavor() {
   };
 
   return (
-    <Screen>
+    <Screen scrollViewRef={scrollRef} contentStyle={{ paddingBottom: 340 }}>
       <Text style={[styles.pasoTexto, { color: p.muted }]}>
         Paso {paso} de 3 · {PASOS[paso - 1]}
       </Text>
@@ -193,6 +195,20 @@ export default function NuevoFavor() {
 
       {paso === 2 && (
         <>
+          {tipo ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cambiar la opción elegida"
+              onPress={() => setPaso(1)}
+              style={[styles.elegido, { borderColor: p.cta, backgroundColor: p.highlight }]}
+            >
+              <Ionicons name={favorTypeIcon[tipo]} size={18} color={p.text} />
+              <Text style={[styles.elegidoTexto, { color: p.text }]} numberOfLines={1}>
+                {tipo === 'otros' && otroNombre.trim() ? otroNombre.trim() : ETIQUETAS[ofrecer ? 'ofrecer' : 'pedir'][tipo]}
+              </Text>
+              <Text style={[styles.elegidoCambiar, { color: p.muted }]}>Cambiar</Text>
+            </Pressable>
+          ) : null}
           <Text style={[styles.titulo, { color: p.text }]}>
             {tipo === 'otros'
               ? '¿Qué otro favor necesitas u ofreces?'
@@ -205,6 +221,7 @@ export default function NuevoFavor() {
               ? 'Escribe con tus palabras qué necesitas o qué puedes ofrecer. Tus vecinos verán tu mensaje tal cual.'
               : 'Sé claro y específico para que tus vecinos puedan ayudarte rápido.'}
           </Text>
+          <View onLayout={(e) => { inputY.current = e.nativeEvent.layout.y; }}>
           <TextInput
             value={texto}
             onChangeText={setTexto}
@@ -216,8 +233,12 @@ export default function NuevoFavor() {
             placeholderTextColor={colors.gris}
             multiline
             maxLength={120}
+            onFocus={() =>
+              setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, inputY.current - 90), animated: true }), 250)
+            }
             style={[styles.input, { color: p.text }]}
           />
+          </View>
           <Text style={[styles.charCount, { color: p.muted }]}>{texto.trim().length}/120</Text>
 
           <Text style={[styles.urgenciaLabel, { color: p.text }]}>¿Qué tan urgente es?</Text>
@@ -369,6 +390,20 @@ export default function NuevoFavor() {
 }
 
 const styles = StyleSheet.create({
+  elegido: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginBottom: spacing.sm,
+    maxWidth: '100%',
+  },
+  elegidoTexto: { fontFamily: fonts.bold, fontSize: 15, flexShrink: 1 },
+  elegidoCambiar: { fontFamily: fonts.medium, fontSize: 13, marginLeft: 4 },
   pasoTexto: { fontFamily: fonts.semiBold, fontSize: 14, marginTop: spacing.xs },
   progreso: { flexDirection: 'row', gap: 8, marginTop: spacing.sm, marginBottom: spacing.lg },
   barra: { flex: 1, height: 8, borderRadius: radius.pill },
