@@ -472,11 +472,6 @@ export default function MapaBarrio() {
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.titulo, { color: p.text }]}>Mapa del barrio</Text>
-          <Text style={[styles.sub, { color: p.muted }]} numberOfLines={1}>
-            {zona?.name ? `Zona ${zona.name} · ` : ''}
-            {filteredItems.length} punto{filteredItems.length === 1 ? '' : 's'} en el mapa
-            {activeUserLocation ? ' · Ordenados por cercanía' : ''}
-          </Text>
         </View>
 
         <View style={styles.headerActions}>
