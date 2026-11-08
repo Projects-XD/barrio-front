@@ -196,12 +196,12 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     .pin-selected .pin-core{transform:scale(1.36) !important;border-color:#132E66;box-shadow:0 5px 14px rgba(19,46,102,.55)}
     .pin-ring-sel{position:absolute;width:38px;height:38px;border-radius:50%;border:2.5px solid #132E66;background:rgba(234,152,43,.22);pointer-events:none}
     .pin-urg{position:absolute;width:36px;height:36px;border-radius:50%;border:2px solid #B8442F;animation:pulse 1.8s infinite;pointer-events:none}
-    .pin-wave{position:absolute;width:38px;height:38px;border-radius:50%;border:2px solid #D32F2F;background:rgba(211,47,47,.28);opacity:0;pointer-events:none;animation:wave 2.4s ease-out infinite}
-    .pin-wave.w2{animation-delay:.8s}
-    .pin-wave.w3{animation-delay:1.6s}
-    .pin-wave.azul{border-color:#132E66;background:rgba(19,46,102,.25)}
-    @keyframes wave{0%{transform:scale(.6);opacity:.8}100%{transform:scale(3.4);opacity:0}}
-    @media (prefers-reduced-motion: reduce){.pin-wave{animation:none;opacity:.35;transform:scale(1.7)}.pin-wave.w2,.pin-wave.w3{display:none}}
+    .pin-wave{position:absolute;width:38px;height:38px;border-radius:50%;border:1.5px solid #D32F2F;background:rgba(211,47,47,.2);opacity:0;pointer-events:none;animation:wave 2.2s ease-out infinite}
+    .pin-wave.w2{animation-delay:.7s}
+    .pin-wave.w3{animation-delay:1.4s}
+    .pin-wave.azul{border-color:#132E66;background:rgba(19,46,102,.18)}
+    @keyframes wave{0%{transform:scale(.9);opacity:.65}100%{transform:scale(1.8);opacity:0}}
+    @media (prefers-reduced-motion: reduce){.pin-wave{animation:none;opacity:.35;transform:scale(1.35)}.pin-wave.w2,.pin-wave.w3{display:none}}
     .user-wrap{display:flex;align-items:center;justify-content:center;position:relative;width:32px;height:32px}
     .user-pulse{position:absolute;width:30px;height:30px;border-radius:50%;background:rgba(43,74,140,.28);animation:pulse 2s infinite;pointer-events:none}
     .user-dot{width:14px;height:14px;border-radius:50%;background:#2B4A8C;border:3px solid #fff;box-shadow:0 2px 6px rgba(19,46,102,.4)}
