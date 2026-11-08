@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -14,6 +14,7 @@ import { useCreateReport } from '@/hooks/useData';
 import { resourceLabel } from '@/i18n/labels';
 import type { ResourceType } from '@/types';
 import { colors, fonts, radius, spacing } from '@/theme';
+import { searchCastillaAddresses, type CastillaAddressItem } from '@/utils/castillaAddresses';
 
 const necesidades = Object.keys(resourceLabel) as ResourceType[];
 
@@ -27,6 +28,45 @@ export default function Reportar() {
   const [otraNecesidad, setOtraNecesidad] = useState('');
   const [anonimo, setAnonimo] = useState(true);
   const [conUbicacion, setConUbicacion] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [sugerencias, setSugerencias] = useState<CastillaAddressItem[]>([]);
+  const [mostrarSugerencias, setMostrarSugerencias] = useState(false);
+  const [buscandoUbicacion, setBuscandoUbicacion] = useState(false);
+  const [suggestedCoords, setSuggestedCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Autocompletado de vías y sectores restringido a Castilla (Piura)
+  useEffect(() => {
+    let activo = true;
+    const timer = setTimeout(async () => {
+      const q = donde.trim();
+      if (q.length < 2) {
+        if (activo) {
+          setSugerencias([]);
+          setMostrarSugerencias(false);
+        }
+        return;
+      }
+
+      if (activo) setBuscandoUbicacion(true);
+      try {
+        const res = await searchCastillaAddresses(q);
+        if (activo) {
+          setSugerencias(res);
+          setMostrarSugerencias(res.length > 0);
+        }
+      } catch {
+        if (activo) setSugerencias([]);
+      } finally {
+        if (activo) setBuscandoUbicacion(false);
+      }
+    }, 220);
+
+    return () => {
+      activo = false;
+      clearTimeout(timer);
+    };
+  }, [donde]);
+
   // Alert.alert no se ve en la web: la confirmación va en un modal propio.
   const [confirmacion, setConfirmacion] = useState<'sent' | 'queued' | null>(null);
   const cerrarConfirmacion = () => {
@@ -46,8 +86,12 @@ export default function Reportar() {
   };
 
   const enviar = async () => {
+    if (submitting || crear.isPending) return;
+    setSubmitting(true);
     try {
-      const location = conUbicacion ? await obtenerUbicacion().catch(() => null) : null;
+      const location = conUbicacion
+        ? suggestedCoords || (await obtenerUbicacion().catch(() => null))
+        : null;
       const { queued } = await crear.mutateAsync({
         description:
           needs.includes('otro') && otraNecesidad.trim()
@@ -62,7 +106,17 @@ export default function Reportar() {
       setConfirmacion(queued ? 'queued' : 'sent');
     } catch (err) {
       Alert.alert('No se pudo enviar el reporte', (err as Error)?.message ?? 'Inténtalo de nuevo.');
+    } finally {
+      setSubmitting(false);
     }
+  };
+
+  const seleccionarSugerencia = (item: CastillaAddressItem) => {
+    setDonde(item.title);
+    if (item.coords) {
+      setSuggestedCoords(item.coords);
+    }
+    setMostrarSugerencias(false);
   };
 
   return (
@@ -91,15 +145,52 @@ export default function Reportar() {
         style={[styles.inputLinea, { borderColor: p.border, color: p.text }]}
       />
 
-      <Text style={[styles.label, { color: p.text }]}>¿Dónde está?</Text>
+      <View style={styles.dondeHeaderRow}>
+        <Text style={[styles.label, { color: p.text, marginTop: 0, marginBottom: 0 }]}>¿Dónde está?</Text>
+        {buscandoUbicacion ? <ActivityIndicator size="small" color={colors.azul} /> : null}
+      </View>
       <TextInput
         value={donde}
-        onChangeText={setDonde}
-        placeholder="Ej: Jr. Lima 123, casa azul frente a la bodega"
+        onChangeText={(text) => {
+          setDonde(text);
+          setSuggestedCoords(null);
+        }}
+        onFocus={() => {
+          if (sugerencias.length > 0) setMostrarSugerencias(true);
+        }}
+        placeholder="Ej: Av. Guardia Civil o Jr. Ayacucho, Castilla"
         placeholderTextColor={colors.gris}
         maxLength={200}
         style={[styles.inputLinea, { borderColor: p.border, color: p.text }]}
       />
+
+      {mostrarSugerencias && sugerencias.length > 0 ? (
+        <View style={[styles.sugerenciasBox, { borderColor: p.border, backgroundColor: colors.blanco }]}>
+          <Text style={[styles.sugerenciasTitulo, { color: p.muted }]}>
+            Calles y sectores en Castilla
+          </Text>
+          {sugerencias.map((item, idx) => (
+            <Pressable
+              key={item.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Elegir ${item.title}`}
+              style={({ pressed }) => [
+                styles.sugerenciaFila,
+                idx > 0 && { borderTopWidth: 1, borderTopColor: p.border },
+                pressed && { backgroundColor: p.highlight },
+              ]}
+              onPress={() => seleccionarSugerencia(item)}
+            >
+              <Ionicons name="location-outline" size={18} color={colors.azul} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.sugerenciaTitulo, { color: p.text }]}>{item.title}</Text>
+                <Text style={[styles.sugerenciaSub, { color: p.muted }]}>{item.subtitle}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       <Text style={[styles.nota, { color: p.muted }]}>
         El nombre y la dirección solo los ven los vecinos que se sumen a ayudar y el comité.
       </Text>
@@ -129,10 +220,17 @@ export default function Reportar() {
         Si es urgente, llama al 105 (Policía), 116 (Bomberos) o 106 (SAMU). Este reporte no reemplaza una llamada de emergencia.
       </Text>
       <AppButton
-        label={crear.isPending ? 'Enviando...' : 'Enviar reporte'}
+        label={submitting || crear.isPending ? 'Enviando reporte...' : 'Enviar reporte'}
+        loading={submitting || crear.isPending}
         variant="primary"
         onPress={enviar}
-        disabled={descripcion.trim().length < 5 || donde.trim().length < 5 || (needs.includes('otro') && otraNecesidad.trim().length < 3) || crear.isPending}
+        disabled={
+          descripcion.trim().length < 5 ||
+          donde.trim().length < 5 ||
+          (needs.includes('otro') && otraNecesidad.trim().length < 3) ||
+          submitting ||
+          crear.isPending
+        }
       />
 
       <AppModal visible={confirmacion !== null} onClose={cerrarConfirmacion} overlayStyle={styles.overlay} cardStyle={styles.modalCard}>
@@ -158,6 +256,13 @@ export default function Reportar() {
 
 const styles = StyleSheet.create({
   label: { fontFamily: fonts.semiBold, fontSize: 16, marginTop: spacing.md, marginBottom: 6 },
+  dondeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    marginBottom: 6,
+  },
   input: {
     minHeight: 110,
     borderWidth: 1.5,
@@ -176,6 +281,38 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 16,
     backgroundColor: colors.blanco,
+  },
+  sugerenciasBox: {
+    borderWidth: 1.5,
+    borderRadius: radius.md,
+    marginTop: 6,
+    marginBottom: spacing.xs,
+    overflow: 'hidden',
+  },
+  sugerenciasTitulo: {
+    fontFamily: fonts.semiBold,
+    fontSize: 11,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sugerenciaFila: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  sugerenciaTitulo: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+  },
+  sugerenciaSub: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    marginTop: 2,
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap' },
   nota: { fontFamily: fonts.regular, fontSize: 14, marginTop: 4, marginBottom: spacing.md },

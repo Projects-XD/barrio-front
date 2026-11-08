@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePalette } from '@/hooks/usePalette';
 import type { IconName } from '@/i18n/icons';
 import { colors, fonts, radius, touch } from '@/theme';
@@ -10,11 +10,13 @@ type Props = {
   // primary y accent son la misma acción principal (naranja); se mantienen ambos por compatibilidad.
   variant?: 'primary' | 'secondary' | 'accent' | 'link' | 'danger' | 'success';
   disabled?: boolean;
+  loading?: boolean;
   icon?: IconName;
 };
 
-export function AppButton({ label, onPress, variant = 'primary', disabled = false, icon }: Props) {
+export function AppButton({ label, onPress, variant = 'primary', disabled = false, loading = false, icon }: Props) {
   const p = usePalette();
+  const isDisabled = disabled || loading;
   const isMain = variant === 'primary' || variant === 'accent';
   const isSecondary = variant === 'secondary';
   const isDanger = variant === 'danger';
@@ -28,19 +30,23 @@ export function AppButton({ label, onPress, variant = 'primary', disabled = fals
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       onPress={onPress}
-      disabled={disabled}
+      disabled={isDisabled}
       style={({ pressed }) => [
         styles.base,
         { backgroundColor: bg },
         isLink && styles.link,
-        disabled && styles.disabled,
-        pressed && !disabled && { opacity: 0.88, transform: [{ scale: 0.985 }] },
+        isDisabled && styles.disabled,
+        pressed && !isDisabled && { opacity: 0.88, transform: [{ scale: 0.985 }] },
       ]}
     >
       <View style={styles.row}>
-        {icon ? <Ionicons name={icon} size={20} color={fg} /> : null}
+        {loading ? (
+          <ActivityIndicator size="small" color={fg} />
+        ) : icon ? (
+          <Ionicons name={icon} size={20} color={fg} />
+        ) : null}
         <Text style={[styles.label, { color: fg }, isLink && styles.linkLabel]}>{label}</Text>
       </View>
     </Pressable>
