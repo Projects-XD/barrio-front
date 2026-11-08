@@ -155,6 +155,11 @@ export const getVouchStatus = (id: string) =>
 export const vouchProfile = (profileId: string) =>
   api.post<{ profile: BackendProfile; vouch: unknown }>(`/profiles/${profileId}/vouch`);
 
+export const contactProfile = (profileId: string, initialMessage?: string) =>
+  api.post<{ conversation_id: string; is_new: boolean }>(`/profiles/${profileId}/contact`, {
+    initial_message: initialMessage,
+  });
+
 export interface UpsertProfilePayload {
   // Con id, el backend actualiza ese perfil (incluido el oficio) en lugar de crear otro.
   id?: string;
@@ -316,6 +321,7 @@ export interface BackendConversation {
   created_at: string;
   // Solo viene en el detalle: indica si quien consulta bloqueó al otro vecino.
   blocked_by_me?: boolean;
+  other_profile_id?: string | null;
   favor: { id: string; title: string; status?: string } | null;
   author: BackendChatUser | null;
   responder: BackendChatUser | null;

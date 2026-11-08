@@ -27,6 +27,7 @@ import {
   useProfile,
   useUpsertMyProfile,
   useVouch,
+  useContactProfile,
 } from '@/hooks/useData';
 import type { OficioCategory } from '@/types';
 import { useAppStore } from '@/store/app-store';
@@ -54,9 +55,24 @@ export default function OficioDetalle() {
   const [descripcion, setDescripcion] = useState('');
   const [experiencia, setExperiencia] = useState('');
   const vouch = useVouch(id);
+  const contact = useContactProfile();
   const [showContactModal, setShowContactModal] = useState(false);
   const userId = useAppStore((s) => s.userId);
   const esMio = Boolean(userId) && profile?.userId === userId;
+
+  const handleChatearEnBarrio = async () => {
+    if (!profile) return;
+    try {
+      const res = await contact.mutateAsync({ profileId: profile.id });
+      setShowContactModal(false);
+      router.push(`/chat/${res.conversation_id}`);
+    } catch (err: unknown) {
+      const errorMsg =
+        (err instanceof Error && err.message) ||
+        'No se pudo abrir el chat con el técnico.';
+      Alert.alert('No se pudo abrir el chat', errorMsg);
+    }
+  };
 
   const handleVouch = async () => {
     if (esMio) return;
@@ -354,8 +370,15 @@ export default function OficioDetalle() {
 
             <View style={styles.modalButtonsStack}>
               <AppButton
-                label="Escribir por WhatsApp"
+                label={contact.isPending ? 'Abriendo chat...' : 'Chatear en Barrio'}
                 variant="accent"
+                icon="chatbubble-ellipses-outline"
+                disabled={contact.isPending}
+                onPress={handleChatearEnBarrio}
+              />
+              <AppButton
+                label="Escribir por WhatsApp"
+                variant="secondary"
                 icon="logo-whatsapp"
                 onPress={handleWhatsApp}
               />

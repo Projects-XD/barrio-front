@@ -199,6 +199,39 @@ export class ProfileController {
   }
 
   /**
+   * POST /api/profiles/:id/contact
+   * Inicia o recupera una conversación directa con un oficio comunitario.
+   */
+  public async contact(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new AppError('Usuario no autenticado', 401);
+      }
+
+      const profileId = String(req.params.id ?? req.params.profileId ?? '');
+      if (!profileId) {
+        throw new AppError('El ID del perfil profesional es requerido', 400);
+      }
+
+      const supabase = getSupabaseClient(req);
+      const data = await profileService.contactProfile(
+        supabase,
+        req.user.id,
+        profileId,
+        req.body?.initial_message
+      );
+
+      res.status(200).json({
+        success: true,
+        data,
+        code: 200,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * GET /api/profiles/oficios
    * Catálogo de oficios activos.
    */
