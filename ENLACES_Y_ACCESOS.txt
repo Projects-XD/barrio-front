@@ -1,0 +1,70 @@
+================================================================================
+HACKATHON UTP - EL COMERCIO 2026
+PROYECTO: BARRIO — Plataforma Comunitaria y de Resiliencia Vecinal
+================================================================================
+
+1. INFORMACIÓN GENERAL Y ENLACES DEL PROYECTO
+--------------------------------------------------------------------------------
+- Nombre del Proyecto: Barrio
+- Repositorio Oficial en GitHub: https://github.com/Projects-XD/barrio-front
+- Rama Principal de Entrega: developer (y main)
+- Documentación Técnica Detallada: Ver README.md y API_ENDPOINTS.md en el repositorio.
+- Base de Datos Cloud (Supabase PostgreSQL): Conectada y activa.
+
+2. USUARIOS DE DEMOSTRACIÓN PRE-CONFIGURADOS
+--------------------------------------------------------------------------------
+Para evaluar de inmediato la plataforma sin necesidad de registrarse desde cero,
+se han dejado cuentas activas con datos, oficios y favores en el distrito de Castilla:
+
+A) VECINO 1 (Publicador de favores y oficios):
+   - Correo: samirloroamaya24@gmail.com
+   - Contraseña: Wilmer@1404
+
+B) VECINO 2 (Vecino que interactúa, avala oficios y responde a emergencias):
+   - Correo: edson@gmail.com
+   - Contraseña: Edson123
+
+C) COMITÉ DE EMERGENCIA / ADMINISTRADOR:
+   - Correo: admin@gmail.com
+   - Contraseña: admin123
+
+3. INSTRUCCIONES RÁPIDAS PARA EJECUTAR EN LOCAL
+--------------------------------------------------------------------------------
+Requisitos previos: Node.js v20+ instalado.
+
+PASO 1: LEVANTAR EL SERVIDOR BACKEND (API RESTful)
+   1. Abrir una terminal en la carpeta 'backend/':
+      cd backend
+   2. Instalar dependencias:
+      npm install
+   3. Iniciar el servidor:
+      npm run dev
+   -> La API quedará activa en: http://localhost:3001/api/v1
+   -> Documentación Swagger disponible en: http://localhost:3001/api/docs
+
+PASO 2: LEVANTAR LA APLICACIÓN CLIENTE (EXPO / REACT NATIVE)
+   1. En otra terminal, ubicarse en la raíz del proyecto ('barrio-front/'):
+      npm install
+   2. Iniciar la aplicación:
+      npx expo start
+   3. Opciones de visualización:
+      - Presionar la tecla 'w' para abrirlo inmediatamente en el Navegador Web (PC).
+      - O escanear el código QR con la app gratuita 'Expo Go' desde un celular Android/iOS.
+
+4. INSTRUCCIONES PARA PROBAR EL APK EN ANDROID
+--------------------------------------------------------------------------------
+- El archivo 'Barrio.apk' adjunto en esta carpeta puede ser instalado directamente
+  en cualquier dispositivo Android habilitando la opción "Instalar aplicaciones de
+  fuentes desconocidas".
+- El APK se conecta automáticamente a la infraestructura en la nube (Supabase Auth,
+  PostgreSQL y Supabase Realtime). Para comunicarse con el backend local de pruebas,
+  el dispositivo debe encontrarse en la misma red local o bien ejecutar la versión web.
+
+5. CALIDAD TÉCNICA Y RESUMEN DE PRUEBAS AUTOMATIZADAS
+--------------------------------------------------------------------------------
+- TypeScript: 0 errores (Modo estricto verificado con `npx tsc --noEmit`).
+- ESLint: 0 advertencias de código o hooks de React (`npx eslint .`).
+- Backend Tests: 75 de 75 pruebas unitarias y de integración aprobadas (`npm test` en backend/).
+- Base de Datos: 38 migraciones SQL cronológicas con políticas de seguridad RLS en PostgreSQL.
+- Resiliencia de Red: Motor Offline-First con SQLite local y sincronización por lotes idempotente.
+================================================================================
