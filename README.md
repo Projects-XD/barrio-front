@@ -3,8 +3,8 @@
 **Barrio** es una plataforma móvil y web integral diseñada para reactivar el tejido vecinal y la resiliencia comunitaria. Responde al reto de conectar a los ciudadanos para acceder a productos, servicios y apoyo mutuo **a costos mínimos, con hiperproximidad (sin transporte mayor) y avalados por la confianza barrial**. 
 
 La plataforma opera bajo un modelo de **doble estado**:
-1. **Día a Día (Economía Local y Solidaria):** Directorio de oficios avalados por "Vistos Buenos Vecinales", muro colaborativo de favores sin dinero (préstamos, donaciones, ayuda temporal, intercambio de habilidades), chat privado en tiempo real con imágenes, sugerencias inteligentes asistidas por IA y mapa interactivo delimitado por zonas.
-2. **Modo Emergencia (Resiliencia Comunitaria):** Evolución visual y operativa inmediata ante crisis climáticas o desastres (lluvias, desbordes, cortes de servicios): tablero de ayuda humanitaria geolocalizado con reportes de vulnerabilidad (con protección de privacidad por redondeo y opción anónima, TTL de 6h), banco solidario de recursos críticos y directorio de auxilio rápido.
+1. **Día a Día (Economía Local y Solidaria):** Directorio de oficios avalados por "Vistos Buenos Vecinales", muro colaborativo de favores sin dinero (préstamos, donaciones, ayuda temporal, intercambio de habilidades), chat privado en tiempo real con imágenes y confirmación de servicios, sugerencias inteligentes asistidas por IA y mapa interactivo delimitado por zonas.
+2. **Modo Emergencia (Resiliencia Comunitaria):** Evolución visual y operativa inmediata ante crisis climáticas o desastres (lluvias, desbordes, cortes de servicios): tablero de ayuda humanitaria geolocalizado con reportes de vulnerabilidad (con protección de privacidad por redondeo ~111m y opción anónima, TTL de 6h), autocompletado de direcciones restringido al distrito de Castilla, auxilio voluntario coordinado en tiempo real (*"Voy a ayudar"*, refuerzo y resolución) y directorio de auxilio rápido.
 
 Construida con arquitectura **Offline-First** (resistencia total a cortes de señal mediante SQLite y sincronización idempotente), **Tiempo Real** (Supabase Realtime) y soporte multiplataforma (**Android, iOS y Web**) sobre **Expo SDK 58 / React Native** y backend **Node.js + Express + TypeScript** bajo **Clean Architecture**.
 
@@ -20,14 +20,14 @@ Construida con arquitectura **Offline-First** (resistencia total a cortes de se�
    - [5.1 Servicios de Proximidad (Oficios y Confianza Vecinal)](#51-servicios-de-proximidad-oficios-y-confianza-vecinal)
    - [5.2 Cadena de Favores & Red de Solidaridad (Sin Dinero)](#52-cadena-de-favores--red-de-solidaridad-sin-dinero)
    - [5.3 Modo Emergencia y Ayuda Humanitaria](#53-modo-emergencia-y-ayuda-humanitaria)
-   - [5.4 Mensajería en Tiempo Real con Adjuntos](#54-mensajería-en-tiempo-real-con-adjuntos)
+   - [5.4 Mensajería en Tiempo Real con Adjuntos y Avales](#54-mensajería-en-tiempo-real-con-adjuntos-y-avales)
    - [5.5 Cartografía Vecinal y Delimitación Geoespacial](#55-cartografía-vecinal-y-delimitación-geoespacial)
    - [5.6 Asistente IA (Google Gemini)](#56-asistente-ia-google-gemini)
 6. [Motor Offline-First y Resiliencia de Red](#6-motor-offline-first-y-resiliencia-de-red)
-7. [Base de Datos y Migraciones (32 Versiones)](#7-base-de-datos-y-migraciones-32-versiones)
+7. [Base de Datos y Migraciones (38 Versiones)](#7-base-de-datos-y-migraciones-38-versiones)
 8. [Configuración e Instalación Paso a Paso](#8-configuración-e-instalación-paso-a-paso)
 9. [Referencia de la API RESTful (`/api/v1`)](#9-referencia-de-la-api-restful-apiv1)
-10. [Calidad de Código y Pruebas Automatizadas](#10-calidad-de-código-y-pruebas-automatizadas)
+10. [Calidad de Código y Pruebas Automatizadas (75 Passing)](#10-calidad-de-código-y-pruebas-automatizadas-75-passing)
 
 ---
 
@@ -36,9 +36,9 @@ Construida con arquitectura **Offline-First** (resistencia total a cortes de se�
 | Requisito del Reto | Solución Implementada en Barrio |
 | --- | --- |
 | **Costo mínimo y sin transporte mayor** | Enfoque hiperlocal por sector y zona (Castilla, Piura). Filtro por cercanía métrica a pie y mapa interactivo con cálculo de distancia y tiempo de caminata. |
-| **Avalados por recomendaciones vecinales** | Sistema de *"Vistos Buenos Vecinales"* (Vouches). Un profesional sólo puede ser avalado por vecinos residentes de su misma zona; al acumular 2 o más avales obtiene la insignia oficial de *Validado por vecinos*. |
+| **Avalados por recomendaciones vecinales** | Sistema de *"Vistos Buenos Vecinales"* (Vouches). Un profesional sólo puede ser avalado por vecinos residentes de su misma zona; al acumular 2 o más avales obtiene la insignia oficial de *Validado por vecinos*. Flujo directo de aval al culminar un trabajo desde el chat. |
 | **Intercambios solidarios sin dinero** | Muro de Ayuda Comunitaria con separación clara de intenciones (**Pedir ayuda** vs **Ofrecer ayuda**) en 6 categorías: préstamo de herramientas, ayuda temporal, donación de materiales, intercambio de habilidades, movilidad solidaria y otros. |
-| **Evolución en situaciones de emergencia** | Cambio dinámico de paleta y estado en toda la app. Tablero de emergencias con reportes humanitarios con TTL de 6h, banco de recursos críticos y directorio de emergencias. |
+| **Evolución en situaciones de emergencia** | Cambio dinámico de paleta y estado en toda la app. Tablero de emergencias con reportes humanitarios con TTL de 6h, auxilio voluntario en vivo (*"Voy a ayudar"*), escalamiento automático a los 15 min y directorio SOS. |
 | **Privacidad en situaciones críticas** | Coordenadas de personas en riesgo redondeadas a 3 decimales (~111 m) para evitar exponer viviendas exactas. Soporte de reportes 100% anónimos. |
 | **Funcionalidad Online / Offline** | Motor SQLite local (`outbox`). Permite publicar favores, reportes o recursos sin conexión. La UI responde instantáneamente y sincroniza por lotes idempotentes (`/api/v1/sync`) al recuperar red. |
 | **Enfoque móvil (máximo 3 clics para publicar)** | Asistente de publicación en 3 pasos rápidos (`favores/nuevo.tsx`): 1. Tipo -> 2. Descripción/Urgencia -> 3. Confirmación en mapa. |
@@ -67,7 +67,7 @@ flowchart TD
 
   subgraph Cloud["Infraestructura Cloud"]
     SupaAuth["Supabase Auth (JWT)"]
-    PostgreSQL[("PostgreSQL 15 con RLS\n(32 migraciones aplicadas)")]
+    PostgreSQL[("PostgreSQL 15 con RLS\n(38 migraciones aplicadas)")]
     SupaStorage["Supabase Storage\n(Bucket: chat-images, avatars)"]
     Gemini["Google Gemini API\n(Asistente de redacción)"]
   end
@@ -97,7 +97,7 @@ flowchart TD
 - **Almacenamiento Local Offline:** [Expo SQLite](https://docs.expo.dev/versions/latest/sdk/sqlite/) con tablas `outbox` y transacciones asíncronas.
 - **Imágenes & Multimedia:** [Expo Image Picker](https://docs.expo.dev/versions/latest/sdk/imagepicker/) + [Expo Image Manipulator](https://docs.expo.dev/versions/latest/sdk/imagemanipulator/) para compresión y optimización previa al envío.
 - **Mapas:** [Leaflet](https://leafletjs.com/) sobre `WebView` en Android/iOS e `iframe` con puente bidireccional JS en Web.
-- **Geolocalización:** [Expo Location](https://docs.expo.dev/versions/latest/sdk/location/) con geocodificación inversa universal (Nominatim OpenStreetMap / APIs nativas).
+- **Geolocalización:** [Expo Location](https://docs.expo.dev/versions/latest/sdk/location/) con validación y autocompletado delimitado al polígono de Castilla.
 - **Tipografía y Diseño:** *Outfit*, *Fraunces* e *Instrument Sans* vía `@expo-google-fonts`, íconos vectoriales `@expo/vector-icons` (Ionicons) y paleta adaptativa (`usePalette`).
 
 ### Backend
@@ -106,7 +106,7 @@ flowchart TD
 - **Validación de Datos:** [Zod v4](https://zod.dev/) para contratos de entrada y sanitización tipada en todos los endpoints.
 - **Seguridad:** Helmet (cabeceras HTTP seguras), CORS dinámico, rate limiting en memoria para mensajes (30/min) e IA (5/hora), y sanitización profunda contra inyección de nombres de tablas o columnas en errores de base de datos.
 - **Inteligencia Artificial:** SDK oficial `@google/genai` (Google Gemini 1.5/2.0) para sugerencias de redacción clara y constructiva.
-- **Pruebas:** Node.js native test runner (`tsx --test`) con 62 pruebas unitarias e integradas automatizadas.
+- **Pruebas:** Node.js native test runner (`tsx --test`) con **75 pruebas unitarias e integradas automatizadas**.
 
 ### Base de Datos & Tiempo Real
 - **Plataforma:** [Supabase](https://supabase.com/) (PostgreSQL 15 gestionado).
@@ -119,7 +119,9 @@ flowchart TD
 
 ```text
 barrio-front/
-├── app.json                       # Manifiesto Expo, esquema y plugins nativos
+├── app.json                       # Manifiesto Expo, package Android (com.barrio.app) y plugins
+├── eas.json                       # Configuración de compilación EAS Build para APK
+├── ENLACES_Y_ACCESOS.txt          # Credenciales de prueba y enlaces de evaluación para jurados
 ├── package.json                   # Dependencias de frontend y scripts
 ├── tsconfig.json                  # Configuración estricta TypeScript
 ├── assets/                        # Recursos de marca (logos, splash, favicon)
@@ -132,8 +134,8 @@ barrio-front/
 │   │   ├── welcome.tsx            # Tutorial interactivo de bienvenida (3 pasos)
 │   │   ├── register.tsx           # Login / Registro compacto adaptado a teclado móvil
 │   │   ├── ubicacion.tsx          # Selector de domicilio en mapa con autocompletado
-│   │   ├── emergencia.tsx         # Tablero humanitario, recursos críticos y directorio SOS
-│   │   ├── reportar.tsx           # Formulario geolocalizado de vecino vulnerable (anónimo)
+│   │   ├── emergencia.tsx         # Tablero humanitario, coordinación de rescate y directorio SOS
+│   │   ├── reportar.tsx           # Formulario geolocalizado de vecino en riesgo (anónimo y offline)
 │   │   ├── avisos.tsx             # Bandeja de notificaciones en tiempo real
 │   │   ├── chats.tsx              # Bandeja de conversaciones activas
 │   │   ├── (tabs)/                # Barra de navegación principal (5 pestañas)
@@ -150,11 +152,11 @@ barrio-front/
 │   │   ├── oficio/
 │   │   │   └── [id].tsx           # Ficha de oficio, avales vecinales, contacto y opciones
 │   │   └── chat/
-│   │       └── [id].tsx           # Chat 1 a 1 en tiempo real con adjuntos fotográficos
+│   │       └── [id].tsx           # Chat 1 a 1 en tiempo real con fotos, cierre y aval vecinal
 │   ├── components/                # Componentes reutilizables de UI
 │   │   ├── AgregarOficioModal.tsx # Formulario modal para registrar oficios desde cualquier vista
-│   │   ├── AppButton.tsx          # Botón accesible con variantes (accent, secondary, link, danger)
-│   │   ├── AppModal.tsx           # Modal universal con animación suave y cierre por fondo
+│   │   ├── AppButton.tsx          # Botón accesible con variantes y spinner bloqueante
+│   │   ├── AppModal.tsx           # Modal universal compatible con Web (fixed overlay) y móvil
 │   │   ├── BarrioMap.tsx / .web   # Visor de mapa con soporte multiplataforma
 │   │   ├── ChatFab.tsx            # Botón flotante desplegable con accesos a publicar y chats
 │   │   ├── FadeInView.tsx         # Animación de entrada escalonada para listas
@@ -162,12 +164,12 @@ barrio-front/
 │   │   ├── NotificationToast.tsx  # Alertas emergentes en tiempo real
 │   │   ├── PaginationControls.tsx # Paginación universal unificada para listas
 │   │   ├── ProfessionalCard.tsx   # Tarjeta de oficio con métricas de distancia y avales
-│   │   └── Screen.tsx             # Wrapper de pantalla con control inteligente de safe area y teclado
+│   │   └── Screen.tsx             # Wrapper de pantalla con control de safe area y teclado
 │   ├── hooks/                     # Custom hooks para datos, realtime y diseño
 │   ├── offline/                   # Motor SQLite y orquestador de sincronización outbox
 │   ├── store/                     # Estado global en Zustand (usuario, zona, sesión)
 │   ├── theme/                     # Tokens de diseño (colores, fuentes Outfit/Fraunces/Instrument Sans)
-│   └── utils/                     # Algoritmos geoespaciales, formateo y loggers estructurados
+│   └── utils/                     # Algoritmos geoespaciales, autocompletado de Castilla y loggers
 ├── backend/                       # API RESTful en Node.js + Express + TypeScript
 │   ├── src/
 │   │   ├── app.ts                 # Configuración de Express, middlewares y Swagger UI
@@ -178,7 +180,7 @@ barrio-front/
 │   │   └── utils/                 # Validadores Zod, contorno geográfico de Castilla y logger
 │   └── scripts/                   # Seeds de prueba y datos de demostración
 └── supabase/
-    └── migrations/                # 32 migraciones SQL incrementales
+    └── migrations/                # 38 migraciones SQL incrementales
 ```
 
 ---
@@ -188,6 +190,7 @@ barrio-front/
 ### 5.1 Servicios de Proximidad (Oficios y Confianza Vecinal)
 - **Directorio Local:** Permite a cualquier vecino registrar los oficios que domina (gasfitería, electricidad, carpintería, albañilería, costura, clases, jardinería, etc.).
 - **Sistema de Avales ("Visto Bueno Vecinal"):** Solo vecinos de la misma zona pueden respaldar a un profesional. Al alcanzar 2 avales, el perfil adquiere la insignia oficial de validación vecinal.
+- **Flujo Directo de Aval desde el Chat:** Tras coordinar y culminar un servicio, el vecino solicitante puede confirmar el trabajo realizado y otorgar el *Visto Bueno Vecinal* directamente desde la conversación.
 - **Cálculo de Proximidad:** Ordenamiento por cercanía geográfica en metros y minutos de caminata estimada desde la ubicación guardada del usuario.
 - **Filtro del Perfil Propio:** Para evitar redundancias, el usuario no se ve a sí mismo en el directorio público de oficios.
 
@@ -199,13 +202,15 @@ barrio-front/
 - **Cierre con Reconocimiento:** Al resolver el favor, el autor selecciona al vecino que lo apoyó, enviando un agradecimiento formal y cerrando la conversación.
 
 ### 5.3 Modo Emergencia y Ayuda Humanitaria
-- **Tablero de Vulnerabilidad:** Registro geolocalizado de personas en situación crítica (ancianos solos, enfermos sin medicinas, viviendas anegadas).
+- **Tablero de Vulnerabilidad y Rescate:** Registro de vecinos en riesgo con protección de datos (redondeo de coordenadas a ~111m u opción 100% anónima).
+- **Autocompletado Delimitado a Castilla:** Búsqueda en tiempo real de calles, jirones y avenidas del distrito de Castilla (`src/utils/castillaAddresses.ts`), asegurando que solo se registren incidencias dentro del perímetro distrital.
+- **Coordinación de Auxilio Comunitario en Vivo:** Acciones en tiempo real para vecinos voluntarios: *"Voy a ayudar"*, *"Dejar de acudir"*, *"Solicitar refuerzo"* (tras 5 min de atención) y *"Marcar como resuelto"*.
+- **Escalamiento Automático:** Si una alerta permanece más de 15 minutos sin ser atendida por ningún vecino (`0036_reportes_escalamiento.sql`), el sistema la destaca en estado de alerta escalada para intervención del comité vecinal o autoridades.
+- **Integración WhatsApp:** Botón para compartir reportes de emergencia con formato estructurado y enlace directo en grupos vecinales de WhatsApp.
 - **TTL de 6 Horas:** Las alertas de emergencia expiran automáticamente a las 6 horas de su emisión (`0032_emergencias_ttl.sql`), manteniendo el tablero limpio y actualizado.
-- **Privacidad por Redondeo:** Las coordenadas geográficas se redondean a 3 decimales (~111 m) para proteger la intimidad y seguridad física de las familias. Opción de reporte anónimo disponible.
-- **Inventario Solidario:** Sección para ofertar o solicitar insumos de primera necesidad (agua potable, alimentos no perecibles, medicinas, linternas, refugio temporal).
-- **Directorio SOS Rápido:** Marcado directo con un toque a Bomberos, Policía Nacional, SAMU y Serenazgo de Castilla.
+- **Directorio SOS Rápido:** Marcado directo con un toque a Bomberos (116), Policía Nacional (105), SAMU (106) y Serenazgo de Castilla.
 
-### 5.4 Mensajería en Tiempo Real con Adjuntos
+### 5.4 Mensajería en Tiempo Real con Adjuntos y Avales
 - **Chat Privado 1 a 1:** Conexión segura entre el vecino que solicita ayuda y el que se postula para brindar apoyo.
 - **Imágenes Adjuntas:** Capacidad para enviar hasta 2 fotografías por mensaje (con compresión previa automática) para mostrar desperfectos, herramientas o estados de emergencia.
 - **Seguridad Comunitaria:** Sistema de baneo progresivo por reportes acumulados (`0030_ban_progresivo.sql`), bloqueo mutuo entre usuarios y borrado automático de imágenes huérfanas al cerrar el favor.
@@ -224,14 +229,14 @@ barrio-front/
 
 En situaciones de desastre o mala conectividad móvil, Barrio continúa funcionando ininterrumpidamente:
 
-1. **Captura Local Inmediata:** Las operaciones críticas (`create_favor`, `create_report`, `create_resource`) generan un identificador único `client_id` (UUID v4) y se almacenan en la tabla SQLite local `outbox`.
+1. **Captura Local Inmediata:** Las operaciones críticas (`create_favor`, `create_report`) generan un identificador único `client_id` (UUID v4) y se almacenan en la tabla SQLite local `outbox`.
 2. **Respuesta Optimista en UI:** El favor o reporte aparece al instante en la pantalla del usuario con la marca visual de sincronización pendiente, permitiendo seguir navegando sin bloqueos.
 3. **Sincronización Automática en Segundo Plano:** El hook `useOfflineSync` escucha los eventos de red mediante `@react-native-community/netinfo`. Al restablecerse la conexión, invoca automáticamente `POST /api/v1/sync`.
 4. **Idempotencia Garantizada:** El backend procesa el lote validando cada `client_id`. Si una operación ya fue registrada previamente, se omite de forma segura sin generar duplicados.
 
 ---
 
-## 7. Base de Datos y Migraciones (32 Versiones)
+## 7. Base de Datos y Migraciones (38 Versiones)
 
 El esquema de PostgreSQL en Supabase está versionado cronológicamente en `supabase/migrations/`:
 
@@ -269,6 +274,12 @@ El esquema de PostgreSQL en Supabase está versionado cronológicamente en `supa
 | `0030` | `0030_ban_progresivo.sql` | Baneo temporal automático ante acumulación de reportes vecinales. |
 | `0031` | `0031_chat_imagenes.sql` | Soporte para URLs de imágenes en `messages` y bucket `chat-images`. |
 | `0032` | `0032_emergencias_ttl.sql` | Expiración automática a las 6 horas para reportes de vulnerabilidad. |
+| `0033` | `0033_notificar_todo.sql` | Notificaciones automáticas de todas las publicaciones y eventos en el barrio. |
+| `0034` | `0034_reportes_emergencia_base.sql` | Esquema base de reportes de vulnerabilidad en emergencias y confidencialidad. |
+| `0035` | `0035_reportes_voluntarios.sql` | Tabla `vulnerability_report_responders` y visibilidad de auxilio para voluntarios activos. |
+| `0036` | `0036_reportes_escalamiento.sql` | Escalamiento automático de reportes no atendidos tras 15 minutos (`escalated_at`). |
+| `0037` | `0037_reporte_quien_y_donde.sql` | Campos explícitos `affected_name` y `location_detail` para ubicación y vecino afectado. |
+| `0038` | `0038_reportes_limite_y_cierre.sql` | Control de tasa anti-spam en reportes y permisos de cierre para el autor y comité vecinal. |
 
 ---
 
@@ -370,15 +381,16 @@ npx expo start
 | **Emergencia** | `GET /emergency/services` | Directorio de números de auxilio rápido | Pública |
 | **Emergencia** | `GET /emergency/reports` | Listado de alertas humanitarias activas (TTL 6h) | Pública |
 | **Emergencia** | `POST /emergency/reports` | Crear reporte de persona vulnerable (redondeo ~111m) | Bearer JWT |
-| **Emergencia** | `PATCH /emergency/reports/:id/resolve`| Marcar reporte de vulnerabilidad como atendido | Bearer JWT |
-| **Emergencia** | `GET /emergency/resources` | Banco de insumos críticos (agua, víveres, medicinas) | Pública |
-| **Emergencia** | `POST /emergency/resources` | Publicar oferta o pedido de recurso crítico | Bearer JWT |
+| **Emergencia** | `POST /emergency/reports/:id/attend` | Sumarse como voluntario para socorrer al vecino | Bearer JWT |
+| **Emergencia** | `DELETE /emergency/reports/:id/attend`| Dejar de acudir al reporte de auxilio | Bearer JWT |
+| **Emergencia** | `POST /emergency/reports/:id/backup` | Solicitar refuerzo a la comunidad tras 5 min | Bearer JWT |
+| **Emergencia** | `PATCH /emergency/reports/:id/resolve`| Marcar reporte de vulnerabilidad como resuelto | Bearer JWT |
 | **Asistente IA** | `POST /ai/suggest` | Sugerencias de redacción clara con Google Gemini | Bearer JWT |
 | **Sync Offline**| `POST /sync` | Procesa lotes de operaciones SQLite con idempotencia | Bearer JWT |
 
 ---
 
-## 10. Calidad de Código y Pruebas Automatizadas
+## 10. Calidad de Código y Pruebas Automatizadas (75 Passing)
 
 El proyecto cuenta con verificación continua de tipos, linting y pruebas unitarias:
 
@@ -386,21 +398,22 @@ El proyecto cuenta con verificación continua de tipos, linting y pruebas unitar
 ```bash
 npx tsc --noEmit        # Verificación estricta de TypeScript (0 errores)
 npx eslint .            # Linter de código y React Hooks (0 advertencias)
-npx expo-doctor         # Diagnóstico de dependencias del SDK de Expo
 ```
 
 ### Comandos de Calidad y Pruebas (Backend)
 ```bash
 cd backend
-npm run typecheck       # Verificación de tipos TypeScript en backend
-npm test                # Ejecuta la suite de 62 pruebas unitarias automatizadas
-npm run build           # Compilación de producción hacia dist/
+npm run typecheck       # Verificación de tipos TypeScript en backend (0 errores)
+npm test                # Ejecuta la suite de 75 pruebas automatizadas (75 passing)
+npm run build           # Compilación de producción hacia dist/ (0 errores)
 ```
 
-### Cobertura de las Pruebas Unitarias (`62 passing`)
+### Cobertura de las Pruebas Automatizadas (`75 passing`)
+- **Servicio de Emergencias y Voluntarios:** Registro de auxilio en tiempo real, desbloqueo de datos sensibles solo para voluntarios autorizados, solicitud de refuerzo con límite de tiempo, reporte anónimo y control de tasa anti-spam.
 - **Servicio de Favores:** Moderación automática, cálculo de ventana de edición (24h), reporte vecinal, aislamiento de zona y paginación desglosada.
-- **Servicio de Conversaciones:** Restricción de acceso a no participantes, rate-limit de mensajes, bloqueo entre vecinos, cierre ordenado y eliminación de imágenes.
+- **Servicio de Conversaciones:** Restricción de acceso a no participantes, rate-limit de mensajes (30/min), bloqueo entre vecinos, cierre ordenado y eliminación de imágenes.
 - **Servicio de Asistente IA:** Comunicación segura con Gemini por cabeceras, recorte de longitud y control de límite de tasa (429).
 - **Validador Geoespacial:** Verificación de coordenadas dentro del distrito de Castilla y exclusión de puntos externos (Piura ciudad, Sullana).
 - **Caché y Seguridad Auth:** Validación de tokens JWT en memoria, no persistencia de tokens rechazados y manejo estricto de roles.
 - **Sincronización Offline:** Idempotencia ante reintentos con el mismo `client_id` y validación de lote máximo de operaciones.
+- **Sanitización y Manejo de Errores:** Errores controlados de PostgreSQL sin filtrar nombres de tablas ni columnas al cliente.

@@ -68,3 +68,4 @@ PASO 2: LEVANTAR LA APLICACIÓN CLIENTE (EXPO / REACT NATIVE)
 - Base de Datos: 38 migraciones SQL cronológicas con políticas de seguridad RLS en PostgreSQL.
 - Resiliencia de Red: Motor Offline-First con SQLite local y sincronización por lotes idempotente.
 ================================================================================
+
