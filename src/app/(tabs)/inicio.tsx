@@ -80,7 +80,7 @@ export default function Inicio() {
 
   return (
     <Screen>
-      <View style={[styles.header, { marginRight: 64 }]}>
+      <View style={[styles.header, { marginRight: 60 }]}>
         <Image source={iconApp} style={styles.logo} accessibilityLabel="Barrio" />
         <View style={{ flex: 1 }}>
           <Text style={[styles.hola, { color: p.text }]}>Hola, {firstName || 'vecino'}</Text>
@@ -220,11 +220,11 @@ export default function Inicio() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.md },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: spacing.md, minHeight: 56 },
   bell: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.blanco,

@@ -37,6 +37,7 @@ export default function TabsLayout() {
   const pathname = usePathname();
   const enPerfil = pathname.endsWith('/perfil');
   const enMapa = pathname.endsWith('/mapa');
+  const enInicio = pathname.endsWith('/inicio');
   // `n` cambia en cada apertura para que el formulario arranque limpio.
   const [oficioModal, setOficioModal] = useState({ abierto: false, n: 0 });
 
@@ -103,7 +104,7 @@ export default function TabsLayout() {
       </Tabs>
       {enPerfil || enMapa ? null : (
         <>
-          <EmergencyFab top={insets.top + 8} />
+          <EmergencyFab top={enInicio ? insets.top + 16 : insets.top + 8} />
           <ChatFab
             bottomOffset={totalBarHeight + 12}
             onAgregarOficio={() => setOficioModal((s) => ({ abierto: true, n: s.n + 1 }))}
