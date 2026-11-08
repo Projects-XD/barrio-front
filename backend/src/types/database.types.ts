@@ -650,6 +650,7 @@ export interface Database {
           is_anonymous: boolean;
           resolved_by_user_id: string | null;
           resolved_at: string | null;
+          expires_at: string;
           created_at: string;
           updated_at: string;
         };
@@ -665,6 +666,7 @@ export interface Database {
           is_anonymous?: boolean;
           resolved_by_user_id?: string | null;
           resolved_at?: string | null;
+          expires_at?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -680,6 +682,7 @@ export interface Database {
           is_anonymous?: boolean;
           resolved_by_user_id?: string | null;
           resolved_at?: string | null;
+          expires_at?: string;
           created_at?: string;
           updated_at?: string;
         };
