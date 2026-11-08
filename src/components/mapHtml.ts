@@ -76,18 +76,6 @@ export function buildMapHtml(initial: Coords, options?: MapHtmlOptions) {
     }).addTo(map);
 
     var outlineData = ${outlineJson};
-    function dentroDelContorno(ll) {
-      if (!outlineData) return true;
-      var inside = false;
-      for (var i = 0, j = outlineData.length - 1; i < outlineData.length; j = i++) {
-        var yi = outlineData[i][0], xi = outlineData[i][1];
-        var yj = outlineData[j][0], xj = outlineData[j][1];
-        if ((yi > ll.lat) !== (yj > ll.lat) && ll.lng < ((xj - xi) * (ll.lat - yi)) / (yj - yi) + xi) {
-          inside = !inside;
-        }
-      }
-      return inside;
-    }
     if (outlineData) {
       L.polygon(outlineData, { color: '#D32F2F', weight: 3, fill: false, interactive: false }).addTo(map);
     } else if (bounds) {
@@ -157,12 +145,6 @@ export function buildMapHtml(initial: Coords, options?: MapHtmlOptions) {
     }
 
     map.on('click', function (e) {
-      if (bounds && !bounds.contains(e.latlng)) {
-        return;
-      }
-      if (!dentroDelContorno(e.latlng)) {
-        return;
-      }
       send(e.latlng);
     });
 

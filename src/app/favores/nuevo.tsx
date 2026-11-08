@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
 import { OtroInput } from '@/components/OtroInput';
 import { Card } from '@/components/Card';
@@ -132,11 +132,50 @@ export default function NuevoFavor() {
     router.navigate('/(tabs)/favores');
   };
 
+  const handleRetroceder = () => {
+    if (paso > 1) {
+      setPaso((p) => (p - 1) as 1 | 2);
+    } else if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.navigate('/(tabs)/favores');
+    }
+  };
+
   return (
     <Screen scrollViewRef={scrollRef} contentStyle={{ paddingBottom: 340 }}>
-      <Text style={[styles.pasoTexto, { color: p.muted }]}>
-        Paso {paso} de 3 · {PASOS[paso - 1]}
-      </Text>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: ofrecer ? 'Ofrecer ayuda' : 'Pedir ayuda',
+          headerBackVisible: false,
+          headerLeft: () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retroceder"
+              onPress={handleRetroceder}
+              hitSlop={12}
+              style={styles.headerBackBtn}
+            >
+              <Ionicons name="arrow-back" size={24} color={p.primary} />
+            </Pressable>
+          ),
+        }}
+      />
+      <View style={styles.topNavRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Retroceder"
+          onPress={handleRetroceder}
+          hitSlop={10}
+          style={styles.inlineBackBtn}
+        >
+          <Ionicons name="arrow-back" size={20} color={p.text} />
+        </Pressable>
+        <Text style={[styles.pasoTexto, { color: p.muted }]}>
+          Paso {paso} de 3 · {PASOS[paso - 1]}
+        </Text>
+      </View>
       <View style={styles.progreso}>
         {[1, 2, 3].map((n) => (
           <View key={n} style={[styles.barra, { backgroundColor: n <= paso ? p.cta : p.border }]} />
@@ -174,21 +213,26 @@ export default function NuevoFavor() {
               );
             })}
           </View>
-          <View style={{ marginTop: spacing.md }}>
+          <View style={{ marginTop: spacing.md, gap: 8 }}>
             {tipo === 'otros' ? (
-            <OtroInput
-              label={ofrecer ? 'Escribe qué puedes ofrecer' : 'Escribe qué necesitas'}
-              value={otroNombre}
-              onChangeText={setOtroNombre}
-              placeholder={ofrecer ? 'Ej: Reparar enchufes básicos' : 'Ej: Cuidar plantas mientras viajo'}
+              <OtroInput
+                label={ofrecer ? 'Escribe qué puedes ofrecer' : 'Escribe qué necesitas'}
+                value={otroNombre}
+                onChangeText={setOtroNombre}
+                placeholder={ofrecer ? 'Ej: Reparar enchufes básicos' : 'Ej: Cuidar plantas mientras viajo'}
+              />
+            ) : null}
+            <AppButton
+              label="Siguiente"
+              icon="arrow-forward"
+              onPress={() => setPaso(2)}
+              disabled={!tipo || (tipo === 'otros' && otroNombre.trim().length < 3)}
             />
-          ) : null}
-          <AppButton
-            label="Siguiente"
-            icon="arrow-forward"
-            onPress={() => setPaso(2)}
-            disabled={!tipo || (tipo === 'otros' && otroNombre.trim().length < 3)}
-          />
+            <AppButton
+              label="Cancelar"
+              variant="secondary"
+              onPress={handleRetroceder}
+            />
           </View>
         </>
       )}
@@ -402,9 +446,31 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     maxWidth: '100%',
   },
+  topNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: spacing.xs,
+  },
+  inlineBackBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.blanco,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.grisBorde,
+  },
+  headerBackBtn: {
+    paddingRight: 12,
+    paddingVertical: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   elegidoTexto: { fontFamily: fonts.bold, fontSize: 15, flexShrink: 1 },
   elegidoCambiar: { fontFamily: fonts.medium, fontSize: 13, marginLeft: 4 },
-  pasoTexto: { fontFamily: fonts.semiBold, fontSize: 14, marginTop: spacing.xs },
+  pasoTexto: { fontFamily: fonts.semiBold, fontSize: 14 },
   progreso: { flexDirection: 'row', gap: 8, marginTop: spacing.sm, marginBottom: spacing.lg },
   barra: { flex: 1, height: 8, borderRadius: radius.pill },
   titulo: { fontSize: 26, fontFamily: fonts.bold, lineHeight: 32 },

@@ -23,7 +23,7 @@ export function ChatFab({ bottomOffset = 88, onAgregarOficio }: ChatFabProps) {
     onAgregarOficio?.();
   };
 
-  const irAMisAyudas = () => {
+  const irAMisAportes = () => {
     setAbierto(false);
     router.push('/favores/mis-publicaciones');
   };
@@ -106,19 +106,19 @@ export function ChatFab({ bottomOffset = 88, onAgregarOficio }: ChatFabProps) {
               </Pressable>
             </FadeInView>
 
-            {/* Opción: Mis ayudas */}
+            {/* Opción: Mis aportes */}
             <FadeInView delay={60}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Ver mis ayudas"
-                onPress={irAMisAyudas}
+                accessibilityLabel="Ver mis aportes"
+                onPress={irAMisAportes}
                 style={({ pressed }) => [
                   styles.actionItem,
                   pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
                 ]}
               >
                 <View style={styles.labelPill}>
-                  <Text style={styles.actionLabel}>Mis ayudas</Text>
+                  <Text style={styles.actionLabel}>Mis aportes</Text>
                 </View>
                 <View style={[styles.actionCircle, styles.actionCircleMisAyudas]}>
                   <Ionicons name="folder-open" size={22} color={colors.blanco} />

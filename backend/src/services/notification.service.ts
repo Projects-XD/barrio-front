@@ -88,6 +88,46 @@ export class NotificationService {
 
     return data;
   }
+
+  /**
+   * Borra una notificación propia. 404 si no existe o es de otro usuario.
+   */
+  public async deleteNotification(
+    supabase: SupabaseClient<Database>,
+    userId: string,
+    notificationId: string
+  ): Promise<void> {
+    const { data, error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', notificationId)
+      .eq('user_id', userId)
+      .select('id');
+
+    if (error) {
+      throw dbError('Error al eliminar la notificación', error);
+    }
+    if (!data || data.length === 0) {
+      throw new AppError('Notificación no encontrada', 404);
+    }
+  }
+
+  /**
+   * Borra todas las notificaciones propias ya leídas. Devuelve cuántas se borraron.
+   */
+  public async deleteRead(supabase: SupabaseClient<Database>, userId: string): Promise<number> {
+    const { data, error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', userId)
+      .not('read_at', 'is', null)
+      .select('id');
+
+    if (error) {
+      throw dbError('Error al eliminar las notificaciones leídas', error);
+    }
+    return data?.length ?? 0;
+  }
 }
 
 export const notificationService = new NotificationService();

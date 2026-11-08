@@ -15,7 +15,7 @@ export const MESSAGES_PER_MINUTE = 15;
 type UserLite = { id: string; full_name: string; avatar_url: string | null };
 
 export type ConversationView = Tables<'conversations'> & {
-  favor: { id: string; title: string } | null;
+  favor: { id: string; title: string; status: Tables<'favors'>['status'] } | null;
   author: UserLite | null;
   responder: UserLite | null;
   // Solo lo calcula getConversation: indica si quien consulta bloqueó al otro vecino.
@@ -23,7 +23,7 @@ export type ConversationView = Tables<'conversations'> & {
 };
 
 const CONVERSATION_SELECT =
-  '*, favor:favors(id, title), author:users!conversations_author_id_fkey(id, full_name, avatar_url), responder:users!conversations_responder_id_fkey(id, full_name, avatar_url)';
+  '*, favor:favors(id, title, status), author:users!conversations_author_id_fkey(id, full_name, avatar_url), responder:users!conversations_responder_id_fkey(id, full_name, avatar_url)';
 
 type Client = SupabaseClient<Database>;
 
@@ -302,7 +302,10 @@ export class ConversationService {
       if (conversation.author_id === userId) changes.author_muted = dto.muted;
       else changes.responder_muted = dto.muted;
     }
-    if (dto.closed && !conversation.closed_at) {
+    if (dto.closed) {
+      if (conversation.closed_at) {
+        throw new AppError('La conversación ya está cerrada', 409);
+      }
       changes.closed_at = new Date().toISOString();
     }
 
@@ -415,6 +418,10 @@ export class ConversationService {
       .select('*')
       .single();
 
+    // 23505 = unique_violation (índice uq_user_reports_usuario_una_vez, migración 0030)
+    if (error?.code === '23505') {
+      throw new AppError('Ya reportaste a este vecino', 409);
+    }
     if (error || !data) {
       throw new AppError(`Error al enviar el reporte: ${error?.message ?? 'sin datos'}`, 400);
     }

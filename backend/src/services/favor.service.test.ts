@@ -73,6 +73,19 @@ test('cerrar pasadas las 24 h sí se permite y no cuenta como edición', async (
   assert.equal(writes[0]?.values.edited_at, undefined);
 });
 
+test('resolver el favor agradece en el chat del ayudante y cierra los chats abiertos', async () => {
+  const chats = [{ id: 'c1', responder_id: 'helper' }, { id: 'c2', responder_id: 'otro' }];
+  const favor = { ...baseFavor, created_at: hoursAgo(1) };
+  const { client, writes } = fakeSupabase(favor, (table, isWrite) =>
+    table === 'conversations' && !isWrite ? (chats as unknown as Record<string, unknown>) : favor
+  );
+  await service.updateFavor(client, AUTHOR, 'f1', { status: 'cerrada', assigned_to_user_id: 'helper' });
+  const msg = writes.find((w) => w.table === 'messages');
+  assert.equal(msg?.values.conversation_id, 'c1');
+  assert.equal(msg?.values.sender_id, AUTHOR);
+  assert.ok(writes.find((w) => w.table === 'conversations' && w.op === 'update')?.values.closed_at);
+});
+
 test('un favor desactivado no se puede reactivar', async () => {
   const { client, writes } = fakeSupabase({ ...baseFavor, status: 'cancelada', created_at: hoursAgo(1), deleted_at: hoursAgo(1) });
   await assert.rejects(service.updateFavor(client, AUTHOR, 'f1', { status: 'abierta' }), rejectsWith(403));

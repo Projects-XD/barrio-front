@@ -24,7 +24,7 @@ import { queryClient } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
 import { colors, fonts, radius, spacing } from '@/theme';
-import { CASTILLA_BOUNDS, CASTILLA_CENTER, isWithinCastilla, type Coords } from '@/utils/geo';
+import { CASTILLA_CENTER, isWithinCastilla, type Coords } from '@/utils/geo';
 import { CASTILLA_OUTLINE } from '@/utils/castillaOutline';
 import { logger } from '@/utils/logger';
 
@@ -276,12 +276,6 @@ export default function Register() {
         const regLng = ubicacionRegistro?.lng ?? zonaSeleccionada?.center_lng ?? CASTILLA_CENTER.lng;
         const regAddress =
           zonaSeleccionada?.name ? `${zonaSeleccionada.name}, Castilla` : 'Castilla, Piura';
-
-        if (!isWithinCastilla({ lat: regLat, lng: regLng })) {
-          setErrorMsg('Tu ubicación debe estar dentro del distrito de Castilla.');
-          scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-          return;
-        }
 
         logger.info('AUTH_REGISTER', `Iniciando registro para: ${cleanEmail}`, {
           nombre: nombre.trim(),
@@ -591,9 +585,7 @@ export default function Register() {
                       : CASTILLA_CENTER
                   }
                   height={220}
-                  maxBounds={CASTILLA_BOUNDS}
                   outline={CASTILLA_OUTLINE}
-                  minZoom={11}
                   maxZoom={18}
                   initialZoom={12}
                   zones={mapZones}

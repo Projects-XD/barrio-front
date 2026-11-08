@@ -10,7 +10,7 @@ import { Screen } from '@/components/Screen';
 import { reverseGeocodeCoords, useMySavedLocation, useSaveMyLocation } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import { colors, fonts, radius, spacing } from '@/theme';
-import { CASTILLA_BOUNDS, CASTILLA_CENTER, type Coords, roundForReport } from '@/utils/geo';
+import { CASTILLA_CENTER, type Coords, roundForReport } from '@/utils/geo';
 import { CASTILLA_OUTLINE } from '@/utils/castillaOutline';
 
 function formatPlace(place: Location.LocationGeocodedAddress | undefined) {
@@ -177,9 +177,7 @@ export default function Ubicacion() {
         ref={mapRef}
         initial={coords}
         height={320}
-        maxBounds={CASTILLA_BOUNDS}
         outline={CASTILLA_OUTLINE}
-        minZoom={11}
         maxZoom={18}
         onChange={onMapChange}
       />

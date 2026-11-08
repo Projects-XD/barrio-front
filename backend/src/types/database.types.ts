@@ -12,7 +12,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type UserStatus = 'active' | 'suspended' | 'deleted';
+export type UserStatus = 'active' | 'suspended' | 'deleted' | 'banned';
 export type OficioCategory =
   | 'gasfiteria'
   | 'carpinteria'
@@ -106,6 +106,8 @@ export interface Database {
           avatar_url: string | null;
           zone_id: string | null;
           status: UserStatus;
+          report_count: number;
+          suspended_until: string | null;
           is_anonymous_by_default: boolean;
           emergency_role: boolean;
           is_admin: boolean;

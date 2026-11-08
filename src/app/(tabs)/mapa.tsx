@@ -39,9 +39,6 @@ import { AppModal } from '@/components/AppModal';
 
 type KindFilter = 'todos' | 'pedir' | 'ofrecer' | 'oficio' | 'emergencia';
 
-// Mismo radio que usa normalizeCoord para decidir si un punto "pertenece" a la zona.
-const ZONE_MATCH_RADIUS_KM = 8;
-
 type MapEntry = {
   id: string;
   kind: 'pedir' | 'ofrecer' | 'oficio' | 'emergencia';
@@ -150,16 +147,6 @@ export default function MapaBarrio() {
   // que el mapa siempre se centra ahí, sin importar qué sector haya elegido el vecino al registrarse
   // o dónde haya marcado su ubicación guardada (que puede estar fuera de Castilla).
   const center: Coords = CASTILLA_CENTER;
-  const nombreCastilla = zonas.find((z) => z.name === 'Castilla')?.name ?? 'Castilla';
-
-  // Los favores siempre se filtran por la zona asignada en la BD (seguridad de zonas), aunque la
-  // ubicación marcada en el mapa esté lejos de Castilla. Avisamos al vecino en ese caso para que
-  // no piense que el mapa está mostrando el lugar equivocado.
-  const fueraDeZonaAsignada = Boolean(
-    activeUserLocation &&
-      distanceKm(activeUserLocation.lat, activeUserLocation.lng, center.lat, center.lng) >
-        ZONE_MATCH_RADIUS_KM,
-  );
 
   const ubicarmeEnMapa = async () => {
     if (locating) return;
@@ -487,15 +474,6 @@ export default function MapaBarrio() {
 
         </View>
       </View>
-
-      {fueraDeZonaAsignada ? (
-        <View style={styles.zoneNotice}>
-          <Ionicons name="information-circle-outline" size={16} color={colors.azul} />
-          <Text style={[styles.zoneNoticeText, { color: colors.azul }]}>
-            Tu ubicación marcada está fuera de {nombreCastilla}. Estás viendo los favores de tu zona asignada.
-          </Text>
-        </View>
-      ) : null}
 
       {isLoading ? (
         <View style={styles.loaderWrap}>
