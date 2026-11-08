@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useIsFocused } from 'expo-router';
 import {
@@ -30,13 +31,20 @@ export function useUnreadNotificationCount() {
   const userId = useAppStore((s) => s.userId);
   const isOnline = useAppStore((s) => s.isOnline);
   const isFocused = useIsFocused();
-  return useQuery({
+  const query = useQuery({
     queryKey: ['notifications', userId, 'unread'],
     staleTime: FRESH_LIVE_MS,
     enabled: Boolean(userId) && isOnline,
     refetchInterval: isFocused ? UNREAD_POLL_MS : false,
     queryFn: async () => (await getUnreadNotificationCount()).count,
   });
+  // El intervalo se pausa con la pantalla tapada; al volver, consulta ya si el dato quedó viejo.
+  const { isStale, isFetching, refetch } = query;
+  useEffect(() => {
+    if (isFocused && isStale && !isFetching && Boolean(userId) && isOnline) void refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFocused]);
+  return query;
 }
 
 export function useMarkNotificationRead() {

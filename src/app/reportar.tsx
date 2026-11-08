@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { AppButton } from '@/components/AppButton';
+import { AppModal } from '@/components/AppModal';
 import { Chip } from '@/components/Chip';
 import { OtroInput } from '@/components/OtroInput';
 import { Screen } from '@/components/Screen';
@@ -23,6 +25,13 @@ export default function Reportar() {
   const [otraNecesidad, setOtraNecesidad] = useState('');
   const [anonimo, setAnonimo] = useState(true);
   const [conUbicacion, setConUbicacion] = useState(false);
+  // Alert.alert no se ve en la web: la confirmación va en un modal propio.
+  const [confirmacion, setConfirmacion] = useState<'sent' | 'queued' | null>(null);
+  const cerrarConfirmacion = () => {
+    setConfirmacion(null);
+    if (router.canGoBack()) router.back();
+    else router.replace('/emergencia');
+  };
 
   const toggleNeed = (n: ResourceType) =>
     setNeeds((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]));
@@ -46,13 +55,7 @@ export default function Reportar() {
         isAnonymous: anonimo,
         location,
       });
-      Alert.alert(
-        queued ? 'Guardado sin conexión' : 'Reporte enviado',
-        queued
-          ? 'El reporte se enviará solo cuando vuelva la conexión.'
-          : 'Los vecinos de tu zona y los grupos de apoyo ya pueden verlo.',
-        [{ text: 'Entendido', onPress: () => router.back() }],
-      );
+      setConfirmacion(queued ? 'queued' : 'sent');
     } catch (err) {
       Alert.alert('No se pudo enviar el reporte', (err as Error)?.message ?? 'Inténtalo de nuevo.');
     }
@@ -101,6 +104,24 @@ export default function Reportar() {
         onPress={enviar}
         disabled={descripcion.trim().length < 5 || (needs.includes('otro') && otraNecesidad.trim().length < 3) || crear.isPending}
       />
+
+      <AppModal visible={confirmacion !== null} onClose={cerrarConfirmacion} overlayStyle={styles.overlay} cardStyle={styles.modalCard}>
+        <Ionicons
+          name={confirmacion === 'queued' ? 'cloud-offline-outline' : 'checkmark-circle'}
+          size={48}
+          color={confirmacion === 'queued' ? colors.gris : colors.rojo}
+          style={{ alignSelf: 'center' }}
+        />
+        <Text style={[styles.modalTitulo, { color: p.text }]}>
+          {confirmacion === 'queued' ? 'Guardado sin conexión' : 'Alerta enviada'}
+        </Text>
+        <Text style={[styles.modalTexto, { color: p.body }]}>
+          {confirmacion === 'queued'
+            ? 'La alerta se enviará sola cuando vuelva la conexión.'
+            : 'Los vecinos de tu barrio y el comité de emergencia han sido notificados de esta situación.'}
+        </Text>
+        <AppButton label="Entendido" variant="primary" onPress={cerrarConfirmacion} />
+      </AppModal>
     </Screen>
   );
 }
@@ -119,4 +140,8 @@ const styles = StyleSheet.create({
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap' },
   nota: { fontFamily: fonts.regular, fontSize: 14, marginTop: 4, marginBottom: spacing.md },
+  overlay: { flex: 1, backgroundColor: 'rgba(19, 46, 102, 0.5)', justifyContent: 'center', padding: spacing.lg },
+  modalCard: { backgroundColor: colors.blanco, borderRadius: radius.xl, padding: spacing.lg, width: '100%', maxWidth: 400, alignSelf: 'center', gap: spacing.sm },
+  modalTitulo: { fontFamily: fonts.bold, fontSize: 20, textAlign: 'center' },
+  modalTexto: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 22, textAlign: 'center', marginBottom: spacing.sm },
 });
