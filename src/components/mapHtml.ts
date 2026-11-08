@@ -199,6 +199,7 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     .pin-wave{position:absolute;width:38px;height:38px;border-radius:50%;border:2px solid #D32F2F;background:rgba(211,47,47,.28);opacity:0;pointer-events:none;animation:wave 2.4s ease-out infinite}
     .pin-wave.w2{animation-delay:.8s}
     .pin-wave.w3{animation-delay:1.6s}
+    .pin-wave.azul{border-color:#132E66;background:rgba(19,46,102,.25)}
     @keyframes wave{0%{transform:scale(.6);opacity:.8}100%{transform:scale(3.4);opacity:0}}
     @media (prefers-reduced-motion: reduce){.pin-wave{animation:none;opacity:.35;transform:scale(1.7)}.pin-wave.w2,.pin-wave.w3{display:none}}
     .user-wrap{display:flex;align-items:center;justify-content:center;position:relative;width:32px;height:32px}
@@ -295,14 +296,18 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
         fg = '#ffffff';
       }
 
-      // Las ondas son solo para reportes de emergencia; las ayudas urgentes conservan el anillo simple.
+      // Ondas rojas: reportes de emergencia. Ondas azules: pedidos de nivel urgente o emergencia.
+      // Los demás puntos urgentes (ofrecimientos) conservan el anillo simple.
       var isEmergency = p.kind === 'emergencia';
-      var isUrgent = !isEmergency && (p.urgency === 'urgente' || p.urgency === 'emergencia');
+      var nivelAlto = p.urgency === 'urgente' || p.urgency === 'emergencia';
+      var isPedidoUrgente = p.kind === 'pedir' && nivelAlto;
+      var isUrgent = !isEmergency && !isPedidoUrgente && nivelAlto;
       var svg = svgIconFor(p, fg);
       var safeId = String(p.id).replace(/"/g, '');
       var html = '<div class="pin-wrap ' + (isSelected ? 'pin-selected' : '') + '" data-pin-id="' + safeId + '">' +
         (isSelected ? '<div class="pin-ring-sel"></div>' : '') +
         (isEmergency ? '<div class="pin-wave"></div><div class="pin-wave w2"></div><div class="pin-wave w3"></div>' : '') +
+        (isPedidoUrgente ? '<div class="pin-wave azul"></div><div class="pin-wave azul w2"></div><div class="pin-wave azul w3"></div>' : '') +
         (isUrgent ? '<div class="pin-urg"></div>' : '') +
         '<div class="pin-core" style="background:' + bg + ';color:' + fg + '">' + svg + '</div>' +
         '</div>';
