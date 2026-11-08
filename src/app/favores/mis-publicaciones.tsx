@@ -8,6 +8,7 @@ import { Screen } from '@/components/Screen';
 import { SkeletonFavores } from '@/components/SkeletonFavores';
 import { usePalette } from '@/hooks/usePalette';
 import { useFavorsPage } from '@/hooks/useData';
+import { useAppStore } from '@/store/app-store';
 import type { FavorIntent } from '@/types';
 import { colors, fonts, radius, spacing } from '@/theme';
 
@@ -21,6 +22,7 @@ const TABS: { id: TabMine; label: string }[] = [
 
 export default function MisPublicacionesScreen() {
   const p = usePalette();
+  const userId = useAppStore((s) => s.userId);
   const [tab, setTab] = useState<TabMine>('todas');
   const [pagina, setPagina] = useState(0);
 
@@ -34,7 +36,7 @@ export default function MisPublicacionesScreen() {
     page: pagina,
   });
 
-  const publicaciones = data?.items ?? [];
+  const publicaciones = (data?.items ?? []).filter((item) => !userId || item.authorId === userId);
 
   const cambiarTab = (nuevoTab: TabMine) => {
     setTab(nuevoTab);
@@ -46,7 +48,7 @@ export default function MisPublicacionesScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Mis publicaciones',
+          title: 'Mis aportes',
           headerBackTitle: 'Atrás',
         }}
       />
@@ -104,12 +106,12 @@ export default function MisPublicacionesScreen() {
                 icon="folder-open-outline"
                 title={
                   isError
-                    ? 'No pudimos cargar tus publicaciones'
+                    ? 'No pudimos cargar tus aportes'
                     : tab === 'pedir'
                       ? 'No tienes pedidos de ayuda activos'
                       : tab === 'ofrecer'
                         ? 'No tienes ofrecimientos activos'
-                        : 'Aún no tienes publicaciones'
+                        : 'Aún no tienes aportes'
                 }
                 message={
                   isError

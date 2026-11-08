@@ -18,7 +18,14 @@ export class FavorController {
 
       const type = req.query.type as FavorType | undefined;
       const intent = req.query.intent as FavorIntent | undefined;
-      const mine = req.query.mine === 'true' || (req.query.mine as unknown) === true;
+      const mine =
+        typeof req.query.mine === 'boolean'
+          ? req.query.mine
+          : req.query.mine === 'true'
+            ? true
+            : req.query.mine === 'false'
+              ? false
+              : undefined;
       // validate() ya convirtió limit y offset a número (o los dejó sin definir).
       const limit = req.query.limit as number | undefined;
       const offset = req.query.offset as number | undefined;

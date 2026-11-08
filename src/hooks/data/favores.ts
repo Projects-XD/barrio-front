@@ -71,13 +71,13 @@ export function useFavorsPage(
   const userName = useAppStore((s) => s.userFullName);
 
   return useQuery({
-    queryKey: ['favors', zoneId, type ?? 'todos', intent ?? 'todos', mine ? 'mine' : 'all', 'page', page],
+    queryKey: ['favors', zoneId, type ?? 'todos', intent ?? 'todos', mine === true ? 'mine' : mine === false ? 'others' : 'all', 'page', page],
     staleTime: FRESH_LIVE_MS,
     enabled: Boolean(zoneId),
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<{ items: Favor[]; hasNext: boolean }> => {
       const pending =
-        page === 0
+        page === 0 && mine !== false
           ? (await listPending('create_favor'))
               .filter((item) => {
                 if (type && item.payload.type !== type) return false;

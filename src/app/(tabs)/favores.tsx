@@ -9,6 +9,7 @@ import { Screen } from '@/components/Screen';
 import { SkeletonFavores } from '@/components/SkeletonFavores';
 import { usePalette } from '@/hooks/usePalette';
 import { useFavorsPage } from '@/hooks/useData';
+import { useAppStore } from '@/store/app-store';
 import { favorTypeLabel } from '@/i18n/labels';
 import type { FavorIntent, FavorType } from '@/types';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
@@ -40,18 +41,21 @@ export default function FavoresScreen() {
     if (abiertoDesdeBurbuja) router.setParams({ publicar: undefined });
   };
   const [modalFiltro, setModalFiltro] = useState(false);
+  const userId = useAppStore((s) => s.userId);
 
   const intent: FavorIntent | undefined =
     tabFiltro === 'pedir' ? 'pedir' : tabFiltro === 'ofrecer' ? 'ofrecer' : undefined;
 
+  // mine: false asegura que los aportes del propio usuario no se muestren en la lista comunitaria
   const { data, isLoading, isError, error, refetch, isRefetching, isPlaceholderData } = useFavorsPage({
     type: tipo,
     intent,
-    mine: undefined,
+    mine: false,
     page: pagina,
   });
 
-  const favores = data?.items ?? [];
+  // Filtro adicional en frontend para asegurar que las publicaciones propias solo salgan en "Mis aportes"
+  const favores = (data?.items ?? []).filter((f) => !userId || f.authorId !== userId);
 
   const cambiarTab = (nuevoTab: TabFiltro) => {
     setTabFiltro(nuevoTab);
@@ -98,13 +102,22 @@ export default function FavoresScreen() {
 
   return (
     <Screen scroll={false}>
-      {/* Cabecera limpia sin alerta estorbando y con botón + compacto */}
+      {/* Cabecera limpia con acceso a Mis aportes */}
       <View style={styles.header}>
         <View style={styles.headerTextWrap}>
           <Text style={[styles.titulo, { color: p.text }]}>Ayuda comunitaria</Text>
           <Text style={[styles.sub, { color: p.muted }]}>Colaboración solidaria entre vecinos</Text>
         </View>
 
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ir a mis aportes"
+          onPress={() => router.push('/favores/mis-publicaciones')}
+          style={({ pressed }) => [styles.misAportesBtn, pressed && { opacity: 0.8 }]}
+        >
+          <Ionicons name="folder-outline" size={15} color={colors.azul} />
+          <Text style={styles.misAportesText}>Mis aportes</Text>
+        </Pressable>
       </View>
 
       {/* Barra de control: Segmento (Todos | Piden | Ofrecen) + Botón modal de Filtro */}
@@ -403,6 +416,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.regular,
     marginTop: 2,
+  },
+  misAportesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.azulSuave,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+  },
+  misAportesText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    color: colors.azul,
   },
 
   // Fila de controles: Segmented bar + Botón de filtro

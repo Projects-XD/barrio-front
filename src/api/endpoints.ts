@@ -211,7 +211,7 @@ export const listFavors = (params: ListFavorsParams) => {
   query.set('zone_id', params.zoneId);
   if (params.type) query.set('type', params.type);
   if (params.intent) query.set('intent', params.intent);
-  if (params.mine) query.set('mine', 'true');
+  if (params.mine !== undefined) query.set('mine', String(params.mine));
   if (params.limit !== undefined) query.set('limit', String(params.limit));
   if (params.offset !== undefined) query.set('offset', String(params.offset));
   return api.get<BackendFavor[]>(`/favors?${query.toString()}`);
