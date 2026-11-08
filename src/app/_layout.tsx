@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { ActivityIndicator, LogBox, View } from 'react-native';
+import { Image, LogBox, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -99,7 +99,12 @@ export default function RootLayout() {
   if (!fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.fondo }}>
-        <ActivityIndicator size="large" color={colors.azul} />
+        <Image
+          source={require('../../assets/brand/logo-barrio.png')}
+          style={{ width: 200, height: 70 }}
+          resizeMode="contain"
+          accessibilityLabel="Barrio"
+        />
       </View>
     );
   }
