@@ -196,6 +196,12 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     .pin-selected .pin-core{transform:scale(1.36) !important;border-color:#132E66;box-shadow:0 5px 14px rgba(19,46,102,.55)}
     .pin-ring-sel{position:absolute;width:38px;height:38px;border-radius:50%;border:2.5px solid #132E66;background:rgba(234,152,43,.22);pointer-events:none}
     .pin-urg{position:absolute;width:36px;height:36px;border-radius:50%;border:2px solid #B8442F;animation:pulse 1.8s infinite;pointer-events:none}
+    .pin-wave{position:absolute;width:38px;height:38px;border-radius:50%;border:1.5px solid #D32F2F;background:rgba(211,47,47,.2);opacity:0;pointer-events:none;animation:wave 2.2s ease-out infinite}
+    .pin-wave.w2{animation-delay:.7s}
+    .pin-wave.w3{animation-delay:1.4s}
+    .pin-wave.azul{border-color:#132E66;background:rgba(19,46,102,.18)}
+    @keyframes wave{0%{transform:scale(.9);opacity:.65}100%{transform:scale(1.8);opacity:0}}
+    @media (prefers-reduced-motion: reduce){.pin-wave{animation:none;opacity:.35;transform:scale(1.35)}.pin-wave.w2,.pin-wave.w3{display:none}}
     .user-wrap{display:flex;align-items:center;justify-content:center;position:relative;width:32px;height:32px}
     .user-pulse{position:absolute;width:30px;height:30px;border-radius:50%;background:rgba(43,74,140,.28);animation:pulse 2s infinite;pointer-events:none}
     .user-dot{width:14px;height:14px;border-radius:50%;background:#2B4A8C;border:3px solid #fff;box-shadow:0 2px 6px rgba(19,46,102,.4)}
@@ -210,7 +216,7 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     <span class="leg-item"><span class="dot" style="background:#132E66"></span>Piden</span>
     <span class="leg-item"><span class="dot" style="background:#EA982B"></span>Ofrecen</span>
     <span class="leg-item"><span class="dot" style="background:#2E7D5B"></span>Oficios</span>
-    <span class="leg-item"><span class="dot" style="background:#B8442F"></span>Alertas</span>
+    <span class="leg-item"><span class="dot" style="background:#D32F2F"></span>Alertas</span>
   </div>
   <div class="vacio" id="vacio">No hay puntos con estos filtros</div>
   <script>
@@ -286,15 +292,22 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
         bg = '#2E7D5B';
         fg = '#ffffff';
       } else if (p.kind === 'emergencia') {
-        bg = '#B8442F';
+        bg = '#D32F2F';
         fg = '#ffffff';
       }
 
-      var isUrgent = p.urgency === 'urgente' || p.urgency === 'emergencia' || p.kind === 'emergencia';
+      // Ondas rojas: reportes de emergencia. Ondas azules: pedidos de nivel urgente o emergencia.
+      // Los demás puntos urgentes (ofrecimientos) conservan el anillo simple.
+      var isEmergency = p.kind === 'emergencia';
+      var nivelAlto = p.urgency === 'urgente' || p.urgency === 'emergencia';
+      var isPedidoUrgente = p.kind === 'pedir' && nivelAlto;
+      var isUrgent = !isEmergency && !isPedidoUrgente && nivelAlto;
       var svg = svgIconFor(p, fg);
       var safeId = String(p.id).replace(/"/g, '');
       var html = '<div class="pin-wrap ' + (isSelected ? 'pin-selected' : '') + '" data-pin-id="' + safeId + '">' +
         (isSelected ? '<div class="pin-ring-sel"></div>' : '') +
+        (isEmergency ? '<div class="pin-wave"></div><div class="pin-wave w2"></div><div class="pin-wave w3"></div>' : '') +
+        (isPedidoUrgente ? '<div class="pin-wave azul"></div><div class="pin-wave azul w2"></div><div class="pin-wave azul w3"></div>' : '') +
         (isUrgent ? '<div class="pin-urg"></div>' : '') +
         '<div class="pin-core" style="background:' + bg + ';color:' + fg + '">' + svg + '</div>' +
         '</div>';
@@ -336,6 +349,18 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     var lastClickId = null;
     var lastClickTs = 0;
 
+    // Acerca el mapa al punto. Nunca aleja: si el vecino ya estaba más cerca, solo lo centra.
+    var ZOOM_PUNTO = 17;
+    function acercarA(lat, lng) {
+      var destino = Math.max(map.getZoom(), ZOOM_PUNTO);
+      var reducir = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reducir) {
+        map.setView([lat, lng], destino, { animate: false });
+      } else {
+        map.flyTo([lat, lng], destino, { animate: true, duration: 0.6 });
+      }
+    }
+
     window.handlePinClick = function (id) {
       var now = Date.now();
       if (lastClickId === id && now - lastClickTs < 120) return;
@@ -353,7 +378,7 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
       var isSame = selectedId === found.id;
       selectedId = found.id;
       updateSelectionVisuals();
-      map.panTo([found.lat, found.lng], { animate: true });
+      acercarA(found.lat, found.lng);
       send({ type: 'point', id: found.id, same: isSame });
     };
 
@@ -460,7 +485,7 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
       selectedId = id || null;
       updateSelectionVisuals();
       if (typeof lat === 'number' && typeof lng === 'number') {
-        map.panTo([lat, lng], { animate: true });
+        acercarA(lat, lng);
       }
     };
 

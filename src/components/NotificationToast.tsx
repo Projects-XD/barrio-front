@@ -3,8 +3,9 @@ import { AccessibilityInfo, Animated, Easing, Platform, Pressable, StyleSheet, T
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { BackendNotification } from '@/api/endpoints';
+import { useMarkNotificationRead } from '@/hooks/data/avisos';
 import { colors, fonts, radius, shadow } from '@/theme';
-import { describeNotification, notificationIcon, notificationRoute } from '@/utils/notificaciones';
+import { describeNotification, iconForNotification, notificationRoute } from '@/utils/notificaciones';
 
 type Props = {
   notification: BackendNotification | null;
@@ -48,6 +49,8 @@ export function NotificationToast({ notification, onClose, top, rightInset = 80 
     };
   }, [notification, onClose, progress]);
 
+  const markRead = useMarkNotificationRead();
+
   if (!notification) return null;
 
   const { title, detail } = describeNotification(notification);
@@ -55,7 +58,9 @@ export function NotificationToast({ notification, onClose, top, rightInset = 80 
 
   const abrir = () => {
     onClose();
-    if (ruta) router.push(ruta as never);
+    if (!notification.read_at) markRead.mutate(notification.id);
+    // navigate reutiliza la pantalla si ya está abierta, en vez de apilar otra.
+    if (ruta) router.navigate(ruta as never);
   };
 
   return (
@@ -78,14 +83,14 @@ export function NotificationToast({ notification, onClose, top, rightInset = 80 
         style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
       >
         <View style={styles.icon}>
-          <Ionicons name={notificationIcon[notification.type]} size={20} color={colors.azul} />
+          <Ionicons name={iconForNotification(notification)} size={20} color={colors.azul} />
         </View>
         <View style={styles.body}>
           <Text style={styles.title} numberOfLines={1}>
             {title}
           </Text>
           {detail ? (
-            <Text style={styles.detail} numberOfLines={1}>
+            <Text style={styles.detail} numberOfLines={2}>
               {detail}
             </Text>
           ) : null}
@@ -99,7 +104,7 @@ export function NotificationToast({ notification, onClose, top, rightInset = 80 
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', left: 16, zIndex: 20 },
+  wrap: { position: 'absolute', left: 16, zIndex: 1000, elevation: 1000 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

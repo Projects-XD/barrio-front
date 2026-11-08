@@ -1,4 +1,4 @@
--- 0033: Base de los reportes de emergencia: voluntarios, tipos de aviso y aviso al crear un reporte.
+-- 0034: Base de los reportes de emergencia: voluntarios, tipos de aviso y aviso al crear un reporte.
 -- Segura de repetir.
 
 ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'reporte_emergencia';
@@ -41,3 +41,8 @@ DROP TRIGGER IF EXISTS trg_notificar_nuevo_reporte ON public.vulnerability_repor
 CREATE TRIGGER trg_notificar_nuevo_reporte
   AFTER INSERT ON public.vulnerability_reports
   FOR EACH ROW EXECUTE FUNCTION public.fn_notificar_nuevo_reporte();
+
+-- La 0033_notificar_todo avisa a la zona al crear/resolver un reporte con un trigger genérico.
+-- Este flujo lo reemplaza (con urgencia por rol, voluntarios y aviso a quien acude): se quita
+-- para que nadie reciba el mismo aviso dos veces. Si la 0033 aún no corrió, no pasa nada.
+DROP TRIGGER IF EXISTS trg_notif_alerta ON public.vulnerability_reports;

@@ -22,7 +22,7 @@ import { expressInterest, listConversations } from '@/api/endpoints';
 import { usePalette } from '@/hooks/usePalette';
 import { favorTypeIcon, type IconName } from '@/i18n/icons';
 import { favorTypeLabel, favorUrgencyLabel, resourceLabel } from '@/i18n/labels';
-import { selectEmergencyActive, useAppStore } from '@/store/app-store';
+import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme';
 import type {
   Favor,
@@ -85,7 +85,6 @@ export default function MapaBarrio() {
   const { width } = useWindowDimensions();
   const isWide = width >= 920;
 
-  const emergencyActive = useAppStore(selectEmergencyActive);
   const { data: zonas = [] } = useZones();
   const { data: favores = [], isLoading, isError, refetch } = useFavors();
   const { data: oficios = [] } = useProfiles();
@@ -122,7 +121,9 @@ export default function MapaBarrio() {
   };
 
   const [mostrarCapaOficios, setMostrarCapaOficios] = useState<boolean>(false);
-  const [mostrarCapaAlertas, setMostrarCapaAlertas] = useState<boolean>(emergencyActive);
+  // null = valor por defecto (encendida): los reportes activos vencen a las 6 h, así que siempre son recientes.
+  const [capaAlertasManual, setCapaAlertasManual] = useState<boolean | null>(null);
+  const mostrarCapaAlertas = capaAlertasManual ?? true;
   const [soloCercanos, setSoloCercanos] = useState<boolean>(false);
 
   const [modalFiltros, setModalFiltros] = useState(false);
@@ -395,7 +396,7 @@ export default function MapaBarrio() {
     (filtroCategoria ? 1 : 0) +
     (filtroUrgencia ? 1 : 0) +
     (mostrarCapaOficios ? 1 : 0) +
-    (mostrarCapaAlertas ? 1 : 0) +
+    (capaAlertasManual !== null ? 1 : 0) +
     (soloCercanos ? 1 : 0) +
     (busqueda.trim() ? 1 : 0);
 
@@ -405,7 +406,7 @@ export default function MapaBarrio() {
     setFiltroCategoria(undefined);
     setFiltroUrgencia(undefined);
     setMostrarCapaOficios(false);
-    setMostrarCapaAlertas(false);
+    setCapaAlertasManual(null);
     setSoloCercanos(false);
     setSelectedId(null);
     setFitTrigger((n) => n + 1);
@@ -446,7 +447,7 @@ export default function MapaBarrio() {
       return { bg: colors.verdeExitoSuave, dot: colors.verdeExito, fg: colors.verdeExito, text: 'Oficio vecinal' };
     }
     if (kind === 'emergencia') {
-      return { bg: colors.rojoSuave, dot: colors.rojo, fg: colors.rojo, text: 'Alerta comunitaria' };
+      return { bg: colors.rojoSuave, dot: '#D32F2F', fg: '#D32F2F', text: 'Alerta comunitaria' };
     }
     return { bg: colors.azulSuave, dot: colors.azul, fg: colors.azul, text: 'Pide ayuda' };
   };
@@ -564,7 +565,7 @@ export default function MapaBarrio() {
 
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => setMostrarCapaAlertas((v: boolean) => !v)}
+                  onPress={() => setCapaAlertasManual(!mostrarCapaAlertas)}
                   style={[
                     styles.capaChip,
                     mostrarCapaAlertas ? styles.capaChipActiveRed : styles.capaChipIdle,
@@ -1068,7 +1069,7 @@ export default function MapaBarrio() {
                 <Chip
                   label={`Alertas comunitarias (${reportes.filter((r) => r.status === 'activo').length})`}
                   selected={mostrarCapaAlertas}
-                  onPress={() => setMostrarCapaAlertas((v: boolean) => !v)}
+                  onPress={() => setCapaAlertasManual(!mostrarCapaAlertas)}
                 />
                 {activeUserLocation ? (
                   <Chip

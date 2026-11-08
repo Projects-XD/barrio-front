@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import type { Database, Tables } from '../types/database.types';
+import type { Database, Json, Tables } from '../types/database.types';
 import { AppError, dbError } from '../middlewares/errorHandler';
 import { logger } from '../utils/logger';
 import { purgeChatImages } from '../utils/chatImages';
@@ -12,6 +12,18 @@ import type {
 // Máximo de mensajes que un vecino puede enviar por minuto entre todas sus conversaciones.
 export const MESSAGES_PER_MINUTE = 15;
 
+const PREVIEW_MAX = 120;
+
+// Texto corto del mensaje para el aviso: su contenido, o una descripción si solo trae imágenes.
+export function mensajePreview(message: { body?: string | null; images?: string[] | null }): string {
+  const body = (message.body ?? '').trim();
+  if (body) return body.length > PREVIEW_MAX ? body.slice(0, PREVIEW_MAX - 1) + '…' : body;
+  const n = message.images?.length ?? 0;
+  if (n === 1) return 'Te envió una imagen';
+  if (n > 1) return `Te envió ${n} imágenes`;
+  return '';
+}
+
 type UserLite = { id: string; full_name: string; avatar_url: string | null };
 
 export type ConversationView = Tables<'conversations'> & {
@@ -20,6 +32,8 @@ export type ConversationView = Tables<'conversations'> & {
   responder: UserLite | null;
   // Solo lo calcula getConversation: indica si quien consulta bloqueó al otro vecino.
   blocked_by_me?: boolean;
+  // ID del perfil profesional del otro vecino si ofrece algún oficio en el barrio
+  other_profile_id?: string | null;
 };
 
 const CONVERSATION_SELECT =
@@ -101,18 +115,31 @@ export class ConversationService {
       throw new AppError('Conversación no encontrada', 404);
     }
 
-    const { data: block, error: blockError } = await supabase
-      .from('user_blocks')
-      .select('id')
-      .eq('blocker_id', userId)
-      .eq('blocked_id', this.otherUserId(data, userId))
-      .maybeSingle();
+    const otherId = this.otherUserId(data, userId);
+
+    const [{ data: block, error: blockError }, { data: proProfile }] = await Promise.all([
+      supabase
+        .from('user_blocks')
+        .select('id')
+        .eq('blocker_id', userId)
+        .eq('blocked_id', otherId)
+        .maybeSingle(),
+      supabase
+        .from('professional_profiles')
+        .select('id')
+        .eq('user_id', otherId)
+        .maybeSingle(),
+    ]);
 
     if (blockError) {
       throw dbError('Error al validar bloqueos', blockError);
     }
 
-    return { ...(data as unknown as ConversationView), blocked_by_me: Boolean(block) };
+    return {
+      ...(data as unknown as ConversationView),
+      blocked_by_me: Boolean(block),
+      other_profile_id: proProfile?.id ?? null,
+    };
   }
 
   /**
@@ -156,6 +183,18 @@ export class ConversationService {
           if (unreadIds.includes(m.id)) m.read_at = readAt;
         }
       }
+    }
+
+    // El aviso de mensajes de esta conversación deja de contar: el próximo mensaje crea uno nuevo con count 1.
+    const { error: avisoError } = await supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('type', 'nuevo_mensaje')
+      .is('read_at', null)
+      .eq('payload->>conversation_id', conversationId);
+    if (avisoError) {
+      logger.error('No se pudo marcar como leído el aviso de mensajes', { conversationId, error: avisoError.message });
     }
 
     return messages;
@@ -226,7 +265,7 @@ export class ConversationService {
       const recipientMuted =
         conversation.author_id === otherId ? conversation.author_muted : conversation.responder_muted;
       if (!recipientMuted) {
-        await this.notifyNewMessage(supabase, conversation, userId, otherId);
+        await this.notifyNewMessage(supabase, conversation, userId, otherId, message);
       }
     } catch (secondaryError) {
       logger.error('Falló la actualización posterior al envío de un mensaje', {
@@ -238,23 +277,40 @@ export class ConversationService {
     return message;
   }
 
-  // Un solo aviso sin leer por conversación: así una charla activa no llena la bandeja de avisos.
+  // Un solo aviso sin leer por conversación, para no llenar la bandeja. Los mensajes seguidos no crean
+  // otro aviso: actualizan el mismo con el total (`count`) y el contenido de los dos últimos (`mensajes`).
   private async notifyNewMessage(
     supabase: Client,
     conversation: Tables<'conversations'>,
     senderId: string,
-    recipientId: string
+    recipientId: string,
+    message: Tables<'messages'>
   ): Promise<void> {
+    const preview = mensajePreview(message);
+
     const { data: existing } = await supabase
       .from('notifications')
-      .select('id')
+      .select('id, payload')
       .eq('user_id', recipientId)
       .eq('type', 'nuevo_mensaje')
       .is('read_at', null)
       .eq('payload->>conversation_id', conversation.id)
       .limit(1);
 
-    if (existing && existing.length > 0) return;
+    const current = existing?.[0];
+    if (current) {
+      const payload = (current.payload ?? {}) as Record<string, unknown>;
+      const anteriores = Array.isArray(payload.mensajes) ? (payload.mensajes as string[]) : [];
+      const count = (typeof payload.count === 'number' ? payload.count : 1) + 1;
+      await supabase
+        .from('notifications')
+        .update({
+          payload: { ...payload, count, mensajes: [...anteriores, preview].slice(-2) } as Json,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', current.id);
+      return;
+    }
 
     const [{ data: sender }, { data: favor }] = await Promise.all([
       supabase.from('users').select('full_name').eq('id', senderId).maybeSingle(),
@@ -270,6 +326,8 @@ export class ConversationService {
         conversation_id: conversation.id,
         sender_id: senderId,
         sender_name: sender?.full_name ?? null,
+        count: 1,
+        mensajes: [preview],
       },
     });
   }

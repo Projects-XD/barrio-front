@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Alert,
   Image,
   FlatList,
+  Dimensions,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -31,6 +33,7 @@ import {
   useUnblockConversationUser,
   useUpdateConversation,
   useUpdateFavor,
+  useVouch,
 } from '@/hooks/useData';
 import { type BackendMessage, type ReportReason } from '@/api/endpoints';
 import { ApiError } from '@/api/client';
@@ -94,6 +97,45 @@ export default function Chat() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const p = usePalette();
   const insets = useSafeAreaInsets();
+
+  // Android: en pantalla completa el sistema no siempre achica la ventana al abrir el teclado y la barra
+  // de escribir quedaba tapada. Se calcula cuánto cubre el teclado la parte de abajo y se empuja esa cantidad.
+  // Se usa la altura del teclado (React Native le resta la barra del sistema) y no `screenY`, que en este
+  // modo es el borde del área visible y no la parte de arriba del teclado.
+  // Si Android sí achicó la ventana, el resultado es 0 y no se suma nada.
+  const contenedorRef = useRef<ComponentRef<typeof View>>(null);
+  const tecladoAlto = useRef<number | null>(null);
+  const [solape, setSolape] = useState(0);
+
+  const barraInferior = insets.bottom;
+  const medirSolape = useCallback(() => {
+    const alto = tecladoAlto.current;
+    if (alto === null) {
+      setSolape(0);
+      return;
+    }
+    // Parte de arriba real del teclado: alto total de la pantalla menos el teclado y la barra del sistema.
+    const arriba = Dimensions.get('screen').height - alto - barraInferior;
+    contenedorRef.current?.measureInWindow((_x, y, _w, altoContenedor) => {
+      setSolape(Math.max(0, Math.round(y + altoContenedor - arriba)));
+    });
+  }, [barraInferior]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const mostrar = Keyboard.addListener('keyboardDidShow', (e) => {
+      tecladoAlto.current = e.endCoordinates.height;
+      medirSolape();
+    });
+    const ocultar = Keyboard.addListener('keyboardDidHide', () => {
+      tecladoAlto.current = null;
+      setSolape(0);
+    });
+    return () => {
+      mostrar.remove();
+      ocultar.remove();
+    };
+  }, [medirSolape]);
   const userId = useAppStore((s) => s.userId);
   const isOnline = useAppStore((s) => s.isOnline);
 
@@ -105,6 +147,7 @@ export default function Chat() {
   const unblock = useUnblockConversationUser(id);
   const report = useReportConversationUser(id);
   const resolverFavor = useUpdateFavor(conversation.data?.favor_id ?? '');
+  const vouch = useVouch(conversation.data?.other_profile_id ?? '');
 
   const [text, setText] = useState('');
   const [images, setImages] = useState<string[]>([]);
@@ -200,6 +243,12 @@ export default function Chat() {
   }
 
   return (
+    <View
+      ref={contenedorRef}
+      collapsable={false}
+      onLayout={medirSolape}
+      style={{ flex: 1, paddingBottom: Platform.OS === 'android' ? solape : 0 }}
+    >
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: p.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -269,6 +318,14 @@ export default function Chat() {
 
       {messages.isLoading && isOnline ? (
         <ActivityIndicator size="large" color={p.primary} style={{ marginTop: spacing.xl }} />
+      ) : data.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <EmptyState
+            icon="chatbubble-ellipses-outline"
+            title={`Escríbele a ${otherName}`}
+            message="Coordinen aquí los detalles del favor."
+          />
+        </View>
       ) : (
         <FlatList
           inverted
@@ -280,15 +337,6 @@ export default function Chat() {
               onOpenImage={setViewerUri}
             />
           )}
-          ListEmptyComponent={
-            <View style={{ transform: [{ scaleY: -1 }] }}>
-              <EmptyState
-                icon="chatbubble-ellipses-outline"
-                title={`Escríbele a ${otherName}`}
-                message="Coordinen aquí los detalles del favor."
-              />
-            </View>
-          }
         />
       )}
 
@@ -317,7 +365,7 @@ export default function Chat() {
         </View>
       ) : null}
 
-      <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 10), borderTopColor: p.border }]}>
+      <View style={[styles.composer, { paddingBottom: solape > 0 ? 10 : Math.max(insets.bottom, 10), borderTopColor: p.border }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Adjuntar imagen"
@@ -503,19 +551,37 @@ export default function Chat() {
 
             {panel === 'resolver' ? (
               <>
-                <Text style={[styles.cardTitle, { color: p.text }]}>¿Se resolvió tu favor?</Text>
+                <Text style={[styles.cardTitle, { color: p.text }]}>
+                  {conv?.other_profile_id ? '¿Se completó el trabajo?' : '¿Se resolvió tu favor?'}
+                </Text>
                 <Text style={[styles.cardText, { color: p.body }]}>
-                  Se marcará el favor como resuelto y enviaremos un mensaje de agradecimiento comunitario a {otherName}.
+                  {conv?.other_profile_id
+                    ? `Se marcará la coordinación como finalizada y registrarás un visto bueno vecinal a ${otherName} para respaldar su oficio en Castilla.`
+                    : `Se marcará el favor como resuelto y enviaremos un mensaje de agradecimiento comunitario a ${otherName}.`}
                 </Text>
                 {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
                 <AppButton
-                  label={resolverFavor.isPending ? 'Guardando...' : `Resolver y agradecer a ${otherName}`}
+                  label={
+                    resolverFavor.isPending || vouch.isPending
+                      ? 'Guardando...'
+                      : conv?.other_profile_id
+                        ? `Completar y dar visto bueno`
+                        : `Resolver y agradecer a ${otherName}`
+                  }
                   variant="accent"
                   icon="checkmark-circle-outline"
-                  disabled={resolverFavor.isPending || closed}
+                  disabled={resolverFavor.isPending || vouch.isPending || closed}
                   onPress={() =>
-                    // El backend deja el agradecimiento y cierra el chat; el hook refresca chat y mensajes.
-                    run(() => resolverFavor.mutateAsync({ status: 'cerrada', assigned_to_user_id: conv.responder_id }))
+                    run(async () => {
+                      if (conv?.other_profile_id) {
+                        try {
+                          await vouch.mutateAsync();
+                        } catch {
+                          // Si ya tenía visto bueno previo (409) o no aplica, continúa
+                        }
+                      }
+                      await resolverFavor.mutateAsync({ status: 'cerrada', assigned_to_user_id: conv?.responder_id });
+                    })
                   }
                 />
                 <AppButton label="Cancelar" variant="secondary" onPress={closePanel} />
@@ -523,6 +589,7 @@ export default function Chat() {
             ) : null}
       </AppModal>
     </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -555,6 +622,7 @@ const styles = StyleSheet.create({
     color: colors.verdeExito,
   },
   banner: { fontFamily: fonts.medium, fontSize: 14, paddingHorizontal: 16, paddingVertical: 10, textAlign: 'center' },
+  emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { paddingHorizontal: 16, paddingVertical: 12, flexGrow: 1 },
   bubbleRow: { flexDirection: 'row', marginBottom: 8 },
   rowMine: { justifyContent: 'flex-end' },

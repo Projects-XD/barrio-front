@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { deleteProfile, getProfileById, getVouchStatus, listOficios, listProfiles, listZones, suggestProfileDescription, upsertProfile, vouchProfile } from '@/api/endpoints';
+import { deleteProfile, getProfileById, getVouchStatus, listOficios, listProfiles, listZones, suggestProfileDescription, upsertProfile, vouchProfile, contactProfile } from '@/api/endpoints';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
 import type { OficioCategory, ProfessionalProfile } from '@/types';
@@ -73,6 +73,17 @@ export function useVouch(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['profile', id] });
       qc.invalidateQueries({ queryKey: ['profiles'] });
+    },
+  });
+}
+
+export function useContactProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ profileId, initialMessage }: { profileId: string; initialMessage?: string }) =>
+      contactProfile(profileId, initialMessage),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['conversations'] });
     },
   });
 }

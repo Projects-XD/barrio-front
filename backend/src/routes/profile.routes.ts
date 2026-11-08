@@ -208,6 +208,40 @@ router.get(
 
 /**
  * @openapi
+ * /profiles/{id}/contact:
+ *   post:
+ *     summary: Iniciar o retomar conversación directa con un oficio
+ *     tags:
+ *       - Oficios y Perfiles
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               initial_message:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Conversación iniciada o recuperada
+ */
+router.post(
+  '/:id/contact',
+  requireAuth,
+  (req, res, next) => profileController.contact(req, res, next)
+);
+
+/**
+ * @openapi
  * /profiles/suggest-description:
  *   post:
  *     summary: Sugerir una descripción para un oficio con IA (Gemini)

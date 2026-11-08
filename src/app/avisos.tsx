@@ -14,7 +14,7 @@ import {
 } from '@/hooks/useData';
 import type { BackendNotification } from '@/api/endpoints';
 import { colors, fonts, spacing } from '@/theme';
-import { describeNotification as describe, notificationIcon as typeIcon, notificationRoute } from '@/utils/notificaciones';
+import { describeNotification as describe, iconForNotification, notificationRoute } from '@/utils/notificaciones';
 import { timeAgo } from '@/utils/time';
 
 export default function Avisos() {
@@ -27,7 +27,7 @@ export default function Avisos() {
   const abrir = (n: BackendNotification) => {
     if (!n.read_at) markRead.mutate(n.id);
     const ruta = notificationRoute(n);
-    if (ruta) router.push(ruta as never);
+    if (ruta && ruta !== '/avisos') router.navigate(ruta as never);
   };
 
   return (
@@ -73,7 +73,7 @@ export default function Avisos() {
                   style={({ pressed }) => [styles.row, styles.abrir, pressed && { opacity: 0.7 }]}
                 >
                   <View style={[styles.icon, { backgroundColor: p.highlight }]}>
-                    <Ionicons name={typeIcon[n.type]} size={22} color={p.text} />
+                    <Ionicons name={iconForNotification(n)} size={22} color={p.text} />
                   </View>
                   <View style={styles.body}>
                     <Text style={[styles.nombre, { color: p.text, fontFamily: unread ? fonts.bold : fonts.semiBold }]}>

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Image, LogBox, View } from 'react-native';
 import { Stack } from 'expo-router';
+import { NotificationHost } from '@/components/NotificationHost';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -162,6 +163,7 @@ export default function RootLayout() {
           <Stack.Screen name="avisos" options={{ headerShown: true, title: 'Avisos', headerBackTitle: 'Atras' }} />
           <Stack.Screen name="chats" options={{ headerShown: true, title: 'Mis chats', headerBackTitle: 'Atras' }} />
         </Stack>
+        <NotificationHost />
       </SafeAreaProvider>
     </QueryClientProvider>
   );

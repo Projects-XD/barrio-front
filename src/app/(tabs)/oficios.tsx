@@ -15,6 +15,7 @@ import { Screen } from '@/components/Screen';
 import { SkeletonOficios } from '@/components/SkeletonOficios';
 import { usePalette } from '@/hooks/usePalette';
 import { useMySavedLocation, useProfiles } from '@/hooks/useData';
+import { useAppStore } from '@/store/app-store';
 import { oficioLabel } from '@/i18n/labels';
 import type { OficioCategory } from '@/types';
 import { colors, fonts, radius, shadow, spacing } from '@/theme';
@@ -34,6 +35,7 @@ export default function Oficios() {
   const [pagina, setPagina] = useState(1);
   const [modalFiltro, setModalFiltro] = useState(false);
   const [filtroTemporal, setFiltroTemporal] = useState<OficioCategory | undefined>(undefined);
+  const userId = useAppStore((s) => s.userId);
 
   const { data: savedLocation } = useMySavedLocation();
   const { data, isLoading, isError, error, refetch, isRefetching } = useProfiles(
@@ -42,18 +44,20 @@ export default function Oficios() {
   );
 
   const listaConDistancia = useMemo(() => {
-    const base = (data ?? []).map((prof) => {
-      const distanceMeters =
-        savedLocation && prof.location
-          ? distanceMetersBetween({ lat: savedLocation.lat, lng: savedLocation.lng }, prof.location)
-          : null;
-      return { prof, distanceMeters };
-    });
+    const base = (data ?? [])
+      .filter((prof) => !userId || prof.userId !== userId)
+      .map((prof) => {
+        const distanceMeters =
+          savedLocation && prof.location
+            ? distanceMetersBetween({ lat: savedLocation.lat, lng: savedLocation.lng }, prof.location)
+            : null;
+        return { prof, distanceMeters };
+      });
     if (ordenCercania && savedLocation) {
       return [...base].sort((a, b) => (a.distanceMeters ?? 999999) - (b.distanceMeters ?? 999999));
     }
     return base;
-  }, [data, savedLocation, ordenCercania]);
+  }, [data, savedLocation, ordenCercania, userId]);
 
   const totalItems = listaConDistancia.length;
   const totalPaginas = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));

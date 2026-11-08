@@ -1,4 +1,4 @@
--- 0037: Evita el spam de alertas y avisa cuando un reporte se resuelve. Requiere la 0033. Segura de repetir.
+-- 0038: Evita el spam de alertas y avisa cuando un reporte se resuelve. Requiere la 0034. Segura de repetir.
 
 -- 1. Máximo 3 reportes por vecino por hora: cada reporte avisa a toda la zona.
 CREATE OR REPLACE FUNCTION public.fn_limitar_reportes()

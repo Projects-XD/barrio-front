@@ -1,4 +1,4 @@
--- 0034: "Voy a ayudar", "Ya no puedo ir" y "Necesito más ayuda". Requiere la 0033.
+-- 0035: "Voy a ayudar", "Ya no puedo ir" y "Necesito más ayuda". Requiere la 0034.
 -- Las llama solo el backend (service_role), que pasa el id del usuario autenticado.
 -- Errores: P0002 no existe/otra zona/cerrado · 42501 reporte propio o no eres voluntario · 54000 pediste hace poco.
 

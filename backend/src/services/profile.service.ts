@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables, OficioCategory } from '../types/database.types';
 import { AppError, dbError } from '../middlewares/errorHandler';
@@ -412,6 +413,141 @@ export class ProfileService {
     }
 
     return { id: profileId };
+  }
+
+  /**
+   * Inicia o recupera una conversación directa con un oficio comunitario.
+   * Si ya existe un chat activo entre ambos vecinos para coordinar el trabajo, lo reutiliza.
+   * Si no, crea un favor de coordinación y abre la conversación con un mensaje inicial.
+   */
+  public async contactProfile(
+    supabase: SupabaseClient<Database>,
+    clientUserId: string,
+    profileId: string,
+    initialMessage?: string
+  ): Promise<{ conversation_id: string; is_new: boolean }> {
+    const { data: clientUser, error: clientError } = await supabase
+      .from('users')
+      .select('id, full_name, zone_id')
+      .eq('id', clientUserId)
+      .single();
+
+    if (clientError || !clientUser) {
+      throw new AppError('Usuario no encontrado', 404);
+    }
+
+    const { data: targetProfile, error: profileError } = await supabase
+      .from('professional_profiles')
+      .select('id, user_id, zone_id, oficio:oficios(id, name, category), user:users(id, full_name)')
+      .eq('id', profileId)
+      .single();
+
+    if (profileError || !targetProfile) {
+      throw new AppError('Perfil profesional no encontrado', 404);
+    }
+
+    if (targetProfile.user_id === clientUserId) {
+      throw new AppError('No puedes contactarte a ti mismo', 400);
+    }
+
+    // Verificar bloqueos mutuos
+    const { data: block } = await supabase
+      .from('user_blocks')
+      .select('id')
+      .or(`and(blocker_id.eq.${targetProfile.user_id},blocked_id.eq.${clientUserId}),and(blocker_id.eq.${clientUserId},blocked_id.eq.${targetProfile.user_id})`)
+      .maybeSingle();
+
+    if (block) {
+      throw new AppError('No puedes contactar a este vecino', 403);
+    }
+
+    // Buscar si ya existe una conversación abierta entre ambos vecinos
+    const { data: existingConvs } = await supabase
+      .from('conversations')
+      .select('id, closed_at, favor_id, favor:favors(id, title, status)')
+      .or(`and(author_id.eq.${clientUserId},responder_id.eq.${targetProfile.user_id}),and(author_id.eq.${targetProfile.user_id},responder_id.eq.${clientUserId})`)
+      .is('closed_at', null)
+      .order('created_at', { ascending: false });
+
+    const openConv = existingConvs?.find((c) => {
+      const f = c.favor as unknown as { status: string; title: string } | null;
+      return f && f.status !== 'cerrada';
+    });
+
+    if (openConv) {
+      return { conversation_id: openConv.id, is_new: false };
+    }
+
+    const oficioName = (targetProfile.oficio as unknown as { name: string } | null)?.name ?? 'Oficio';
+    const proName = (targetProfile.user as unknown as { full_name: string } | null)?.full_name ?? 'técnico del barrio';
+    const zoneId = clientUser.zone_id ?? targetProfile.zone_id;
+
+    // Crear el favor de coordinación vecinal
+    const { data: newFavor, error: favorErr } = await supabaseAdmin
+      .from('favors')
+      .insert({
+        client_id: randomUUID(),
+        author_id: clientUserId,
+        title: `Coordinación: ${oficioName}`,
+        description: `Contacto vecinal para solicitar servicio o presupuesto de ${oficioName} a ${proName}.`,
+        type: 'otros',
+        intent: 'pedir',
+        status: 'abierta',
+        zone_id: zoneId,
+        moderation_status: 'aprobado',
+      })
+      .select('id')
+      .single();
+
+    if (favorErr || !newFavor) {
+      throw dbError('Error al crear la coordinación del servicio', favorErr);
+    }
+
+    // Abrir conversación
+    const { data: newConv, error: convErr } = await supabaseAdmin
+      .from('conversations')
+      .insert({
+        favor_id: newFavor.id,
+        author_id: clientUserId,
+        responder_id: targetProfile.user_id,
+      })
+      .select('id')
+      .single();
+
+    if (convErr || !newConv) {
+      throw dbError('Error al abrir la conversación con el vecino', convErr);
+    }
+
+    // Mensaje inicial
+    const body =
+      initialMessage?.trim() ||
+      `Hola ${proName}, te escribo desde tu perfil de ${oficioName} en Barrio para coordinar un trabajo.`;
+
+    await supabaseAdmin.from('messages').insert({
+      conversation_id: newConv.id,
+      sender_id: clientUserId,
+      body,
+    });
+
+    // Notificación al profesional
+    try {
+      await supabaseAdmin.from('notifications').insert({
+        user_id: targetProfile.user_id,
+        type: 'nuevo_mensaje',
+        payload: {
+          conversation_id: newConv.id,
+          favor_id: newFavor.id,
+          favor_title: `Coordinación: ${oficioName}`,
+          sender_name: clientUser.full_name,
+          count: 1,
+          mensajes: [body.length > 120 ? body.slice(0, 119) + '…' : body],
+        },
+      });
+    } catch {
+      // Ignorar fallo de notificación secundaria
+    }
+
+    return { conversation_id: newConv.id, is_new: true };
   }
 }
 

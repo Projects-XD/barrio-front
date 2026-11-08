@@ -1,4 +1,4 @@
--- 0035: Escalamiento: a los 15 min sin NINGÚN voluntario, se re-avisa a la zona. Requiere la 0033.
+-- 0036: Escalamiento: a los 15 min sin NINGÚN voluntario, se re-avisa a la zona. Requiere la 0034.
 -- Usa pg_cron; si no está disponible, la migración sigue pero el escalamiento no corre.
 
 CREATE INDEX IF NOT EXISTS idx_vulnerability_reports_por_escalar
