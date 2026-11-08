@@ -349,6 +349,18 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
     var lastClickId = null;
     var lastClickTs = 0;
 
+    // Acerca el mapa al punto. Nunca aleja: si el vecino ya estaba más cerca, solo lo centra.
+    var ZOOM_PUNTO = 17;
+    function acercarA(lat, lng) {
+      var destino = Math.max(map.getZoom(), ZOOM_PUNTO);
+      var reducir = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reducir) {
+        map.setView([lat, lng], destino, { animate: false });
+      } else {
+        map.flyTo([lat, lng], destino, { animate: true, duration: 0.6 });
+      }
+    }
+
     window.handlePinClick = function (id) {
       var now = Date.now();
       if (lastClickId === id && now - lastClickTs < 120) return;
@@ -366,7 +378,7 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
       var isSame = selectedId === found.id;
       selectedId = found.id;
       updateSelectionVisuals();
-      map.panTo([found.lat, found.lng], { animate: true });
+      acercarA(found.lat, found.lng);
       send({ type: 'point', id: found.id, same: isSame });
     };
 
@@ -473,7 +485,7 @@ export function buildBarrioMapHtml(center: Coords, initialPoints: BarrioPoint[] 
       selectedId = id || null;
       updateSelectionVisuals();
       if (typeof lat === 'number' && typeof lng === 'number') {
-        map.panTo([lat, lng], { animate: true });
+        acercarA(lat, lng);
       }
     };
 
