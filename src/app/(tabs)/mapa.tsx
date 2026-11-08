@@ -131,7 +131,6 @@ export default function MapaBarrio() {
 
   const [modalFiltros, setModalFiltros] = useState(false);
   const [modalLista, setModalLista] = useState(false);
-  const [modalPublicar, setModalPublicar] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fitTrigger, setFitTrigger] = useState(0);
 
@@ -470,7 +469,7 @@ export default function MapaBarrio() {
   return (
     <Screen scroll={false}>
       {/* CABECERA COMPACTA Y RESPONSIVA */}
-      <View style={[styles.headerRow, { marginRight: 64 }]}>
+      <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.titulo, { color: p.text }]}>Mapa del barrio</Text>
           <Text style={[styles.sub, { color: p.muted }]} numberOfLines={1}>
@@ -493,15 +492,6 @@ export default function MapaBarrio() {
             </Pressable>
           ) : null}
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Publicar en el mapa"
-            onPress={() => setModalPublicar(true)}
-            style={[styles.topActionBtn, { backgroundColor: p.cta, borderColor: p.cta }]}
-          >
-            <Ionicons name="add-circle-outline" size={18} color={p.ctaText} />
-            <Text style={[styles.topActionText, { color: p.ctaText }]}>Publicar</Text>
-          </Pressable>
         </View>
       </View>
 
@@ -1229,58 +1219,6 @@ export default function MapaBarrio() {
             </ScrollView>
       </AppModal>
 
-      {/* VENTANA FLOTANTE PARA PUBLICAR DIRECTAMENTE DESDE EL MAPA */}
-      <AppModal visible={modalPublicar} onClose={() => setModalPublicar(false)} animationType="fade" overlayStyle={styles.modalOverlay} cardStyle={styles.floatingSheet}>
-                    <View style={styles.sheetHeader}>
-              <Text style={[styles.sheetTitle, { color: p.text }]}>¿Qué deseas publicar en el mapa?</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={() => setModalPublicar(false)} hitSlop={8}>
-                <Ionicons name="close-circle" size={26} color={colors.gris} />
-              </Pressable>
-            </View>
-            <Text style={[styles.publishSub, { color: p.muted }]}>
-              Tu publicación aparecerá ubicada aproximadamente en tu zona para que tus vecinos puedan encontrarla.
-            </Text>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setModalPublicar(false);
-                router.push('/favores/nuevo?modo=pedir');
-              }}
-              style={[styles.publishOptionCard, { borderColor: colors.azul, backgroundColor: colors.azulSuave }]}
-            >
-              <View style={[styles.publishIconCircle, { backgroundColor: colors.azul }]}>
-                <Ionicons name="hand-left-outline" size={22} color={colors.blanco} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.publishOptionTitle, { color: colors.azul }]}>Pedir un favor</Text>
-                <Text style={[styles.publishOptionDesc, { color: p.body }]}>
-                  Solicita prestada una herramienta, apoyo temporal o traslado solidario.
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.azul} />
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setModalPublicar(false);
-                router.push('/favores/nuevo?modo=ofrecer');
-              }}
-              style={[styles.publishOptionCard, { borderColor: colors.naranja, backgroundColor: colors.naranjaClaro }]}
-            >
-              <View style={[styles.publishIconCircle, { backgroundColor: colors.naranja }]}>
-                <Ionicons name="heart-outline" size={22} color={colors.azul} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.publishOptionTitle, { color: colors.azul }]}>Ofrecer ayuda</Text>
-                <Text style={[styles.publishOptionDesc, { color: p.body }]}>
-                  Comparte materiales, presta herramientas o enseña una habilidad a tus vecinos.
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.azul} />
-            </Pressable>
-      </AppModal>
     </Screen>
   );
 }

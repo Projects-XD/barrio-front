@@ -28,6 +28,7 @@ export default function TabsLayout() {
   useFavorRealtime();
   const pathname = usePathname();
   const enPerfil = pathname.endsWith('/perfil');
+  const enMapa = pathname.endsWith('/mapa');
 
   const bottomPadding = Math.max(insets.bottom, 12);
   const totalBarHeight = 60 + bottomPadding;
@@ -90,7 +91,7 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-      {enPerfil ? null : (
+      {enPerfil || enMapa ? null : (
         <>
           <EmergencyFab top={insets.top + 8} />
           <ChatFab bottomOffset={totalBarHeight + 12} />
