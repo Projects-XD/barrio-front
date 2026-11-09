@@ -15,6 +15,9 @@ import { swaggerSpec } from './config/swagger';
 export function createApp(): Application {
   const app: Application = express();
 
+  // Habilitar trust proxy para túneles (ngrok / cloudflare) y balanceadores
+  app.set('trust proxy', 1);
+
   // 1. Middlewares de seguridad y parsing
   // En desarrollo desactivamos CSP estricto para permitir la renderización de la UI de Swagger
   app.use(
