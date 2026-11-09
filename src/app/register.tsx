@@ -170,8 +170,7 @@ export default function Register() {
       setUbicacionRegistro(coords);
       const texts = await placeTexts(pos.lat, pos.lng);
       // Solo aceptamos ubicaciones dentro de Castilla
-      const enCastilla = isWithinCastilla(coords) || texts.some((t) => t.includes('castilla'));
-      if (!enCastilla) {
+      if (!isWithinCastilla(coords)) {
         setLocStatus('outside');
         return;
       }

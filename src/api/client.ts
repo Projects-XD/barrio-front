@@ -2,10 +2,27 @@ import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app-store';
 import { logger } from '@/utils/logger';
 
-const RAW_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'https://blake-propose-links-travel.trycloudflare.com/api/v1').replace(
-  /\/+$/,
-  ''
+const normalizarBaseUrl = (url: string) => url.trim().replace(/\/+$/, '');
+
+// Valor de respaldo del APK. Se reemplaza por app_config.api_base_url al arrancar.
+let RAW_BASE_URL = normalizarBaseUrl(
+  process.env.EXPO_PUBLIC_API_URL ?? 'https://relative-cane-unjustly.ngrok-free.dev/api/v1'
 );
+
+/** Lee la URL del backend desde Supabase. Si falla, se queda el valor de respaldo. */
+export async function cargarUrlBackend(): Promise<void> {
+  try {
+    const { data, error } = await supabase
+      .from('app_config')
+      .select('value')
+      .eq('key', 'api_base_url')
+      .maybeSingle();
+    if (error || !data?.value) return;
+    RAW_BASE_URL = normalizarBaseUrl(data.value);
+  } catch {
+    // Se mantiene el valor de respaldo.
+  }
+}
 
 // Sin timeout, un servidor inaccesible deja la petición colgada y nunca se usa la cola offline.
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -99,6 +116,7 @@ export async function request<T>(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
+    'ngrok-skip-browser-warning': 'true',
     ...(options.headers as Record<string, string>),
   };
 

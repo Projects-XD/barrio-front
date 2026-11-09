@@ -5,6 +5,7 @@ import { buildMapHtml } from './mapHtml';
 
 export type MapPickerHandle = {
   setPoint: (c: Coords) => void;
+  revertPoint: (c: Coords) => void;
   setZones?: (zones: { id: string; name: string; lat: number; lng: number }[]) => void;
 };
 
@@ -22,6 +23,7 @@ type Props = {
 
 type FrameWindow = Window & {
   setPoint?: (lat: number, lng: number) => void;
+  revertPoint?: (lat: number, lng: number) => void;
   setZones?: (zones: { id: string; name: string; lat: number; lng: number }[]) => void;
   setEventCallback?: (fn: (raw: string) => void) => void;
 };
@@ -94,6 +96,10 @@ export const MapPicker = forwardRef<MapPickerHandle, Props>(function MapPicker(
     setPoint: (c: Coords) => {
       const win = frameRef.current?.contentWindow as FrameWindow | null | undefined;
       win?.setPoint?.(c.lat, c.lng);
+    },
+    revertPoint: (c: Coords) => {
+      const win = frameRef.current?.contentWindow as FrameWindow | null | undefined;
+      win?.revertPoint?.(c.lat, c.lng);
     },
     setZones: (zList) => {
       const win = frameRef.current?.contentWindow as FrameWindow | null | undefined;

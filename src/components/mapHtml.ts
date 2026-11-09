@@ -153,6 +153,10 @@ export function buildMapHtml(initial: Coords, options?: MapHtmlOptions) {
       marker.setLatLng(ll);
       map.setView(ll, Math.max(map.getZoom(), 13));
     };
+
+    window.revertPoint = function (lat, lng) {
+      marker.setLatLng(L.latLng(lat, lng));
+    };
   </script>
 </body>
 </html>`;

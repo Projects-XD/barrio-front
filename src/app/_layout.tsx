@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Image, LogBox, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { NotificationHost } from '@/components/NotificationHost';
+import { cargarUrlBackend } from '@/api/client';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -93,8 +94,8 @@ export default function RootLayout() {
   useEffect(() => {
     const { setHydrated, clearSession } = useAppStore.getState();
 
-    supabase.auth
-      .getSession()
+    cargarUrlBackend()
+      .then(() => supabase.auth.getSession())
       .then(async ({ data: { session } }) => {
         if (session?.user && session.access_token) {
           const zonaPublicada = publicarSesion(session);

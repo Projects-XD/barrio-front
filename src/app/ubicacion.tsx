@@ -10,7 +10,7 @@ import { Screen } from '@/components/Screen';
 import { reverseGeocodeCoords, useMySavedLocation, useSaveMyLocation } from '@/hooks/useData';
 import { usePalette } from '@/hooks/usePalette';
 import { colors, fonts, radius, spacing } from '@/theme';
-import { CASTILLA_CENTER, type Coords, roundForReport } from '@/utils/geo';
+import { CASTILLA_CENTER, type Coords, isWithinCastilla, roundForReport } from '@/utils/geo';
 import { CASTILLA_OUTLINE } from '@/utils/castillaOutline';
 
 function formatPlace(place: Location.LocationGeocodedAddress | undefined) {
@@ -91,11 +91,16 @@ export default function Ubicacion() {
   const onMapChange = useCallback(
     (c: Coords) => {
       hydratedFromDbRef.current = true;
+      if (!isWithinCastilla(c)) {
+        setErrorMsg('Tu ubicación debe estar dentro del distrito de Castilla.');
+        mapRef.current?.revertPoint(coords);
+        return;
+      }
       setCoords(c);
       setErrorMsg(null);
       void autocompletar(c);
     },
-    [autocompletar]
+    [autocompletar, coords]
   );
 
   const usarMiUbicacion = async () => {
@@ -109,6 +114,10 @@ export default function Ubicacion() {
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      if (!isWithinCastilla(c)) {
+        setErrorMsg('Tu GPS está fuera del distrito de Castilla. Toca el mapa dentro de la zona marcada.');
+        return;
+      }
       hydratedFromDbRef.current = true;
       setCoords(c);
       mapRef.current?.setPoint(c);

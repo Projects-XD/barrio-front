@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "Barrio",
-    "slug": "barrio-front",
+    "slug": "barrio",
+    "owner": "proyect-x-team",
     "scheme": "barrio",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -53,7 +54,7 @@
         }
       },
       "eas": {
-        "projectId": "98455890-7b4b-4126-9f47-4d53b26646ca"
+        "projectId": "a4db3892-f15d-454f-b6e4-41a6a4f45faf"
       }
     }
   }

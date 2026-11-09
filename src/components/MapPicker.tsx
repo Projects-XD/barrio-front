@@ -6,6 +6,7 @@ import { buildMapHtml } from './mapHtml';
 
 export type MapPickerHandle = {
   setPoint: (c: Coords) => void;
+  revertPoint: (c: Coords) => void;
   setZones?: (zones: { id: string; name: string; lat: number; lng: number }[]) => void;
 };
 
@@ -39,6 +40,9 @@ export const MapPicker = forwardRef<MapPickerHandle, Props>(function MapPicker(
   useImperativeHandle(ref, () => ({
     setPoint: (c: Coords) => {
       webRef.current?.injectJavaScript(`window.setPoint(${c.lat}, ${c.lng}); true;`);
+    },
+    revertPoint: (c: Coords) => {
+      webRef.current?.injectJavaScript(`window.revertPoint(${c.lat}, ${c.lng}); true;`);
     },
     setZones: (zList) => {
       webRef.current?.injectJavaScript(`window.setZones(${JSON.stringify(zList)}); true;`);
