@@ -10,6 +10,7 @@ PROYECTO: BARRIO — Plataforma Comunitaria y de Resiliencia Vecinal
 - Rama Principal de Entrega: developer (y main)
 - Documentación Técnica Detallada: Ver README.md y API_ENDPOINTS.md en el repositorio.
 - Base de Datos Cloud (Supabase PostgreSQL): Conectada y activa.
+- API Backend (Túnel HTTPS Cloudflare): https://blake-propose-links-travel.trycloudflare.com/api/v1
 
 2. USUARIOS DE DEMOSTRACIÓN PRE-CONFIGURADOS
 --------------------------------------------------------------------------------
@@ -42,6 +43,12 @@ PASO 1: LEVANTAR EL SERVIDOR BACKEND (API RESTful)
    -> La API quedará activa en: http://localhost:3001/api/v1
    -> Documentación Swagger disponible en: http://localhost:3001/api/docs
 
+   (Opcional) Si deseas exponer el backend públicamente a internet para pruebas móviles remotas:
+   - Con Cloudflare Tunnel (sin registros ni tokens):
+     npx --yes cloudflared tunnel --url http://localhost:3001
+   - O con Ngrok:
+     ngrok http 3001
+
 PASO 2: LEVANTAR LA APLICACIÓN CLIENTE (EXPO / REACT NATIVE)
    1. En otra terminal, ubicarse en la raíz del proyecto ('barrio-front/'):
       npm install
@@ -51,14 +58,15 @@ PASO 2: LEVANTAR LA APLICACIÓN CLIENTE (EXPO / REACT NATIVE)
       - Presionar la tecla 'w' para abrirlo inmediatamente en el Navegador Web (PC).
       - O escanear el código QR con la app gratuita 'Expo Go' desde un celular Android/iOS.
 
-4. INSTRUCCIONES PARA PROBAR EL APK EN ANDROID
+4. INSTRUCCIONES PARA PROBAR EL APK EN ANDROID (PROYECTO ACTIVO)
 --------------------------------------------------------------------------------
 - El archivo 'Barrio.apk' adjunto en esta carpeta puede ser instalado directamente
   en cualquier dispositivo Android habilitando la opción "Instalar aplicaciones de
   fuentes desconocidas".
-- El APK se conecta automáticamente a la infraestructura en la nube (Supabase Auth,
-  PostgreSQL y Supabase Realtime). Para comunicarse con el backend local de pruebas,
-  el dispositivo debe encontrarse en la misma red local o bien ejecutar la versión web.
+- El APK se conecta automáticamente a Supabase en la nube y al endpoint HTTPS
+  público del backend. Con el backend encendido en el túnel, la app funciona
+  desde cualquier celular con conexión a internet (cualquier Wi-Fi o datos móviles),
+  permitiendo probar en directo la creación de favores, oficios y emergencias.
 
 5. CALIDAD TÉCNICA Y RESUMEN DE PRUEBAS AUTOMATIZADAS
 --------------------------------------------------------------------------------
@@ -68,4 +76,3 @@ PASO 2: LEVANTAR LA APLICACIÓN CLIENTE (EXPO / REACT NATIVE)
 - Base de Datos: 38 migraciones SQL cronológicas con políticas de seguridad RLS en PostgreSQL.
 - Resiliencia de Red: Motor Offline-First con SQLite local y sincronización por lotes idempotente.
 ================================================================================
-

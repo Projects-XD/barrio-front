@@ -329,6 +329,17 @@ npm run dev
 ```
 > La API estará activa en `http://localhost:3001/api/v1` y la documentación interactiva Swagger en `http://localhost:3001/api/docs`.
 
+#### Exposición Pública para Pruebas Remotas / APK (Opcional):
+Si se desea exponer el backend local hacia internet para pruebas móviles con datos móviles o desde redes externas:
+- **Con Cloudflare Tunnel (Recomendado, directo sin cuentas):**
+  ```bash
+  npx --yes cloudflared tunnel --url http://localhost:3001
+  ```
+- **Con Ngrok:**
+  ```bash
+  ngrok http 3001
+  ```
+
 ### 3. Cargar Datos de Demostración (Opcional para Hackathon)
 Desde el directorio `backend/`:
 ```bash
