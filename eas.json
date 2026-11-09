@@ -13,7 +13,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://192.168.1.43:3001/api/v1",
+        "EXPO_PUBLIC_API_URL": "https://blake-propose-links-travel.trycloudflare.com/api/v1",
         "EXPO_PUBLIC_SUPABASE_URL": "https://dsmecsgrvyhjiavjswxn.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzbWVjc2dydnloamlhdmpzd3huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwMzY5MTAsImV4cCI6MjEwOTYxMjkxMH0.4jVAgqGoQIM5Q87TNurSaMOdtslJwVjfqIrHIOrEuCM"
       }
