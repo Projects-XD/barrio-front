@@ -7,6 +7,8 @@ create table if not exists public.app_config (
 
 alter table public.app_config enable row level security;
 
+grant select on public.app_config to anon, authenticated;
+
 drop policy if exists "app_config lectura publica" on public.app_config;
 create policy "app_config lectura publica"
   on public.app_config for select
