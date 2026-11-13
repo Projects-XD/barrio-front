@@ -32,7 +32,7 @@ export function createApp(): Application {
     origin: env.NODE_ENV === 'production' ? env.CORS_ORIGIN : '*',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'ngrok-skip-browser-warning'],
   };
 
   app.use(cors(corsOptions));
